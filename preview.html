@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nova Obra — preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Paleta Concreto, personalidade Noturno */
+:root{
+  --bg:#121A1E;          /* fundo da tela (derivado de #26333A, mais escuro) */
+  --card:#1D282D;        /* cartões */
+  --card-2:#26333A;      /* botões não escolhidos, campos */
+  --line:#33444C;        /* divisórias */
+  --slate:#4A5A63;       /* bordas, ícones apagados */
+  --text:#F2F4F5;
+  --muted:#A3B0B6;
+  --accent:#00A3B4;      /* o único tom vivo */
+  --accent-text:#2CC6D6; /* turquesa para texto pequeno em fundo escuro */
+  --on-accent:#06191C;   /* texto em cima do turquesa */
+  --ok:#3DC28C;          /* verde = ok */
+  --warn:#F2B23E;        /* âmbar = atenção */
+  --bad:#E2574C;         /* vermelho = atrasado / crítico */
+  --bad-text:#FF7A70;
+  --radius:14px;
+  --gutter:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:17px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+textarea{font:inherit;color:var(--text)}
+svg{display:block}
+
+/* ---------- estrutura ---------- */
+.app{min-height:100vh}
+.side{display:none}
+.main{padding:0 var(--gutter) 110px;max-width:1080px;margin:0 auto}
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#0E1518;border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(5,1fr);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+.bottom button{min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  font-size:12px;font-weight:600;color:var(--muted);border-radius:10px}
+.bottom button svg{width:24px;height:24px}
+.bottom button.on{color:var(--accent-text)}
+.bottom button.on svg{stroke:var(--accent-text)}
+
+@media (min-width:900px){
+  .side{display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;width:248px;background:#0E1518;border-right:1px solid var(--line);padding:24px 14px}
+  .bottom{display:none}
+  .main{margin-left:248px;padding:0 40px 60px;max-width:none}
+  .main > .wrap{max-width:1040px}
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 10px 28px}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center}
+.brand b{font-size:20px;font-weight:800;letter-spacing:-.01em}
+.side nav{display:flex;flex-direction:column;gap:4px}
+.side nav button{display:flex;align-items:center;gap:14px;min-height:50px;padding:0 14px;border-radius:10px;font-size:16px;font-weight:600;color:var(--muted);text-align:left}
+.side nav button:hover{background:var(--card)}
+.side nav button.on{background:var(--card-2);color:var(--text)}
+.side nav button.on svg{stroke:var(--accent-text)}
+.side nav svg{width:22px;height:22px}
+.side .who{margin-top:auto;padding:14px;border-top:1px solid var(--line);font-size:15px}
+.side .who small{display:block;color:var(--muted);font-size:13px}
+.ico{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- cabeçalho ---------- */
+.head{padding:22px 0 18px}
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-text)}
+.head h1{font-size:30px;font-weight:800;letter-spacing:-.02em;margin-top:6px;line-height:1.15}
+.head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:16px;font-weight:600;color:var(--accent-text);margin:6px 0 2px -4px}
+.back svg{width:22px;height:22px}
+.sub{color:var(--muted);font-size:15px;margin-top:4px}
+
+/* ---------- botões ---------- */
+.btn{min-height:52px;padding:0 20px;border-radius:12px;font-weight:700;font-size:17px;display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.btn-primary{background:var(--accent);color:var(--on-accent);width:100%;justify-content:space-between;min-height:58px;padding:0 22px;font-size:18px}
+.btn-primary:active{filter:brightness(.92)}
+.btn-ghost{border:1.5px solid var(--slate);color:var(--text);min-height:48px;font-size:16px}
+.btn-ghost:hover{border-color:var(--accent)}
+
+/* ---------- cartão de números ---------- */
+.stats{background:var(--card);border-radius:var(--radius);display:grid;grid-template-columns:repeat(3,1fr);padding:20px 4px}
+.stat{padding:0 14px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat .n{font-size:44px;font-weight:800;line-height:1;letter-spacing:-.03em}
+.stat .l{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.25}
+.n.accent{color:var(--accent-text)} .n.bad{color:var(--bad-text)} .n.warn{color:var(--warn)} .n.ok{color:var(--ok)}
+
+/* ---------- seções ---------- */
+.sec{display:flex;align-items:center;justify-content:space-between;margin:28px 0 12px}
+.sec h2{font-size:19px;font-weight:700}
+.sec .link{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-text);min-height:44px;display:flex;align-items:center}
+.tabs{display:flex;gap:8px;margin:22px 0 4px}
+.tab{min-height:44px;padding:0 18px;border-radius:999px;background:var(--card);color:var(--muted);font-weight:600;font-size:16px}
+.tab.on{background:var(--text);color:var(--bg)}
+
+/* ---------- cartões de lista ---------- */
+.list{display:grid;gap:12px}
+@media (min-width:1200px){ .list.two{grid-template-columns:1fr 1fr} }
+.item{background:var(--card);border-radius:var(--radius);padding:18px 18px 18px 20px;text-align:left;width:100%;display:block;border:1.5px solid transparent}
+button.item:hover{border-color:var(--slate)}
+.item.alert{background:#2A1C1D;border-color:#5A2C2A}
+.item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.item h3{font-size:19px;font-weight:700;line-height:1.25}
+.meta{color:var(--muted);font-size:15px;margin-top:4px}
+.lines{margin-top:12px;display:grid;gap:6px}
+.line{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.bad{background:var(--bad)} .dot.warn{background:var(--warn)} .dot.ok{background:var(--ok)} .dot.idle{background:var(--slate)}
+.t-bad{color:var(--bad-text)} .t-warn{color:var(--warn)} .t-ok{color:var(--ok)} .t-muted{color:var(--muted)}
+
+.pill{flex:none;font-size:13px;font-weight:700;letter-spacing:.04em;padding:6px 10px;border-radius:8px;white-space:nowrap}
+.pill.idle{background:#2C3A41;color:#C9D3D8}
+.pill.warn{background:rgba(242,178,62,.16);color:var(--warn)}
+.pill.ok{background:rgba(61,194,140,.15);color:var(--ok)}
+.pill.bad{background:var(--bad);color:#fff}
+.item-top > svg{color:var(--slate);width:24px;height:24px;flex:none;margin-top:2px}
+.bottom .short{display:none}
+@media (max-width:420px){ .bottom .long{display:none} .bottom .short{display:inline} }
+
+/* ---------- passos ---------- */
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.step{min-height:52px;border-radius:12px;background:var(--card);display:flex;align-items:center;gap:10px;padding:0 14px;font-weight:700;font-size:16px;color:var(--muted);text-align:left}
+.step .num{width:28px;height:28px;border-radius:50%;border:2px solid var(--slate);display:grid;place-items:center;font-size:14px;flex:none}
+.step.on{background:var(--card-2);color:var(--text);box-shadow:inset 0 -3px 0 var(--accent)}
+.step.on .num{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.step.done .num{border-color:var(--ok);color:var(--ok)}
+
+/* ---------- blocos do RDO ---------- */
+.block{background:var(--card);border-radius:var(--radius);padding:18px}
+.block + .block{margin-top:12px}
+.block-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:14px}
+.block-h h3{font-size:18px;font-weight:700}
+.block-h .count{font-size:15px;color:var(--muted)}
+.block-h .count b{font-size:26px;color:var(--text);font-weight:800}
+.period{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:4px 0 8px}
+.period + .opts + .toggle-row{margin-bottom:18px}
+.opts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.opt{min-height:64px;border-radius:12px;background:var(--card-2);border:1.5px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:600;color:#D3DCE0;text-align:center;line-height:1.15;padding:6px 2px}
+.opt svg{width:24px;height:24px}
+.opt.on{background:rgba(0,163,180,.18);border-color:var(--accent);color:var(--text)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;min-height:52px;margin-top:6px;font-weight:600}
+.switch{width:56px;height:32px;border-radius:999px;background:var(--slate);position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.15s}
+.switch.on{background:var(--ok)} .switch.on::after{left:28px}
+
+.person{padding:14px 0;border-top:1px solid var(--line)}
+.person:first-of-type{border-top:0;padding-top:0}
+.person-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.person-top b{font-size:18px}
+.person-top span{color:var(--muted);font-size:15px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg.three{grid-template-columns:repeat(3,1fr)}
+.seg button{min-height:46px;border-radius:10px;background:var(--card-2);font-size:14px;font-weight:600;color:#C9D3D8;border:1.5px solid transparent;padding:0 2px}
+.seg button.ok{background:rgba(61,194,140,.16);border-color:var(--ok);color:var(--ok)}
+.seg button.bad{background:rgba(226,87,76,.18);border-color:var(--bad);color:var(--bad-text)}
+.seg button.warn{background:rgba(242,178,62,.15);border-color:var(--warn);color:var(--warn)}
+.seg button.info{background:rgba(0,163,180,.16);border-color:var(--accent);color:var(--accent-text)}
+.dest{margin-top:8px;font-size:15px;font-weight:600;color:var(--accent-text)}
+.add{min-height:50px;width:100%;margin-top:14px;border-radius:12px;border:1.5px dashed var(--slate);color:var(--accent-text);font-weight:700;font-size:16px}
+textarea.field{width:100%;min-height:96px;background:var(--card-2);border:1.5px solid var(--line);border-radius:12px;padding:14px;font-size:17px;resize:vertical}
+textarea.field:focus{outline:none;border-color:var(--accent)}
+.cta{margin-top:20px}
+.cols{display:block}
+@media (min-width:1100px){ .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start} .cols .block + .block{margin-top:0} .cols > div > .block + .block{margin-top:12px} }
+
+.check{width:30px;height:30px;border-radius:50%;background:var(--ok);display:grid;place-items:center;flex:none}
+.check svg{width:18px;height:18px;stroke:#06221A;stroke-width:3}
+.collapsed{margin-top:12px;min-height:56px;width:100%;border-radius:var(--radius);background:transparent;border:1.5px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 18px;font-weight:600;color:var(--muted)}
+
+/* ---------- estado vazio ---------- */
+.empty{background:var(--card);border-radius:var(--radius);padding:44px 24px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.empty-ico{width:84px;height:84px;border-radius:50%;background:rgba(0,163,180,.14);display:grid;place-items:center;margin-bottom:20px}
+.empty-ico svg{width:40px;height:40px;stroke:var(--accent-text)}
+.empty h3{font-size:22px;font-weight:800}
+.empty p{color:var(--muted);font-size:17px;margin:10px 0 24px;max-width:360px}
+.empty .btn-primary{max-width:360px;justify-content:center}
+
+/* ---------- gaveta ---------- */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--card);border-radius:20px 20px 0 0;max-height:92vh;overflow:auto;padding:12px 18px 24px;transform:translateY(105%);transition:transform .22s ease}
+.sheet.open{transform:none}
+.sheet-bg.open{display:block}
+@media (min-width:900px){ .sheet{left:auto;right:24px;bottom:24px;width:480px;border-radius:20px;max-height:calc(100vh - 48px)} }
+.grab{width:44px;height:5px;border-radius:9px;background:var(--slate);margin:0 auto 14px}
+.sheet h2{font-size:22px;font-weight:800}
+.label{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:22px 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:46px;padding:0 16px;border-radius:999px;background:var(--card-2);font-weight:600;font-size:15px;border:1.5px solid transparent;color:#D3DCE0}
+.chip.on{border-color:var(--accent);background:rgba(0,163,180,.18);color:var(--text)}
+.chip small{color:var(--warn);font-weight:600;margin-left:4px}
+.photo-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sheet-actions{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-top:26px}
+.sheet-actions .btn-primary{justify-content:center}
+
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--text);color:var(--bg);font-weight:700;padding:14px 20px;border-radius:12px;z-index:60;display:none;max-width:calc(100% - 32px)}
+@media (min-width:900px){.toast{bottom:32px;left:calc(50% + 124px)}}
+.note{background:var(--card);border-radius:var(--radius);padding:28px 20px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" class="ico" style="stroke:#06191C;stroke-width:2.4"><path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-6h4v6"/></svg></div>
+      <b>Nova Obra</b>
+    </div>
+    <nav id="sideNav"></nav>
+    <div class="who">Você<small>Engenheiro · todas as obras</small></div>
+  </aside>
+  <main class="main"><div class="wrap" id="view"></div></main>
+  <nav class="bottom" id="bottomNav"></nav>
+</div>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const I = {
+  obras:'<path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-6h4v6"/>',
+  ocorr:'<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17.5v.01"/>',
+  equip:'<circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/><path d="M10 17h4M4 14V8h8l3 6M12 8V5"/>',
+  pessoas:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M17.5 14.6c2.2.4 3.6 2 4 5.4"/>',
+  perfil:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.2 4.2-6.5 8-6.5s7 2.3 8 6.5"/>',
+  chev:'<path d="m9 6 6 6-6 6"/>', back:'<path d="m15 6-6 6 6 6"/>', arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  check:'<path d="m5 12 5 5 9-10"/>',
+  sol:'<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  nublado:'<path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z"/>',
+  chuva:'<path d="M7 14h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 7a3.5 3.5 0 0 0 1 7z"/><path d="M9 17l-1 3M14 17l-1 3"/>',
+  chuvaf:'<path d="M7 13h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 6a3.5 3.5 0 0 0 1 7z"/><path d="M8 16l-1.5 4M12 16l-1.5 4M16 16l-1.5 4"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  galeria:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  frente:'<path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-5h6v5"/><path d="M12 9v.01"/>'
+};
+const svg = (k, extra='') => `<svg viewBox="0 0 24 24" class="ico" ${extra}>${I[k]}</svg>`;
+
+/* ---------- dados de exemplo (PRD-FRONTEND) ---------- */
+const obras = [
+  {id:'ubs', nome:'UBS Nova Esperança', tipo:'Licitação', cidade:'Parnamirim', rdo:'Não iniciado', linhas:[['bad','2 frentes paradas'],['bad','RDO de ontem não fechado'],['warn','Serra mármore quebrada']]},
+  {id:'lagoa', nome:'Casa Lagoa 12', tipo:'Alto padrão', cidade:'Parnamirim', rdo:'Não iniciado', linhas:[['bad','1 frente parada']]},
+  {id:'escola', nome:'Escola Municipal Rio Doce (ampliação)', tipo:'Licitação', cidade:'Natal', rdo:'Em andamento', passo:2, linhas:[]},
+  {id:'serra', nome:'Casa Alto da Serra 4', tipo:'Alto padrão', cidade:'Natal', rdo:'Fechado', linhas:[['bad','2 frentes paradas'],['warn','Vibrador no conserto — previsão era 25/10']]},
+];
+const concluidas = [{id:'pn', nome:'Casa Ponta Negra 7', tipo:'Alto padrão', cidade:'Natal', rdo:'Concluída', linhas:[]}];
+
+const pessoas = [
+  {n:'João', f:'Pedreiro', s:'Presente'}, {n:'Marcos', f:'Pedreiro', s:'Presente'},
+  {n:'Tiago', f:'Servente', s:'Presente'}, {n:'Paulo', f:'Servente', s:'Falta'},
+  {n:'Rafael', f:'Carpinteiro', s:'Presente'}, {n:'Luís', f:'Armador', s:'Presente'},
+  {n:'Edson', f:'Encanador', s:'Deslocado', dest:'Casa Lagoa 12'}, {n:'Bruno', f:'Eletricista', s:'Presente'},
+];
+const equipamentos = [{n:'Betoneira 400 L', c:'BT-01', s:'Operando'}, {n:'Andaime tubular 12 m', c:'AD-03', s:'Parado'}];
+const clima = {manha:'Bom', tarde:'Nublado', pManha:true, pTarde:true};
+
+const frentes = [
+  {id:1, nome:'Reboco fachada norte', etapa:'Reboco de fachada', exec:'Terceirizado — Reboco Forte', sit:'Parada', dias:6, motivo:'Falta de material'},
+  {id:2, nome:'Impermeabilização laje cobertura', etapa:'Impermeabilização', exec:'Terceirizado — Imperme RN', sit:'Parada', dias:2, motivo:'Chuva'},
+  {id:3, nome:'Revestimento banheiros', etapa:'Revestimento cerâmico', exec:'Terceirizado — Cerâmica Silva', sit:'Em execução', feito:true, equipe:3},
+  {id:4, nome:'Tubulação água fria e esgoto', etapa:'Instalações hidrossanitárias', exec:'Equipe própria', sit:'Em execução', feito:false},
+  {id:5, nome:'Pintura interna', etapa:'Pintura', exec:'Equipe própria', sit:'Não iniciada', feito:false},
+];
+
+const nav = [['obras','Obras'],['ocorr','Ocorrências'],['equip','Equipamentos'],['pessoas','Pessoas'],['perfil','Perfil']];
+const st = {menu:'obras', tela:'obras', aba:'Ativas', obra:'serra', frente:null};
+
+/* ---------- navegação ---------- */
+function drawNav(){
+  document.getElementById('sideNav').innerHTML = nav.map(([k,l]) =>
+    `<button class="${st.menu===k?'on':''}" onclick="ir('${k}')">${svg(k)}${l}</button>`).join('');
+  document.getElementById('bottomNav').innerHTML = nav.map(([k,l]) =>
+    `<button class="${st.menu===k?'on':''}" onclick="ir('${k}')">${svg(k)}<span class="long">${l}</span><span class="short">${l==='Equipamentos'?'Equipam.':l==='Ocorrências'?'Ocorrênc.':l}</span></button>`).join('');
+}
+function ir(menu){ st.menu=menu; st.tela = menu==='obras' ? 'obras' : 'outra'; render(); }
+function abrirObra(id){
+  const o = obras.find(x=>x.id===id); st.obra=id; st.tela = o && o.passo===2 ? 'rdo2' : 'rdo1'; render();
+}
+function render(){
+  drawNav();
+  const v = document.getElementById('view');
+  v.innerHTML = ({obras:telaObras, rdo1:telaRdo1, rdo2:telaRdo2, outra:telaOutra})[st.tela]();
+  window.scrollTo(0,0);
+}
+const hoje = 'Sábado · 31 out 2026';
+const obraAtual = () => obras.find(o=>o.id===st.obra);
+
+/* ---------- tela: Obras ---------- */
+function pillRdo(r){
+  const c = {'Não iniciado':'idle','Em andamento':'warn','Fechado':'ok','Concluída':'ok'}[r];
+  return `<span class="pill ${c}">${r==='Concluída'?'Concluída':'RDO: '+r}</span>`;
+}
+function cardObra(o){
+  const alerta = o.linhas.some(l=>l[1].includes('não fechado'));
+  return `<button class="item ${alerta?'alert':''}" onclick="${o.rdo==='Concluída'?'':`abrirObra('${o.id}')`}">
+    <div class="item-top">
+      <div><h3>${o.nome}</h3><div class="meta">${o.tipo} · ${o.cidade}</div></div>
+      ${pillRdo(o.rdo)}
+    </div>
+    ${o.linhas.length ? `<div class="lines">${o.linhas.map(([c,t])=>`<div class="line t-${c}"><span class="dot ${c}"></span>${t}</div>`).join('')}</div>`
+      : (o.rdo==='Concluída' ? '' : `<div class="lines"><div class="line t-ok"><span class="dot ok"></span>Tudo em dia</div></div>`)}
+  </button>`;
+}
+function telaObras(){
+  const lista = st.aba==='Ativas' ? obras : concluidas;
+  return `
+  <header class="head">
+    <div class="head-row">
+      <div><div class="eyebrow">${hoje}</div><h1>Obras</h1></div>
+      <button class="btn btn-ghost" onclick="toast('Abriria o formulário de nova obra')">+ Nova obra</button>
+    </div>
+  </header>
+  <section class="stats">
+    <div class="stat"><div class="n accent">2</div><div class="l">diários de hoje não iniciados</div></div>
+    <div class="stat"><div class="n bad">5</div><div class="l">frentes paradas</div></div>
+    <div class="stat"><div class="n warn">2</div><div class="l">equipamentos com problema</div></div>
+  </section>
+  <div class="tabs">
+    ${['Ativas','Concluídas'].map(a=>`<button class="tab ${st.aba===a?'on':''}" onclick="st.aba='${a}';render()">${a}</button>`).join('')}
+  </div>
+  <div class="sec"><h2>${st.aba==='Ativas'?'Diário de hoje':'Obras concluídas'}</h2><span class="t-muted" style="font-size:15px">${lista.length} ${lista.length===1?'obra':'obras'}</span></div>
+  <div class="list two">${lista.map(cardObra).join('')}</div>
+  ${st.aba==='Ativas' ? `<button class="collapsed" onclick="toast('Praça Central de Macaíba — Paralisada')"><span>Paralisadas (1)</span>${svg('chev','style="width:22px;height:22px"')}</button>`:''}`;
+}
+
+/* ---------- cabeçalho da obra ---------- */
+function cabObra(passo){
+  const o = obraAtual();
+  return `
+  <header class="head" style="padding-top:8px">
+    <button class="back" onclick="ir('obras')">${svg('back')}Obras</button>
+    <div class="eyebrow">${hoje}</div>
+    <h1>${o.nome}</h1>
+    <div class="sub">${o.tipo} · ${o.cidade} · Diário de hoje</div>
+    <div class="steps">
+      <button class="step ${passo===1?'on':'done'}" onclick="st.tela='rdo1';render()"><span class="num">${passo===1?'1':'✓'}</span>Efetivo e clima</button>
+      <button class="step ${passo===2?'on':''}" onclick="st.tela='rdo2';render()"><span class="num">2</span>Frentes</button>
+    </div>
+  </header>`;
+}
+
+/* ---------- tela: RDO passo 1 ---------- */
+const climas = [['Bom','sol'],['Nublado','nublado'],['Chuva leve','chuva'],['Chuva forte','chuvaf']];
+const sitCor = {Presente:'ok', Falta:'bad', Atestado:'warn', Deslocado:'info'};
+const eqCor = {Operando:'ok', Parado:'warn', Quebrado:'bad'};
+function telaRdo1(){
+  const pres = pessoas.filter(p=>p.s==='Presente').length;
+  const faltas = pessoas.filter(p=>p.s==='Falta'||p.s==='Atestado').length;
+  const desl = pessoas.filter(p=>p.s==='Deslocado').length;
+  const blocoClima = ['manha','tarde'].map(per => {
+    const pk = per==='manha'?'pManha':'pTarde';
+    return `<div class="period">${per==='manha'?'Manhã':'Tarde'}</div>
+      <div class="opts">${climas.map(([c,i])=>`<button class="opt ${clima[per]===c?'on':''}" onclick="clima.${per}='${c}';render()">${svg(i)}${c}</button>`).join('')}</div>
+      <div class="toggle-row">Praticável <button class="switch ${clima[pk]?'on':''}" aria-label="Praticável" onclick="clima.${pk}=!clima.${pk};render()"></button></div>`;
+  }).join('');
+  return `${cabObra(1)}
+  <section class="stats">
+    <div class="stat"><div class="n accent">${pres}</div><div class="l">presentes de ${pessoas.length}</div></div>
+    <div class="stat"><div class="n ${faltas?'bad':''}">${faltas}</div><div class="l">${faltas===1?'falta':'faltas'} e atestados</div></div>
+    <div class="stat"><div class="n">${desl}</div><div class="l">${desl===1?'deslocado':'deslocados'} para outra obra</div></div>
+  </section>
+  <div class="cols" style="margin-top:12px">
+    <div>
+      <section class="block"><div class="block-h"><h3>Clima</h3></div>${blocoClima}</section>
+      <section class="block">
+        <div class="block-h"><h3>Equipamentos</h3><span class="count">${equipamentos.length} na obra</span></div>
+        ${equipamentos.map((e,i)=>`<div class="person"><div class="person-top"><b>${e.n}</b><span>${e.c}</span></div>
+          <div class="seg three">${['Operando','Parado','Quebrado'].map(s=>`<button class="${e.s===s?eqCor[s]:''}" onclick="equipamentos[${i}].s='${s}';render()">${s}</button>`).join('')}</div></div>`).join('')}
+        <button class="add" onclick="toast('Lista dos equipamentos no depósito')">+ Equipamento chegou na obra</button>
+      </section>
+    </div>
+    <div>
+      <section class="block">
+        <div class="block-h"><h3>Efetivo</h3><span class="count"><b>${pres}</b> presentes de ${pessoas.length}</span></div>
+        ${pessoas.map((p,i)=>`<div class="person"><div class="person-top"><b>${p.n}</b><span>${p.f}</span></div>
+          <div class="seg">${['Presente','Falta','Atestado','Deslocado'].map(s=>`<button class="${p.s===s?sitCor[s]:''}" onclick="marcar(${i},'${s}')">${s}</button>`).join('')}</div>
+          ${p.s==='Deslocado'?`<div class="dest">→ ${p.dest||'Casa Lagoa 12'} (só hoje)</div>`:''}</div>`).join('')}
+        <button class="add" onclick="toast('Lista dos funcionários de outras obras')">+ Trazer funcionário de outra obra</button>
+      </section>
+    </div>
+  </div>
+  <section class="block" style="margin-top:12px">
+    <div class="block-h"><h3>Ocorrências do dia</h3><span class="count">opcional</span></div>
+    <textarea class="field" placeholder="Ex.: caminhão de areia chegou às 10h, descarregado no fundo do lote"></textarea>
+  </section>
+  <div class="cta"><button class="btn btn-primary" onclick="st.tela='rdo2';render()">Avançar → Frentes ${svg('arrow','style="width:24px;height:24px;stroke-width:2.4"')}</button></div>`;
+}
+function marcar(i,s){ pessoas[i].s=s; if(s==='Deslocado' && !pessoas[i].dest) pessoas[i].dest='Casa Lagoa 12'; render(); }
+
+/* ---------- tela: RDO passo 2 ---------- */
+function cardFrente(f){
+  const parada = f.sit==='Parada';
+  const pill = parada ? `<span class="pill bad">Parada há ${f.dias} ${f.dias===1?'dia':'dias'}</span>`
+    : f.sit==='Em execução' ? `<span class="pill ok">Em execução</span>` : `<span class="pill idle">Não iniciada</span>`;
+  return `<button class="item ${parada?'alert':''}" onclick="abrirFrente(${f.id})">
+    <div class="item-top">
+      <div style="min-width:0"><h3>${f.nome}</h3><div class="meta">${f.etapa}</div><div class="meta">${f.exec}</div></div>
+      ${f.feito ? `<span class="check" title="Preenchida hoje">${svg('check')}</span>` : svg('chev','class="ico chev"')}
+    </div>
+    <div class="lines" style="margin-top:14px">${pill ? `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${pill}
+      ${parada?`<span class="t-bad" style="font-weight:600;font-size:16px">${f.motivo}</span>`:''}
+      ${f.feito&&f.equipe?`<span class="t-muted" style="font-size:15px">${f.equipe} pessoas hoje</span>`:''}
+      ${!f.feito&&!parada&&f.sit!=='Não iniciada'?`<span class="t-warn" style="font-size:15px;font-weight:600">Falta preencher hoje</span>`:''}</div>`:''}</div>
+  </button>`;
+}
+function telaRdo2(){
+  if (st.obra==='escola') return `${cabObra(2)}
+    <div class="empty">
+      <div class="empty-ico">${svg('frente')}</div>
+      <h3>Nenhuma frente de serviço ainda</h3>
+      <p>As frentes são o que a obra está tocando agora. Crie a primeira, ex.: <b style="color:var(--text)">Fundação — sapatas</b>.</p>
+      <button class="btn btn-primary" onclick="toast('Abriria o formulário: nome, etapa, executor')">+ Criar a primeira frente</button>
+    </div>
+    <div class="cta"><button class="btn btn-ghost" style="width:100%" onclick="fecharRdo()">Fechar RDO sem frentes</button></div>`;
+  const paradas = frentes.filter(f=>f.sit==='Parada').length;
+  const exec = frentes.filter(f=>f.sit==='Em execução').length;
+  const feitas = frentes.filter(f=>f.feito).length;
+  return `${cabObra(2)}
+  <section class="stats">
+    <div class="stat"><div class="n bad">${paradas}</div><div class="l">frentes paradas</div></div>
+    <div class="stat"><div class="n ok">${exec}</div><div class="l">em execução</div></div>
+    <div class="stat"><div class="n accent">${feitas}<span style="font-size:24px;color:var(--muted)">/${frentes.length}</span></div><div class="l">preenchidas hoje</div></div>
+  </section>
+  <div class="sec"><h2>Frentes de serviço</h2><button class="link" onclick="toast('Abriria o formulário de nova frente')">+ Nova frente</button></div>
+  <div class="list two">${frentes.map(cardFrente).join('')}</div>
+  <button class="collapsed" onclick="toast('Fundação — sapatas · concluída em 05/10')"><span>Concluídas (1)</span>${svg('chev','style="width:22px;height:22px"')}</button>
+  <div class="cta"><button class="btn btn-primary" onclick="fecharRdo()">Fechar RDO ${svg('arrow','style="width:24px;height:24px;stroke-width:2.4"')}</button></div>`;
+}
+function fecharRdo(){ toast('Diário de hoje fechado'); setTimeout(()=>ir('obras'),900); }
+
+/* ---------- gaveta: Preencher frente ---------- */
+const motivos = ['Falta de material','Falta de mão de obra','Chuva','Aguardando projeto','Aguardando cliente','Aguardando terceirizado','Outro'];
+let rasc = null;
+function abrirFrente(id){
+  const f = frentes.find(x=>x.id===id);
+  rasc = {id, sit: f.sit==='Não iniciada'?'Em execução':f.sit, motivo:f.motivo||'', equipe:new Set(f.feito?['João','Marcos','Tiago']:[])};
+  drawSheet(); document.getElementById('sheet').classList.add('open'); document.getElementById('sheetBg').classList.add('open');
+}
+function fecharSheet(){ document.getElementById('sheet').classList.remove('open'); document.getElementById('sheetBg').classList.remove('open'); }
+function drawSheet(){
+  const f = frentes.find(x=>x.id===rasc.id);
+  const presentes = pessoas.filter(p=>p.s==='Presente');
+  const cor = {'Em execução':'ok','Parada':'bad','Concluída':'info'};
+  document.getElementById('sheet').innerHTML = `
+    <div class="grab"></div>
+    <div class="eyebrow">Preencher frente</div>
+    <h2 style="margin-top:6px">${f.nome}</h2>
+    <div class="sub">${f.exec}</div>
+    <div class="label">Situação hoje</div>
+    <div class="seg three">${['Em execução','Parada','Concluída'].map(s=>`<button class="${rasc.sit===s?cor[s]:''}" onclick="rasc.sit='${s}';drawSheet()">${s}</button>`).join('')}</div>
+    ${rasc.sit==='Parada'?`<div class="label">Motivo da parada</div><div class="chips">${motivos.map(m=>`<button class="chip ${rasc.motivo===m?'on':''}" onclick="rasc.motivo='${m}';drawSheet()">${m}</button>`).join('')}</div>`:''}
+    <div class="label">O que foi feito hoje</div>
+    <textarea class="field" style="min-height:76px" placeholder="Ex.: chapisco e emboço 2º pavimento, 40 m²"></textarea>
+    <div class="label">Equipe</div>
+    <div class="chips">${presentes.map(p=>`<button class="chip ${rasc.equipe.has(p.n)?'on':''}" onclick="tg('${p.n}')">${p.n}${p.n==='Rafael'?'<small>também em: Pintura</small>':''}</button>`).join('')}</div>
+    <div class="label">Fotos (até 5)</div>
+    <div class="photo-row">
+      <button class="btn btn-ghost" onclick="toast('Abriria a câmera')">${svg('camera','style="width:22px;height:22px"')}Tirar foto</button>
+      <button class="btn btn-ghost" onclick="toast('Abriria a galeria')">${svg('galeria','style="width:22px;height:22px"')}Da galeria</button>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" onclick="fecharSheet()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarFrente()">Salvar</button>
+    </div>`;
+}
+function tg(n){ rasc.equipe.has(n)?rasc.equipe.delete(n):rasc.equipe.add(n); drawSheet(); }
+function salvarFrente(){
+  const f = frentes.find(x=>x.id===rasc.id);
+  f.sit = rasc.sit==='Concluída' ? f.sit : rasc.sit; f.feito = true; f.equipe = rasc.equipe.size || f.equipe;
+  if (rasc.sit==='Parada'){ f.motivo = rasc.motivo || 'Outro'; f.dias = f.dias || 1; }
+  fecharSheet(); render(); toast('Frente salva');
+}
+document.getElementById('sheetBg').onclick = fecharSheet;
+
+/* ---------- telas fora do mockup ---------- */
+function telaOutra(){
+  const nome = nav.find(n=>n[0]===st.menu)[1];
+  return `<header class="head"><div class="eyebrow">${hoje}</div><h1>${nome}</h1></header>
+  <div class="note">Esta tela fica para depois. O mockup mostra <b style="color:var(--text)">Obras</b>, o <b style="color:var(--text)">Diário de hoje</b> (passos 1 e 2) e o estado vazio de frentes (toque em <b style="color:var(--text)">Escola Municipal Rio Doce</b>).</div>`;
+}
+
+let tt; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; clearTimeout(tt); tt=setTimeout(()=>t.style.display='none',1800); }
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules
+dist
+.env.local
+.env
+.vercel
+.DS_Store
+*.log
+# Planilhas reais de medição: a de empreiteiro tem dados bancários. Nunca vão pro GitHub.
+*.xlsx
+*.xlsm
