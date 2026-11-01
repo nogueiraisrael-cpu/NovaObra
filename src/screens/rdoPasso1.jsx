@@ -178,7 +178,7 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
           placeholder="Ex.: caminhão de areia chegou às 10h, descarregado no fundo do lote" />
       </section>
       <div className="cta">
-        <button className="btn btn-primary" onClick={avancar}>Avançar → Frentes <Icon nome="arrow" /></button>
+        <button className="btn btn-primary" onClick={avancar}>Próximo: frentes de serviço <Icon nome="arrow" /></button>
       </div>
 
       <Gaveta aberta={gaveta?.tipo === 'destino'} fechar={() => setGaveta(null)} rotulo="Obra de destino">
