@@ -4,7 +4,7 @@
 // DUAS obras, de propósito e bem diferentes (o-segundo): a Serra tem RDO de hoje
 // em andamento, 8 funcionários e equipamentos; a UBS não tem RDO de hoje, tem
 // outra equipe e NENHUM equipamento. Se aparecer equipamento na UBS, vazou dado.
-// Nos materiais, a UBS tem só 2 pedidos (aço e bloco); a Serra, 9.
+// Nos materiais, a UBS tem só 2 pedidos (aço e bloco); a Serra, 10.
 //
 // As datas são relativas a hoje, para o exemplo continuar fazendo sentido amanhã.
 // O supabase-seed.sql foi gerado a partir daqui (01/11/2026): os ids viram uuid fixos.
@@ -196,7 +196,7 @@ export function criarMock(hoje = hojeISO()) {
   frenteDoDia('rdo-ubs-ontem', 'obra-ubs', 'fs-ubs-sapatas', 'Em execução', 'Armação das sapatas S7 a S10', ['f-damiao', 'f-francisco'], [['Sapatas S7 a S10', '#6B5B4A']])
 
   // ---- Materiais: catálogo (igual para todas as obras) e o quadro de pedidos ----
-  // Serra: 9 pedidos em todas as colunas, 2 críticos, 1 atrasado e 1 recebido com problema.
+  // Serra: 10 pedidos em todas as colunas, 2 críticos, 1 atrasado, 2 entregues e 1 recebido com problema.
   // UBS: só 2, de outros materiais. Pedido da Serra na UBS é vazamento.
   const mat = (id, nome, unidade, categoria) => ({ id, nome, unidade, categoria, ativo: true })
   const materiais = [
@@ -209,6 +209,7 @@ export function criarMock(hoje = hojeISO()) {
     mat('mat-porcelanato', 'Porcelanato 60×60', 'm²', 'Acabamento'),
     mat('mat-rejunte', 'Rejunte flexível', 'kg', 'Acabamento'),
     mat('mat-massa', 'Massa corrida', 'lata', 'Acabamento'),
+    mat('mat-tinta', 'Tinta acrílica fosca 18 L', 'lata', 'Acabamento'),
     mat('mat-manta', 'Manta líquida', 'balde', 'Acabamento'),
     mat('mat-tubo', 'Tubo PVC esgoto 100 mm', 'barra', 'Instalações'),
     mat('mat-fio', 'Cabo flexível 2,5 mm²', 'rolo', 'Instalações'),
@@ -239,6 +240,8 @@ export function criarMock(hoje = hojeISO()) {
       recebido('Areal Rio Novo', -2, false, true, 'Vieram 3,5 m³; a nota diz 4 m³.')),
     ped('ped-rejunte', 'obra-serra', 'mat-rejunte', 20, 'Revestimento banheiros', 'Normal', 'Entregue',
       hist(['Solicitar', -16], ['Em cotação', -15], ['Comprado', -13], ['No almoxarifado', -11], ['Entregue', -4]), recebido('Revestir Acabamentos', -11)),
+    ped('ped-tinta', 'obra-serra', 'mat-tinta', 6, 'Pintura interna', 'Normal', 'Entregue',
+      hist(['Solicitar', -12], ['Em cotação', -11], ['Comprado', -9], ['No almoxarifado', -6], ['Entregue', -3]), recebido('Tintas Boa Cor', -6)),
     ped('ped-ubs-aco', 'obra-ubs', 'mat-aco', 80, 'Fundação — sapatas', 'Normal', 'Comprado',
       hist(['Solicitar', -7], ['Em cotação', -6], ['Comprado', -4]), { fornecedor: 'Ferro Forte Distribuidora', previsao_entrega: d(5) }),
     ped('ped-ubs-bloco', 'obra-ubs', 'mat-bloco', 2000, 'Alvenaria térreo — bloco A', 'Normal', 'Solicitar', hist(['Solicitar', -2])),
