@@ -59,7 +59,12 @@ export function validarRestricao(f, hoje) {
   return erros
 }
 
-export const responsaveis = (lista) => [...new Set(lista.map((r) => r.responsavel))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+// Quem aparece no filtro e nas sugestões: só quem tem restrição de atividade ativa (a da
+// atividade arquivada não aparece no quadro, então o nome dela também não).
+export function responsaveis(lista, eap) {
+  const atividades = daEap(eap)
+  return [...new Set(lista.filter((r) => atividades.has(r.atividade_id)).map((r) => r.responsavel))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+}
 
 export function contarRestricoes(lista, eap, hoje) {
   const atividades = daEap(eap)

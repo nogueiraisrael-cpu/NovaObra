@@ -25,6 +25,7 @@ const lista = [
   r('antiga-ok', 'fio', '2026-10-20', 'Israel', { resolvida: true, resolvida_em: '2026-10-19' }),
   r('atrasada-ok', 'fio', '2026-10-28', 'Israel', { resolvida: true, resolvida_em: '2026-11-03' }),
   r('arquivada', 'vel', '2026-11-05', 'Israel'),
+  r('so-da-arquivada', 'vel', '2026-11-06', 'Fulano'),
 ]
 
 const q = montarLookahead(lista, eap, hoje, { semanas: 3 })
@@ -57,7 +58,7 @@ conferir('validação: prazo no passado (só ao criar)', [
   validarRestricao({ id: 'a', atividade_id: 'fio', descricao: 'x', tipo: 'Projeto', prazo: '2026-11-01', responsavel: 'I' }, hoje).prazo,
 ], ['O prazo não pode ser antes de hoje.', undefined])
 
-conferir('responsáveis sem repetir, em ordem', responsaveis(lista), ['Israel', 'Ricardo'])
+conferir('responsáveis sem repetir, em ordem; quem só tem restrição de atividade arquivada não entra (achado do teste de aceite)', responsaveis(lista, eap), ['Israel', 'Ricardo'])
 conferir('contadores (atividade arquivada não conta)', contarRestricoes(lista, eap, hoje), { abertas: 5, vencidas: 1, resolvidas: 3 })
 
 conferir('detalhar: com a atividade e se venceu', [detalharRestricao(lista, eap, 'vencida', hoje).atividade.codigo, detalharRestricao(lista, eap, 'vencida', hoje).vencida], ['1.1', true])

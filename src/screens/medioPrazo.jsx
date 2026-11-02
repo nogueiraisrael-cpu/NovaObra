@@ -64,7 +64,7 @@ function FormRestricao({ eap, restricao, todas, hoje, fechar, salvar }) {
           <label className="label" htmlFor="rs-resp">Responsável</label>
           <input id="rs-resp" className="field" list="rs-resps" placeholder="Ex.: Eng. Israel" value={f.responsavel}
             onChange={(e) => setF({ ...f, responsavel: e.target.value })} onBlur={() => tocar('responsavel')} />
-          <datalist id="rs-resps">{responsaveis(todas).map((r) => <option key={r} value={r} />)}</datalist>
+          <datalist id="rs-resps">{responsaveis(todas, eap).map((r) => <option key={r} value={r} />)}</datalist>
           <ErroCampo erro={mostrar('responsavel')} />
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function MedioPrazo({ lista, restricoes, gravar, ocupado, irParaE
     )
   }
 
-  const nomes = responsaveis(restricoes)
+  const nomes = responsaveis(restricoes, eap)
   return (
     <>
       <Stats itens={[

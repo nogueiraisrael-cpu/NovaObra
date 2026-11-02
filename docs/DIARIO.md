@@ -57,3 +57,45 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 02/11/2026 · Estoque · pedido recebido entra sozinho no estoque com o que chegou de fato; voltar o pedido tira a entrada.
 - 02/11/2026 · Estoque · entregar na frente leva só o que sobrou do lote; voltar a entrega devolve (consertado na revisão).
 - 02/11/2026 · Estoque · trocar de obra troca o estoque (UBS só com o cimento dela).
+
+## Rodada 6 · Planejamento (EAP, Longo, Médio e Curto prazo, importar planilha)
+
+Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do dono (43 de 48 itens).
+
+- 02/11/2026 · EAP · a árvore mostra os 5 grupos com código automático, terceiro nível (5.1.1), datas e dias úteis.
+- 02/11/2026 · EAP · criar atividade principal: datas nascem com hoje, mostra dias úteis e calendário; continua depois do F5.
+- 02/11/2026 · EAP · criar subatividade: a mãe já vem escolhida, vira grupo e pega o período da filha.
+- 02/11/2026 · EAP · editar e mudar de "dentro de": vai para o fim do novo grupo e o antigo deixa de ser grupo.
+- 02/11/2026 · EAP · subir e descer muda o código, continua depois do F5; "Subir" apagado na primeira.
+- 02/11/2026 · EAP · arquivar pede confirmação, renumera sem buraco, Arquivadas lista e desarquiva.
+- 02/11/2026 · EAP · formulário recusa nome vazio e fim antes do início.
+- 02/11/2026 · EAP · trocar de obra troca a EAP inteira.
+- 02/11/2026 · EAP · no celular cabe na tela e o 3º nível fica mais recuado.
+- 02/11/2026 · Longo prazo · barras com cores por situação, traço do previsto e linha de hoje; números do topo.
+- 02/11/2026 · Longo prazo · por semana e por mês; só a área das barras desliza.
+- 02/11/2026 · Longo prazo · lançar avanço (75%) muda barra, grupo e total; continua depois do F5.
+- 02/11/2026 · Longo prazo · grupo não recebe avanço à mão; avanço só aceita 0 a 100, com teclado numérico.
+- 02/11/2026 · Longo prazo · atividade que começa hoje fica "Não iniciada", previsto 0% (corrigido na rodada).
+- 02/11/2026 · Longo prazo · 100% no Longo prazo vira Concluído no Kanban e conta no PPC (corrigido na revisão).
+- 02/11/2026 · Longo prazo · calendário com sábado muda dias úteis e previsto; sem nenhum dia é recusado.
+- 02/11/2026 · Longo prazo · mudar a data na EAP estica a barra sem F5.
+- 02/11/2026 · Longo prazo · trocar de obra troca cronograma e calendário; no celular vira lista.
+- 02/11/2026 · Médio prazo · quadro de 4 semanas, contadores, vencida em vermelho na semana atual.
+- 02/11/2026 · Médio prazo · criar restrição (prazo nasce hoje, sugestão de responsável); continua depois do F5.
+- 02/11/2026 · Médio prazo · formulário recusa campos vazios e prazo no passado.
+- 02/11/2026 · Médio prazo · setas mudam de semana; vencida empurrada sai do vermelho.
+- 02/11/2026 · Médio prazo · resolver, ver resolvidas (riscada) e reabrir.
+- 02/11/2026 · Médio prazo · editar o tipo e excluir com confirmação.
+- 02/11/2026 · Médio prazo · filtros de semanas e responsável; o filtro só lista quem tem restrição visível (corrigido na rodada).
+- 02/11/2026 · Médio prazo · trocar de obra troca as restrições; no celular as semanas deslizam.
+- 02/11/2026 · Curto prazo · PPC com número, barra, "X de Y" e gráfico de 6 semanas; Kanban em 3 colunas.
+- 02/11/2026 · Curto prazo · concluir põe 100% no Longo prazo e voltar devolve o avanço de antes.
+- 02/11/2026 · Curto prazo · "não realizada" exige causa; em atividade concluída o botão não aparece.
+- 02/11/2026 · Curto prazo · checklist de subtarefas: criar, marcar, excluir com confirmação; não feita pede causa.
+- 02/11/2026 · Curto prazo · navegar entre semanas; trocar de obra troca a semana; no celular desliza.
+- 02/11/2026 · Planejamento · a tela muda no toque (20 a 36 ms) nas 4 abas e o banco confirma depois.
+- 02/11/2026 · Importar planilha · modelo com as 5 colunas, 1/2/2.1/2.2, aba "Como preencher" e ITEM como texto.
+- 02/11/2026 · Importar planilha · adicionar entra depois das atuais e aparece no Longo prazo.
+- 02/11/2026 · Importar planilha · substituir arquiva as atuais e mostra quantas.
+- 02/11/2026 · Importar planilha · conferência aponta código órfão, data inválida e sem nome; corrigir ali tira o vermelho.
+- 02/11/2026 · Importar planilha · .csv em ponto e vírgula abre a mesma conferência; foto é recusada.
