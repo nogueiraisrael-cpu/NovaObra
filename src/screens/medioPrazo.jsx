@@ -3,14 +3,13 @@
 // Mover de semana é por botões (sem arrastar); a restrição vencida fica na semana atual, em vermelho.
 import { useState } from 'react'
 import { salvarRestricao, moverRestricao, resolverRestricao, apagarRestricao } from '../lib/dados.js'
-import { montarEap } from '../lib/planejamento.js'
+import { montarEap, rotuloDaSemana, segundaDaSemana } from '../lib/planejamento.js'
 import { montarLookahead, podeMover, validarRestricao, responsaveis, contarRestricoes, detalharRestricao, novoPrazo } from '../lib/restricoes.js'
 import { comRestricao, comPrazo, comResolvida, semRestricao } from '../lib/planejamentoLocal.js'
 import { TIPOS_RESTRICAO } from '../lib/listas.js'
 import { hojeISO, formatarData, formatarDiaMes } from '../lib/datas.js'
-import { CLASSE_RESTRICAO, ErroCampo, Gaveta, Icon, ICONE_RESTRICAO, Pill, Stats, TipoRestricao, Vazio } from '../components/index.jsx'
+import { ErroCampo, Gaveta, Icon, Pill, Stats, TIPO_RESTRICAO, TipoRestricao, Vazio } from '../components/index.jsx'
 
-const rotuloSemana = (c, i) => (i === 0 ? 'Esta semana' : i === 1 ? 'Próxima semana' : `Semana de ${c.rotulo}`)
 
 // ---------- criar e editar ----------
 function FormRestricao({ eap, restricao, todas, hoje, fechar, salvar }) {
@@ -47,9 +46,9 @@ function FormRestricao({ eap, restricao, todas, hoje, fechar, salvar }) {
       <div className="label" id="rs-tipo">Tipo</div>
       <div className="tipos" role="group" aria-labelledby="rs-tipo">
         {TIPOS_RESTRICAO.map((t) => (
-          <button key={t} className={`tipo-opcao tipo-${CLASSE_RESTRICAO[t]}${f.tipo === t ? ' on' : ''}`} aria-pressed={f.tipo === t}
+          <button key={t} className={`tipo-opcao tipo-${TIPO_RESTRICAO[t].classe}${f.tipo === t ? ' on' : ''}`} aria-pressed={f.tipo === t}
             onClick={() => { setF({ ...f, tipo: t }); tocar('tipo') }}>
-            <Icon nome={ICONE_RESTRICAO[t]} />{t}
+            <Icon nome={TIPO_RESTRICAO[t].icone} />{t}
           </button>
         ))}
       </div>
@@ -240,10 +239,10 @@ export default function MedioPrazo({ lista, restricoes, gravar, ocupado, irParaE
         <button className="link" disabled={ocupado} onClick={() => setGaveta({ tipo: 'nova' })}>+ Restrição</button>
       </div>
       <div className="kanban">
-        {quadro.colunas.map((c, i) => (
-          <section className="kcol" key={c.inicio} aria-label={rotuloSemana(c, i)}>
+        {quadro.colunas.map((c) => (
+          <section className="kcol" key={c.inicio} aria-label={rotuloDaSemana(c.inicio, segundaDaSemana(hoje))}>
             <div className="kcol-h">
-              <span className="rs-sem">{rotuloSemana(c, i)}<small>{formatarDiaMes(c.inicio)} a {formatarDiaMes(c.fim)}</small></span>
+              <span className="rs-sem">{rotuloDaSemana(c.inicio, segundaDaSemana(hoje))}<small>{formatarDiaMes(c.inicio)} a {formatarDiaMes(c.fim)}</small></span>
               <span>{c.itens.length}</span>
             </div>
             {c.itens.length

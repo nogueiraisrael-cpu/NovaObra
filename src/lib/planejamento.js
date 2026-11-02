@@ -1,7 +1,7 @@
 // Planejamento (Last Planner): as regras da lista de atividades da obra.
 // As quatro sub-abas (EAP, Longo, Médio e Curto prazo) leem a MESMA lista; aqui
 // fica o que vale para todas. Sem React, sem banco.
-import { somarDias, diasEntre, formatarDiaMes, MESES } from './datas.js'
+import { somarDias, diasEntre, formatarDiaMes, doisDigitos, MESES } from './datas.js'
 
 const irmasEmOrdem = (lista, paiId) => lista
   .filter((x) => (x.pai_id ?? null) === (paiId ?? null))
@@ -65,11 +65,14 @@ export function maesPossiveis(lista, id) {
   return montarEap(lista).filter((x) => !fora.has(x.id))
 }
 
+// A ordem de quem entra no fim da lista (atividades irmãs, subtarefas de uma atividade).
+export const ordemNoFim = (irmas) => (irmas.length ? Math.max(...irmas.map((x) => x.ordem)) + 1 : 0)
+
 // Nova atividade entra no fim das irmãs. Conta as arquivadas para nunca repetir o número.
-export function proximaOrdem(lista, paiId) {
-  const irmas = lista.filter((x) => (x.pai_id ?? null) === (paiId ?? null))
-  return irmas.length ? Math.max(...irmas.map((x) => x.ordem)) + 1 : 0
-}
+export const proximaOrdem = (lista, paiId) => ordemNoFim(lista.filter((x) => (x.pai_id ?? null) === (paiId ?? null)))
+
+// Quantas subatividades (de qualquer nível) uma atividade ativa tem.
+export const contarSubatividades = (lista, id) => descendentes(lista.filter((x) => !x.arquivada), id).length
 
 // Subir (-1) ou descer (+1) entre as irmãs ativas: as duas trocam de ordem. Null = não dá.
 export function trocaDeOrdem(lista, id, direcao) {
@@ -95,7 +98,7 @@ export function validarAtividade(f) {
 }
 
 // Calendário padrão da obra: segunda a sexta, sem feriado. (0 = domingo … 6 = sábado.)
-export const CALENDARIO_PADRAO = { dias: [1, 2, 3, 4, 5], feriados: [] }
+const CALENDARIO_PADRAO = { dias: [1, 2, 3, 4, 5], feriados: [] }
 
 const diaDaSemana = (iso) => {
   const [a, m, d] = iso.split('-').map(Number)
@@ -184,7 +187,7 @@ export function andamento(eap, hoje, cal) {
 const diaDoMes1 = (iso) => `${iso.slice(0, 8)}01`
 const proximoMes = (iso) => {
   const [a, m] = iso.split('-').map(Number)
-  return m === 12 ? `${a + 1}-01-01` : `${a}-${String(m + 1).padStart(2, '0')}-01`
+  return m === 12 ? `${a + 1}-01-01` : `${a}-${doisDigitos(m + 1)}-01`
 }
 
 export function escalaDoCronograma(eap, modo) {
@@ -240,4 +243,13 @@ export function descreverCalendario({ dias, feriados }) {
   const txt = seguidos && ordem.length > 2 ? `${nomes[0]} a ${nomes.at(-1)}` : nomes.join(', ')
   const f = feriados.length
   return f ? `${txt} · ${f} ${f === 1 ? 'feriado' : 'feriados'}` : txt
+}
+
+// "Esta semana", "Semana passada", "Próxima semana" ou "Semana de 16/11".
+export function rotuloDaSemana(semana, atual) {
+  const diferenca = Math.round(diasEntre(atual, semana) / 7)
+  if (diferenca === 0) return 'Esta semana'
+  if (diferenca === -1) return 'Semana passada'
+  if (diferenca === 1) return 'Próxima semana'
+  return `Semana de ${formatarDiaMes(semana)}`
 }

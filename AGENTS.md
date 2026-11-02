@@ -122,9 +122,12 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   pede em páginas; não troque por um `select` solto.
 - **Fotos, provisório até o Storage:** a foto é encolhida (1280 px, JPEG) e gravada dentro do
   próprio endereço em `fotos.caminho`. Funciona, mas pesa no banco: o Storage entra antes do uso real.
-- **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido, concluir no Kanban do Planejamento): se a internet cair
+- **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
+  concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
-  a coluna e depois a movimentação de estoque: voltar a coluna e avançar de novo completa.
+  a coluna e depois a movimentação de estoque: voltar a coluna e avançar de novo completa. No Planejamento,
+  repetir o mesmo toque completa (mover para a mesma coluna, lançar o mesmo avanço); na importação
+  "substituir", as novas entram antes de as antigas serem arquivadas: se cair no meio, arquive as antigas na EAP.
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

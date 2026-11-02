@@ -26,6 +26,21 @@ function mapearCabecalho(nomes) {
 }
 
 const SEM_CABECALHO = 'Não achei o cabeçalho com as colunas ITEM, Atividade, Início e Término. Use a planilha modelo.'
+
+// Problema da planilha (não do app): a frase já é para a pessoa ler. `daPlanilha` deixa a tela
+// distinguir este erro de um inesperado, sem depender do texto.
+const erroDaPlanilha = (frase) => Object.assign(new Error(frase), { daPlanilha: true })
+
+const TAMANHO_MAXIMO = 5 * 1024 * 1024
+
+// Que arquivo é: 'xlsx', 'csv', ou uma frase dizendo por que não serve.
+export function tipoDoArquivo({ name, size }) {
+  const nome = String(name ?? '').toLowerCase()
+  const tipo = nome.endsWith('.xlsx') ? 'xlsx' : nome.endsWith('.csv') ? 'csv' : null
+  if (!tipo) return { erro: 'Use um arquivo .xlsx ou .csv.' }
+  if (size > TAMANHO_MAXIMO) return { erro: 'Arquivo grande demais (máximo 5 MB).' }
+  return { tipo }
+}
 const vazia = (l) => !l.item && !l.titulo && !l.inicio && !l.fim && !l.duracao
 
 // ---------------------------------------------------------------------------
@@ -55,7 +70,7 @@ function dataDaCelula(XLSX, cel) {
 export function lerPlanilha(XLSX, dados) {
   const wb = XLSX.read(dados, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
-  if (!ws?.['!ref']) throw new Error('A planilha está vazia.')
+  if (!ws?.['!ref']) throw erroDaPlanilha('A planilha está vazia.')
   const area = XLSX.utils.decode_range(ws['!ref'])
   const celula = (r, c) => ws[XLSX.utils.encode_cell({ r, c })]
   let cabecalho = -1
@@ -66,7 +81,7 @@ export function lerPlanilha(XLSX, dados) {
     mapa = mapearCabecalho(nomes)
     cabecalho = r
   }
-  if (!mapa) throw new Error(SEM_CABECALHO)
+  if (!mapa) throw erroDaPlanilha(SEM_CABECALHO)
   const linhas = []
   for (let r = cabecalho + 1; r <= area.e.r; r++) {
     const l = {
@@ -114,7 +129,7 @@ export function lerCsv(texto) {
   const separador = (primeira.match(/;/g)?.length ?? 0) >= (primeira.match(/,/g)?.length ?? 0) ? ';' : ','
   const tabela = separarCsv(limpo, separador)
   const r = tabela.findIndex((nomes, i) => i < 20 && mapearCabecalho(nomes))
-  if (r < 0) throw new Error(SEM_CABECALHO)
+  if (r < 0) throw erroDaPlanilha(SEM_CABECALHO)
   const mapa = mapearCabecalho(tabela[r])
   const pegar = (cols, i) => (i >= 0 ? String(cols[i] ?? '').trim() : '')
   return tabela.slice(r + 1)

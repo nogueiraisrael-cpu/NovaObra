@@ -26,10 +26,10 @@ import {
 } from './estoque.js'
 import {
   validarAtividade, proximaOrdem, trocaDeOrdem, idsParaArquivar, idsParaDesarquivar, calendarioDaObra, validarCalendario, lerProgresso,
-  segundaDaSemana,
+  segundaDaSemana, ordemNoFim,
 } from './planejamento.js'
 import { validarRestricao, novoPrazo, podeMover } from './restricoes.js'
-import { validarCausa } from './curtoPrazo.js'
+import { validarCausa, REGISTRO_VAZIO, mudancaDeColuna, efeitoDoAvanco, camposDaSubtarefa } from './curtoPrazo.js'
 import { STATUS_SEMANA } from './listas.js'
 
 export const USAR_MOCK = false
@@ -856,14 +856,22 @@ export const listarPlanejamento = () => executar(async () => {
 })
 
 // Avanço real (0 a 100), só em atividade sem subatividade: o do grupo sai das filhas.
+// Também acerta o Kanban (efeitoDoAvanco): 100% conclui na semana de hoje; sair de 100%
+// reabre. São gravações separadas: se a internet cair no meio, lançar o mesmo avanço completa.
 export const salvarProgresso = (id, texto) => executar(async () => {
   const obraId = obraAtual()
   const progresso = lerProgresso(texto)
   if (progresso === null) return falha('Informe um número de 0 a 100.')
   const lista = await atividadesDaObra(obraId)
-  if (!lista.some((x) => x.id === id)) return falha('Atividade não encontrada nesta obra.')
+  const atual = lista.find((x) => x.id === id)
+  if (!atual) return falha('Atividade não encontrada nesta obra.')
   if (lista.some((x) => x.pai_id === id && !x.arquivada)) return falha('O avanço de um grupo vem das subatividades.')
-  return ok((await atualizar('atividades', { id, obra_id: obraId }, { progresso }))[0])
+  const [salva] = await atualizar('atividades', { id, obra_id: obraId }, { progresso })
+  const registros = await ler('semana_atividades', { obra_id: obraId, atividade_id: id })
+  const efeito = efeitoDoAvanco(registros, progresso, atual.progresso, segundaDaSemana(hoje()))
+  if (efeito.concluir) await gravarNaSemana(obraId, id, efeito.concluir.semana, efeito.concluir.campos)
+  if (efeito.reabrir.length) await atualizar('semana_atividades', { id: efeito.reabrir, obra_id: obraId }, { status: 'Em andamento', progresso_antes: null })
+  return ok(salva)
 })
 
 export const salvarCalendario = ({ dias, feriados }) => executar(async () => {
@@ -1009,7 +1017,7 @@ async function gravarNaSemana(obraId, atividadeId, semana, campos) {
   const existente = await um('semana_atividades', filtro)
   if (existente) return (await atualizar('semana_atividades', { id: existente.id, obra_id: obraId }, campos))[0]
   try {
-    return await inserir('semana_atividades', { status: 'A fazer', nao_realizada: false, causa: null, progresso_antes: null, ...filtro, ...campos })
+    return await inserir('semana_atividades', { ...REGISTRO_VAZIO, ...filtro, ...campos })
   } catch (e) {
     // Dois toques ao mesmo tempo: o outro já criou a linha. Atualiza a dele.
     if (e.code !== '23505') throw e
@@ -1028,20 +1036,9 @@ export const moverNaSemana = (atividadeId, semana, status) => executar(async () 
   const { at, erro } = await atividadeDoKanban(obraId, atividadeId)
   if (erro) return falha(erro)
   const antes = await um('semana_atividades', { obra_id: obraId, atividade_id: atividadeId, semana })
-  const eraConcluida = antes?.status === 'Concluído'
-  const campos = { status }
-  if (status === 'Concluído') {
-    Object.assign(campos, { nao_realizada: false, causa: null })
-    if (!eraConcluida) campos.progresso_antes = at.progresso
-  } else if (eraConcluida) {
-    campos.progresso_antes = null
-  }
+  const { campos, progresso } = mudancaDeColuna(antes, status, at.progresso)
   const salva = await gravarNaSemana(obraId, atividadeId, semana, campos)
-  if (status === 'Concluído' && at.progresso !== 100) {
-    await atualizar('atividades', { id: atividadeId, obra_id: obraId }, { progresso: 100 })
-  } else if (status !== 'Concluído' && eraConcluida && antes.progresso_antes !== null) {
-    await atualizar('atividades', { id: atividadeId, obra_id: obraId }, { progresso: antes.progresso_antes })
-  }
+  if (progresso !== null) await atualizar('atividades', { id: atividadeId, obra_id: obraId }, { progresso })
   return ok(salva)
 })
 
@@ -1068,23 +1065,16 @@ export const criarSubtarefa = (atividadeId, titulo) => executar(async () => {
   const irmas = await ler('subtarefas', { obra_id: obraId, atividade_id: atividadeId })
   return ok(await inserir('subtarefas', {
     obra_id: obraId, atividade_id: atividadeId, titulo: titulo.trim(),
-    ordem: irmas.length ? Math.max(...irmas.map((x) => x.ordem)) + 1 : 0, feita: false, nao_realizada: false, causa: null,
+    ordem: ordemNoFim(irmas), feita: false, nao_realizada: false, causa: null,
   }))
 })
 
-// Marcar feita tira o "não realizada"; marcar não realizada (com causa) tira o feita.
 export const marcarSubtarefa = (id, { feita, causa }) => executar(async () => {
-  let campos
-  if (causa !== undefined && causa !== null) {
+  if (causa) {
     const erro = validarCausa(causa)
     if (erro) return falha(erro)
-    campos = { feita: false, nao_realizada: true, causa }
-  } else if (causa === null) {
-    campos = { nao_realizada: false, causa: null }
-  } else {
-    campos = { feita: Boolean(feita), ...(feita ? { nao_realizada: false, causa: null } : {}) }
   }
-  const [salva] = await atualizar('subtarefas', { id, obra_id: obraAtual() }, campos)
+  const [salva] = await atualizar('subtarefas', { id, obra_id: obraAtual() }, camposDaSubtarefa({ feita, causa }))
   return salva ? ok(salva) : falha('Subtarefa não encontrada nesta obra.')
 })
 

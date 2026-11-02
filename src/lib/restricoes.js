@@ -7,7 +7,7 @@ import { TIPOS_RESTRICAO } from './listas.js'
 
 const daEap = (eap) => new Map(eap.map((x) => [x.id, x]))
 const porPrazo = (a, b) => a.prazo.localeCompare(b.prazo) || a.descricao.localeCompare(b.descricao, 'pt-BR')
-export const estaVencida = (r, hoje) => !r.resolvida && r.prazo < hoje
+const estaVencida = (r, hoje) => !r.resolvida && r.prazo < hoje
 
 // O quadro: `semanas` colunas a partir da semana de hoje. Só entram restrições de atividade
 // ativa (a da atividade arquivada some junto com ela). `depois` = quantas ficam além do horizonte.
@@ -22,8 +22,12 @@ export function montarLookahead(lista, eap, hoje, { semanas = 4, responsavel = '
   for (const r of [...lista].sort(porPrazo)) {
     const at = atividades.get(r.atividade_id)
     if (!at || (responsavel && r.responsavel !== responsavel)) continue
-    if (r.resolvida && (!verResolvidas || r.prazo < inicio)) continue
-    const i = r.prazo < inicio ? 0 : Math.floor(diasEntre(inicio, r.prazo) / 7)
+    if (r.resolvida && !verResolvidas) continue
+    // A resolvida com atraso (prazo já passado) aparece na semana em que foi resolvida; a resolvida
+    // antes desta semana já não é do quadro. A aberta vencida fica na semana atual.
+    const quando = r.resolvida && r.prazo < inicio ? r.resolvida_em : r.prazo
+    if (r.resolvida && quando < inicio) continue
+    const i = quando < inicio ? 0 : Math.floor(diasEntre(inicio, quando) / 7)
     if (i >= semanas) { depois++; continue }
     colunas[i].itens.push({ ...r, vencida: estaVencida(r, hoje), atividade: { codigo: at.codigo, titulo: at.titulo } })
   }

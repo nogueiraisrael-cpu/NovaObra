@@ -4,7 +4,7 @@
 // O cronograma também pode entrar por planilha (importarCronograma.jsx).
 import { useState } from 'react'
 import { salvarAtividade, moverAtividade, arquivarAtividade } from '../lib/dados.js'
-import { montarEap, listarArquivadas, maesPossiveis, validarAtividade, diasUteis, trocaDeOrdem, descreverCalendario, idsParaArquivar, idsParaDesarquivar } from '../lib/planejamento.js'
+import { montarEap, listarArquivadas, maesPossiveis, validarAtividade, diasUteis, trocaDeOrdem, descreverCalendario, idsParaArquivar, idsParaDesarquivar, contarSubatividades } from '../lib/planejamento.js'
 import { comAtividade, comOrdens, comArquivadas } from '../lib/planejamentoLocal.js'
 import { hojeISO, formatarDiaMes, formatarData } from '../lib/datas.js'
 import { ErroCampo, Gaveta, Icon, Pill, Vazio } from '../components/index.jsx'
@@ -73,7 +73,7 @@ function FormAtividade({ lista, calendario, atividade, paiInicial, fechar, salva
 // ---------- detalhes: editar, subatividade, subir/descer e arquivar ----------
 function Detalhes({ linha, lista, calendario, ocupado, editar, nova, mover, arquivar, fechar }) {
   const [confirmar, setConfirmar] = useState(false)
-  const filhas = montarEap(lista).filter((x) => x.codigo.startsWith(`${linha.codigo}.`)).length
+  const filhas = contarSubatividades(lista, linha.id)
   return (
     <>
       <div className="eyebrow">{linha.codigo} · {linha.grupo ? 'Grupo' : 'Atividade'}</div>

@@ -2,7 +2,7 @@
 // hierarquia pelo código ITEM, datas DD/MM/AAAA e a conferência antes de gravar.
 import * as XLSX from 'xlsx'
 import { normalizarItem, lerData, conferirImportacao, paraGravar } from '../src/lib/importacao.js'
-import { gerarModelo, lerPlanilha, lerCsv, COLUNAS } from '../src/lib/planilhaCronograma.js'
+import { gerarModelo, lerPlanilha, lerCsv, COLUNAS, tipoDoArquivo } from '../src/lib/planilhaCronograma.js'
 
 let ok = 0
 let tot = 0
@@ -32,6 +32,11 @@ conferir('término em branco sai do início + duração (dias corridos)', boa.li
 conferir('duração em branco sai das datas', boa.linhas[4].duracao, 9)
 conferir('grupo sem datas pega o período das filhas', [boa.linhas[1].inicio, boa.linhas[1].fim], ['2026-11-09', '2026-11-21'])
 conferir('sem erros', boa.erros, 0)
+const diferente = conferirImportacao([L(2, '1', 'A', '02/11/2026', '06/11/2026', '3')])
+conferir('duração que não bate com as datas: aviso, sem impedir, e valem as datas',
+  [diferente.erros, diferente.avisos, diferente.linhas[0].duracao, diferente.linhas[0].avisos[0]],
+  [0, 1, 5, 'A duração da planilha (3 dias) não bate com as datas (5 dias). Vale o que as datas dizem.'])
+conferir('duração que bate não avisa nada', boa.avisos, 0)
 
 const ruim = conferirImportacao([
   L(2, '1', '', '02/11/2026', '03/11/2026'),
@@ -84,6 +89,9 @@ conferir('acha o cabeçalho fora da 1ª linha; lê 1.10 como texto; data do Exce
   [[4, '1', '01/11/2026', '02/11/2026'], [5, '1.10', '04/11/2026', '05/11/2026'], [6, '2', '05/11/2026', '06/11/2026']])
 conferir('planilha sem o cabeçalho', (() => { try { lerPlanilha(XLSX, XLSX.write((() => { const b = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(b, XLSX.utils.aoa_to_sheet([['a', 'b']]), 'x'); return b })(), { type: 'array', bookType: 'xlsx' })); return 'leu' } catch (e) { return e.message } })(),
   'Não achei o cabeçalho com as colunas ITEM, Atividade, Início e Término. Use a planilha modelo.')
+
+conferir('arquivo aceito ou recusado, com a frase', [tipoDoArquivo({ name: 'A.XLSX', size: 10 }), tipoDoArquivo({ name: 'a.csv', size: 10 }), tipoDoArquivo({ name: 'foto.png', size: 10 }), tipoDoArquivo({ name: 'a.xlsx', size: 6e6 })],
+  [{ tipo: 'xlsx' }, { tipo: 'csv' }, { erro: 'Use um arquivo .xlsx ou .csv.' }, { erro: 'Arquivo grande demais (máximo 5 MB).' }])
 
 // CSV: ponto e vírgula (Excel em português) ou vírgula, com aspas.
 const csv = 'ITEM;Atividade;Início;Término;Duração (Dias)\n1;"Serviços; preliminares";02/11/2026;06/11/2026;5\n1.10;Décima;07/11/2026;07/11/2026;\n\n'

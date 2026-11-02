@@ -1,6 +1,9 @@
 // Planejamento — Curto prazo: quais atividades entram na semana, o Kanban e o PPC.
-import { itensDaSemana, montarKanban, calcularPpc, historicoPpc, validarCausa, contarSubtarefas, rotuloDaSemana } from '../src/lib/curtoPrazo.js'
-import { montarEap } from '../src/lib/planejamento.js'
+import {
+  itensDaSemana, montarKanban, calcularPpc, historicoPpc, validarCausa, contarSubtarefas,
+  mudancaDeColuna, efeitoDoAvanco, camposDaSubtarefa, subtarefasDe,
+} from '../src/lib/curtoPrazo.js'
+import { montarEap, rotuloDaSemana } from '../src/lib/planejamento.js'
 
 let ok = 0
 let tot = 0
@@ -50,6 +53,27 @@ conferir('histórico do PPC: as últimas semanas, da mais antiga para a atual', 
 
 conferir('causa precisa estar na lista', [validarCausa('Clima'), validarCausa(''), validarCausa('Preguiça')], [null, 'Escolha a causa.', 'Escolha a causa.'])
 conferir('subtarefas feitas', contarSubtarefas([{ feita: true }, { feita: false }, { feita: true }]), { feitas: 2, total: 3 })
+
+// Mudar de coluna: o que muda na linha da semana e no avanço da atividade.
+conferir('concluir guarda o avanço de antes e põe 100%', mudancaDeColuna(null, 'Concluído', 40),
+  { campos: { status: 'Concluído', nao_realizada: false, causa: null, progresso_antes: 40 }, progresso: 100 })
+conferir('concluir de novo não perde o avanço guardado', mudancaDeColuna({ status: 'Concluído', progresso_antes: 40 }, 'Concluído', 100).campos.progresso_antes, undefined)
+conferir('sair de Concluído devolve o avanço de antes', mudancaDeColuna({ status: 'Concluído', progresso_antes: 40 }, 'Em andamento', 100),
+  { campos: { status: 'Em andamento', progresso_antes: null }, progresso: 40 })
+conferir('entre A fazer e Em andamento o avanço não muda', mudancaDeColuna({ status: 'A fazer', progresso_antes: null }, 'Em andamento', 30).progresso, null)
+
+// Avanço lançado no Longo prazo acerta o Kanban (as duas abas nunca discordam).
+const regs = [{ id: 'r1', semana: '2026-10-26', status: 'Em andamento' }]
+conferir('chegar a 100% conclui na semana de hoje, guardando o avanço de antes', efeitoDoAvanco(regs, 100, 60, '2026-11-02'),
+  { concluir: { semana: '2026-11-02', campos: { status: 'Concluído', nao_realizada: false, causa: null, progresso_antes: 60 } }, reabrir: [] })
+conferir('já concluída no Kanban: lançar 100% não mexe', efeitoDoAvanco([{ id: 'r2', semana: '2026-10-26', status: 'Concluído' }], 100, 100, '2026-11-02'), { concluir: null, reabrir: [] })
+conferir('sair de 100% reabre a semana em que estava concluída', efeitoDoAvanco([...regs, { id: 'r2', semana: '2026-11-02', status: 'Concluído' }], 60, 100, '2026-11-02'),
+  { concluir: null, reabrir: ['r2'] })
+conferir('abaixo de 100 sem Concluído: nada no Kanban', efeitoDoAvanco(regs, 70, 60, '2026-11-02'), { concluir: null, reabrir: [] })
+
+conferir('subtarefa: feita, não feita com causa, desmarcar', [camposDaSubtarefa({ feita: true }), camposDaSubtarefa({ causa: 'Clima' }), camposDaSubtarefa({ causa: null }), camposDaSubtarefa({ feita: false })],
+  [{ feita: true, nao_realizada: false, causa: null }, { feita: false, nao_realizada: true, causa: 'Clima' }, { nao_realizada: false, causa: null }, { feita: false }])
+conferir('subtarefas de uma atividade, em ordem', subtarefasDe([{ atividade_id: 'a', ordem: 2, id: 'y' }, { atividade_id: 'b', ordem: 0, id: 'z' }, { atividade_id: 'a', ordem: 1, id: 'x' }], 'a').map((s) => s.id), ['x', 'y'])
 
 conferir('rótulo da semana', ['2026-11-02', '2026-10-26', '2026-11-09', '2026-11-16'].map((s) => rotuloDaSemana(s, '2026-11-02')),
   ['Esta semana', 'Semana passada', 'Próxima semana', 'Semana de 16/11'])

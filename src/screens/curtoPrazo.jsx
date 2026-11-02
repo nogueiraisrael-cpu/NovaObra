@@ -4,8 +4,8 @@
 // Concluir uma atividade põe o avanço dela em 100% no Longo prazo.
 import { useState } from 'react'
 import { moverNaSemana, marcarNaoRealizada, criarSubtarefa, marcarSubtarefa, apagarSubtarefa } from '../lib/dados.js'
-import { montarEap, segundaDaSemana } from '../lib/planejamento.js'
-import { itensDaSemana, montarKanban, calcularPpc, historicoPpc, contarSubtarefas, rotuloDaSemana } from '../lib/curtoPrazo.js'
+import { montarEap, segundaDaSemana, rotuloDaSemana } from '../lib/planejamento.js'
+import { itensDaSemana, montarKanban, calcularPpc, historicoPpc, contarSubtarefas, subtarefasDe } from '../lib/curtoPrazo.js'
 import { comStatusNaSemana, comNaoRealizada, novaSubtarefa, comSubtarefa, semSubtarefa } from '../lib/planejamentoLocal.js'
 import { STATUS_SEMANA, CAUSAS_NAO_REALIZADO } from '../lib/listas.js'
 import { hojeISO, somarDias, formatarDiaMes } from '../lib/datas.js'
@@ -157,7 +157,7 @@ export default function CurtoPrazo({ lista, semanas, subtarefas, gravar, ocupado
   const itens = itensDaSemana(eap, semanas, semana)
   const kanban = montarKanban(itens)
   const ppc = calcularPpc(itens)
-  const subsDe = (id) => subtarefas.filter((s) => s.atividade_id === id).sort((x, y) => x.ordem - y.ordem)
+  const subsDe = (id) => subtarefasDe(subtarefas, id)
   const itemAberto = itens.find((x) => x.atividade.id === aberta)
 
   const mover = (id, status) => gravar(() => moverNaSemana(id, semana, status), {

@@ -23,6 +23,7 @@ const lista = [
   r('longe', 'pin', '2026-12-01', 'Israel'),
   r('resolvida', 'fio', '2026-11-05', 'Ricardo', { resolvida: true, resolvida_em: '2026-11-03' }),
   r('antiga-ok', 'fio', '2026-10-20', 'Israel', { resolvida: true, resolvida_em: '2026-10-19' }),
+  r('atrasada-ok', 'fio', '2026-10-28', 'Israel', { resolvida: true, resolvida_em: '2026-11-03' }),
   r('arquivada', 'vel', '2026-11-05', 'Israel'),
 ]
 
@@ -36,7 +37,8 @@ conferir('cada item traz o código e o nome da atividade', q.colunas[0].itens[0]
 conferir('quantas ficam depois do horizonte', q.depois, 1)
 
 const comResolvidas = montarLookahead(lista, eap, hoje, { semanas: 3, verResolvidas: true })
-conferir('mostrar resolvidas: a da semana aparece; a antiga não', comResolvidas.colunas[0].itens.map((x) => x.id), ['vencida', 'hoje', 'resolvida', 'sexta'])
+conferir('mostrar resolvidas: a da semana e a resolvida com atraso nesta semana aparecem; a antiga não', comResolvidas.colunas[0].itens.map((x) => x.id), ['atrasada-ok', 'vencida', 'hoje', 'resolvida', 'sexta'])
+conferir('sem o filtro, nenhuma resolvida aparece', q.colunas.flatMap((c) => c.itens).some((x) => x.resolvida), false)
 conferir('filtro por responsável', montarLookahead(lista, eap, hoje, { semanas: 6, responsavel: 'Ricardo' }).colunas.flatMap((c) => c.itens.map((x) => x.id)), ['hoje'])
 conferir('6 semanas alcançam a de dezembro', montarLookahead(lista, eap, hoje, { semanas: 6 }).depois, 0)
 
@@ -56,7 +58,7 @@ conferir('validação: prazo no passado (só ao criar)', [
 ], ['O prazo não pode ser antes de hoje.', undefined])
 
 conferir('responsáveis sem repetir, em ordem', responsaveis(lista), ['Israel', 'Ricardo'])
-conferir('contadores (atividade arquivada não conta)', contarRestricoes(lista, eap, hoje), { abertas: 5, vencidas: 1, resolvidas: 2 })
+conferir('contadores (atividade arquivada não conta)', contarRestricoes(lista, eap, hoje), { abertas: 5, vencidas: 1, resolvidas: 3 })
 
 conferir('detalhar: com a atividade e se venceu', [detalharRestricao(lista, eap, 'vencida', hoje).atividade.codigo, detalharRestricao(lista, eap, 'vencida', hoje).vencida], ['1.1', true])
 conferir('detalhar: atividade arquivada não abre', detalharRestricao(lista, eap, 'arquivada', hoje), null)

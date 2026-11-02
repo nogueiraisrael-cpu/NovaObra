@@ -1,7 +1,7 @@
 // Datas sempre no fuso local. Nunca usar toISOString() para "hoje":
 // ela vira UTC e, à noite no Brasil, pula para o dia seguinte.
 
-const doisDigitos = (n) => String(n).padStart(2, '0')
+export const doisDigitos = (n) => String(n).padStart(2, '0')
 
 export function hojeISO(agora = new Date()) {
   return `${agora.getFullYear()}-${doisDigitos(agora.getMonth() + 1)}-${doisDigitos(agora.getDate())}`

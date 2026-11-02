@@ -52,8 +52,9 @@ function compararItens(a, b) {
 const paiDe = (item) => (item.includes('.') ? item.slice(0, item.lastIndexOf('.')) : null)
 
 // Confere as linhas cruas ({ linha, item, titulo, inicio, fim, duracao }, tudo texto).
-// Devolve as linhas em ordem de código, com nível, mãe, datas resolvidas e a lista de
-// erros de cada uma; `erros` = total. A tela mostra; nada é gravado aqui.
+// Devolve as linhas em ordem de código, com nível, mãe, datas resolvidas e as listas de
+// erros (impedem importar) e avisos (não impedem) de cada uma; `erros` e `avisos` = totais.
+// A tela mostra; nada é gravado aqui.
 export function conferirImportacao(cruas) {
   const linhas = cruas.map((c) => {
     const item = normalizarItem(c.item)
@@ -62,7 +63,7 @@ export function conferirImportacao(cruas) {
       linha: c.linha, item, titulo: String(c.titulo ?? '').trim(), valido,
       nivel: valido ? partes(item).length - 1 : 0, pai: valido ? paiDe(item) : null,
       textoInicio: String(c.inicio ?? '').trim(), textoFim: String(c.fim ?? '').trim(),
-      inicio: lerData(c.inicio), fim: lerData(c.fim), duracao: lerDuracao(c.duracao), erros: [],
+      inicio: lerData(c.inicio), fim: lerData(c.fim), duracao: lerDuracao(c.duracao), erros: [], avisos: [],
     }
   })
   // Válidos em ordem de código; os sem código ou com código ruim vão para o fim, na ordem da planilha.
@@ -100,10 +101,15 @@ export function conferirImportacao(cruas) {
     if (!l.fim && !l.textoFim) l.erros.push('Falta a data de término (ou a duração).')
     if (l.inicio && l.fim) {
       if (l.fim < l.inicio) l.erros.push('O término é antes do início.')
-      else l.duracao = diasEntre(l.inicio, l.fim) + 1
+      else {
+        const pelasDatas = diasEntre(l.inicio, l.fim) + 1
+        // Duração escrita que não bate com as datas: valem as datas, mas a pessoa fica sabendo.
+        if (l.duracao && l.duracao !== pelasDatas) l.avisos.push(`A duração da planilha (${l.duracao} dias) não bate com as datas (${pelasDatas} dias). Vale o que as datas dizem.`)
+        l.duracao = pelasDatas
+      }
     }
   }
-  return { linhas, erros: linhas.reduce((s, l) => s + l.erros.length, 0) }
+  return { linhas, erros: linhas.reduce((s, l) => s + l.erros.length, 0), avisos: linhas.reduce((s, l) => s + l.avisos.length, 0) }
 }
 
 // O que vai para o banco: `chave` (o código) e `paiChave` ligam mãe e filha; `ordem` é a

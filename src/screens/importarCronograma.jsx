@@ -5,11 +5,10 @@
 import { useState } from 'react'
 import { importarCronograma, IMPORTACAO_MAXIMO } from '../lib/dados.js'
 import { conferirImportacao, paraGravar } from '../lib/importacao.js'
-import { gerarModelo, lerPlanilha, lerCsv } from '../lib/planilhaCronograma.js'
+import { gerarModelo, lerPlanilha, lerCsv, tipoDoArquivo } from '../lib/planilhaCronograma.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
 import { ErroCampo, Gaveta, Pill, useToast } from '../components/index.jsx'
 
-const TAMANHO_MAXIMO = 5 * 1024 * 1024
 const carregarXlsx = () => import('xlsx')
 
 // Uma linha da conferência: o que foi entendido e, se tiver problema (ou a pessoa pedir), os campos para corrigir.
@@ -33,6 +32,7 @@ function LinhaConferida({ l, crua, mudar, tirar }) {
         {!l.erros.length && <button className="sub-acao" onClick={() => setAbrir(!abrir)}>{abrir ? 'Fechar' : 'Corrigir'}</button>}
       </div>
       {l.erros.map((e) => <div className="err" key={e}>{e}</div>)}
+      {l.avisos.map((a) => <div className="hint t-warn" key={a}>{a}</div>)}
       {editando && (
         <div className="imp-edicao">
           {campo('item', 'ITEM', { inputMode: 'decimal', placeholder: 'Ex.: 2.1' })}
@@ -68,6 +68,7 @@ function Conferencia({ arquivo, cruas, setCruas, ativas, ocupado, cancelar, conf
       <div className="row-wrap" style={{ marginTop: 10, gap: 6 }}>
         <Pill cor="info">{cruas.length} {cruas.length === 1 ? 'atividade' : 'atividades'}</Pill>
         {comErro > 0 ? <Pill cor="bad">{comErro} com problema</Pill> : cruas.length > 0 && <Pill cor="ok">Tudo certo</Pill>}
+        {conf.avisos > 0 && <Pill cor="warn">{conf.avisos} {conf.avisos === 1 ? 'aviso' : 'avisos'}</Pill>}
       </div>
       <div className="hint">Esta é a árvore que vai entrar na EAP, na ordem dos códigos. Nada foi gravado ainda. Corrija aqui o que estiver em vermelho, ou cancele e corrija na planilha.</div>
       {grande && <div className="banner bad">A planilha tem {cruas.length} atividades; o máximo é {IMPORTACAO_MAXIMO} por vez. Divida em duas planilhas.</div>}
@@ -123,12 +124,11 @@ export default function PlanilhaCronograma({ ativas, atualizar }) {
     const arquivo = e.target.files[0]
     e.target.value = '' // escolher o mesmo arquivo de novo também funciona
     if (!arquivo) return
-    const nome = arquivo.name.toLowerCase()
-    if (!nome.endsWith('.xlsx') && !nome.endsWith('.csv')) return toast('Use um arquivo .xlsx ou .csv.', 'bad')
-    if (arquivo.size > TAMANHO_MAXIMO) return toast('Arquivo grande demais (máximo 5 MB).', 'bad')
+    const { tipo, erro: naoServe } = tipoDoArquivo(arquivo)
+    if (naoServe) return toast(naoServe, 'bad')
     setLendo(true)
     try {
-      const cruas = nome.endsWith('.csv')
+      const cruas = tipo === 'csv'
         ? lerCsv(await arquivo.text())
         : lerPlanilha(await carregarXlsx(), new Uint8Array(await arquivo.arrayBuffer()))
       if (!cruas.length) toast('Não achei nenhuma atividade abaixo do cabeçalho.', 'bad')
@@ -136,9 +136,8 @@ export default function PlanilhaCronograma({ ativas, atualizar }) {
     } catch (erro) {
       // Planilha fora do padrão é erro da planilha, já explicado na tela: não suja o console.
       // Só o inesperado (arquivo corrompido, pacote que não carregou) vai para o console.
-      const daPlanilha = erro.message?.startsWith('Não achei') || erro.message?.startsWith('A planilha')
-      if (!daPlanilha) console.error('[planilha]', erro)
-      toast(daPlanilha ? erro.message : 'Não consegui ler este arquivo. Ele é mesmo uma planilha .xlsx ou .csv?', 'bad')
+      if (!erro.daPlanilha) console.error('[planilha]', erro)
+      toast(erro.daPlanilha ? erro.message : 'Não consegui ler este arquivo. Ele é mesmo uma planilha .xlsx ou .csv?', 'bad')
     }
     setLendo(false)
   }

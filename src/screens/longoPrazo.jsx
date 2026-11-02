@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { salvarProgresso, salvarCalendario } from '../lib/dados.js'
 import {
   montarEap, andamento, escalaDoCronograma, posicaoNaEscala, posicaoDeHoje, diasUteis, previstoAte,
-  filtrarInteiro, lerProgresso, validarCalendario, descreverCalendario, NOMES_DIAS,
+  filtrarInteiro, lerProgresso, validarCalendario, descreverCalendario, NOMES_DIAS, segundaDaSemana,
 } from '../lib/planejamento.js'
 import { comProgresso, comCalendario } from '../lib/planejamentoLocal.js'
 import { hojeISO, formatarData, formatarDiaMes } from '../lib/datas.js'
@@ -139,7 +139,7 @@ export default function LongoPrazo({ lista, calendario, gravar, ocupado, irParaE
 
   function salvarAvanco(id, texto) {
     setGaveta(null)
-    gravar(() => salvarProgresso(id, texto), { mudar: (d) => comProgresso(d, id, lerProgresso(texto)), sucesso: 'Avanço salvo', falhou: 'Avanço não salvo' })
+    gravar(() => salvarProgresso(id, texto), { mudar: (d) => comProgresso(d, id, lerProgresso(texto), segundaDaSemana(hoje)), sucesso: 'Avanço salvo', falhou: 'Avanço não salvo' })
   }
 
   function salvarCal(cal) {

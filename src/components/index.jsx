@@ -40,17 +40,18 @@ export const COR_EFETIVO = { Presente: 'ok', Falta: 'bad', Atestado: 'warn', Des
 export const COR_EQUIP = { Operando: 'ok', Parado: 'warn', Quebrado: 'bad' }
 export const COR_FRENTE_DIA = { 'Em execução': 'ok', 'Parada': 'bad', 'Concluída': 'info' }
 // Restrições do Médio prazo: cada tipo com ícone e cor próprios (as cores em index.css, .tipo-*).
-export const ICONE_RESTRICAO = {
-  'Material': 'caixa', 'Mão de obra': 'pessoas', 'Método': 'prancheta', 'Equipamento': 'equip',
-  'Projeto': 'planta', 'Segurança': 'escudo', 'Logística': 'caminhao',
-}
-export const CLASSE_RESTRICAO = {
-  'Material': 'material', 'Mão de obra': 'mao', 'Método': 'metodo', 'Equipamento': 'equipamento',
-  'Projeto': 'projeto', 'Segurança': 'seguranca', 'Logística': 'logistica',
+export const TIPO_RESTRICAO = {
+  'Material': { icone: 'caixa', classe: 'material' },
+  'Mão de obra': { icone: 'pessoas', classe: 'mao' },
+  'Método': { icone: 'prancheta', classe: 'metodo' },
+  'Equipamento': { icone: 'equip', classe: 'equipamento' },
+  'Projeto': { icone: 'planta', classe: 'projeto' },
+  'Segurança': { icone: 'escudo', classe: 'seguranca' },
+  'Logística': { icone: 'caminhao', classe: 'logistica' },
 }
 
 export function TipoRestricao({ tipo }) {
-  return <span className={`tipo tipo-${CLASSE_RESTRICAO[tipo]}`}><Icon nome={ICONE_RESTRICAO[tipo]} />{tipo}</span>
+  return <span className={`tipo tipo-${TIPO_RESTRICAO[tipo].classe}`}><Icon nome={TIPO_RESTRICAO[tipo].icone} />{tipo}</span>
 }
 
 // ---------- etiquetas e números ----------

@@ -75,7 +75,25 @@ local = comAtividade(await ler(), mudouDeLugar)
 conferir('mudar de "dentro de" vai para o fim das novas irmãs, como no banco',
   local.atividades.find((x) => x.id === 'at-aca-pin').ordem, (await dados.salvarAtividade(mudouDeLugar)).data.ordem)
 conferir('arquivar na tela', comArquivadas(await ler(), ['at-reb', 'at-reb-int'], true).atividades.filter((x) => x.arquivada).map((x) => x.id).sort(), ['at-dem-chur', 'at-reb', 'at-reb-int'])
-conferir('avanço na tela', avanco(comProgresso(await ler(), 'at-reb-fach', 55), 'at-reb-fach'), 55)
+conferir('avanço na tela', avanco(comProgresso(await ler(), 'at-reb-fach', 55, semana), 'at-reb-fach'), 55)
+
+// Achado da revisão: Longo e Curto prazo não podem discordar. Lançar 100% no Longo prazo conclui
+// no Kanban desta semana (e entra no PPC); baixar de 100% reabre. Tela e banco, lado a lado.
+const { itensDaSemana, calcularPpc } = await import('../src/lib/curtoPrazo.js')
+const { montarEap } = await import('../src/lib/planejamento.js')
+const noKanban = (d, id) => itensDaSemana(montarEap(d.atividades), d.semanas, semana).find((x) => x.atividade.id === id)?.status
+const ppc = (d) => calcularPpc(itensDaSemana(montarEap(d.atividades), d.semanas, semana)).concluidas
+const antesDos100 = await ler()
+local = comProgresso(antesDos100, 'at-reb-fach', 100, semana)
+await dados.salvarProgresso('at-reb-fach', '100')
+banco = await ler()
+conferir('100% no Longo prazo: Concluído no Kanban, na tela e no banco', [noKanban(local, 'at-reb-fach'), noKanban(banco, 'at-reb-fach')], ['Concluído', 'Concluído'])
+conferir('e o PPC da semana conta mais uma', [ppc(local) - ppc(antesDos100), ppc(banco) - ppc(antesDos100)], [1, 1])
+local = comProgresso(banco, 'at-reb-fach', 60, semana)
+await dados.salvarProgresso('at-reb-fach', '60')
+banco = await ler()
+conferir('baixar para 60%: sai de Concluído, na tela e no banco', [noKanban(local, 'at-reb-fach'), noKanban(banco, 'at-reb-fach')], ['Em andamento', 'Em andamento'])
+conferir('e o PPC volta', ppc(banco), ppc(antesDos100))
 
 console.log(`${ok}/${tot} — planejamentoLocal`)
 process.exit(ok === tot ? 0 : 1)
