@@ -44,3 +44,16 @@ num celular de verdade (foto da nota pela câmera e Wi-Fi desligado foram simula
 - 01/11/2026 · Materiais · trocar de obra troca o quadro inteiro (UBS só com os 2 dela).
 - 01/11/2026 · Materiais · sem internet o cartão volta e a tela avisa, sem perder o quadro (consertado na rodada).
 - 01/11/2026 · Materiais · no tamanho de celular as colunas deslizam e a página não anda para o lado.
+
+## Rodada 5 · Estoque em Materiais
+
+Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do dono.
+
+- 02/11/2026 · Estoque · o contador "insumos críticos" aparece no topo e a sub-aba Estoque mostra insumo, saldo, mínimo e situação.
+- 02/11/2026 · Estoque · a busca acha sem acento e o filtro "Só críticos" mostra só os críticos.
+- 02/11/2026 · Estoque · o histórico do insumo mostra as movimentações; mudar o mínimo muda a situação e o contador.
+- 02/11/2026 · Estoque · baixa vazia ou maior que o saldo é recusada, e insumo sem saldo não pode ser escolhido.
+- 02/11/2026 · Estoque · a baixa manual derruba o saldo na hora e "Desfazer" (com confirmação) devolve.
+- 02/11/2026 · Estoque · pedido recebido entra sozinho no estoque com o que chegou de fato; voltar o pedido tira a entrada.
+- 02/11/2026 · Estoque · entregar na frente leva só o que sobrou do lote; voltar a entrega devolve (consertado na revisão).
+- 02/11/2026 · Estoque · trocar de obra troca o estoque (UBS só com o cimento dela).
