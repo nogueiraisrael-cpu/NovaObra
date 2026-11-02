@@ -26,6 +26,9 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 
 ## As tabelas (14)
 
+Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `movimentos_estoque`) existe
+`updated_at`: a hora da última alteração, que o próprio banco atualiza. O app nunca grava essa coluna.
+
 | Tabela | O que guarda | Uma linha é… |
 |---|---|---|
 | `obras` | Cada obra: nome, código curto (único), tipo, cidade, cliente, contrato, datas, situação | uma obra |
@@ -81,3 +84,4 @@ relativas ao dia em que roda; rodar de novo não duplica nada.
 | `20261101-05-materiais.sql` | Cria `materiais` e `pedidos_material` (antecipado da v2). ⚠️ Também abertas sem login, provisório até o passo 10 |
 | `20261101-06-estoque.sql` | Cria `insumos` e `movimentos_estoque` e a quantidade recebida no pedido. ⚠️ Também abertas sem login, provisório até o passo 10 |
 | `20261102-07-estoque-nunca-negativo.sql` | Trava no banco: nenhuma gravação deixa um insumo com saldo negativo (achado da revisão de código) |
+| `20261102-08-materiais-updated-at.sql` | `updated_at` automático nas quatro tabelas de Materiais |
