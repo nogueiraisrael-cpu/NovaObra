@@ -4,6 +4,7 @@
 // DUAS obras, de propósito e bem diferentes (o-segundo): a Serra tem RDO de hoje
 // em andamento, 8 funcionários e equipamentos; a UBS não tem RDO de hoje, tem
 // outra equipe e NENHUM equipamento. Se aparecer equipamento na UBS, vazou dado.
+// Nos materiais, a UBS tem só 2 pedidos (aço e bloco); a Serra, 9.
 //
 // As datas são relativas a hoje, para o exemplo continuar fazendo sentido amanhã.
 // O supabase-seed.sql foi gerado a partir daqui (01/11/2026): os ids viram uuid fixos.
@@ -194,8 +195,58 @@ export function criarMock(hoje = hojeISO()) {
   frenteDoDia('rdo-serra-ontem', 'obra-serra', 'fs-reboco', 'Parada', '', [], [], 'Falta de material')
   frenteDoDia('rdo-ubs-ontem', 'obra-ubs', 'fs-ubs-sapatas', 'Em execução', 'Armação das sapatas S7 a S10', ['f-damiao', 'f-francisco'], [['Sapatas S7 a S10', '#6B5B4A']])
 
+  // ---- Materiais: catálogo (igual para todas as obras) e o quadro de pedidos ----
+  // Serra: 9 pedidos em todas as colunas, 2 críticos, 1 atrasado e 1 recebido com problema.
+  // UBS: só 2, de outros materiais. Pedido da Serra na UBS é vazamento.
+  const mat = (id, nome, unidade, categoria) => ({ id, nome, unidade, categoria, ativo: true })
+  const materiais = [
+    mat('mat-cimento', 'Cimento CP-II 50 kg', 'saco', 'Material grosso'),
+    mat('mat-argamassa', 'Argamassa de reboco', 'saco', 'Material grosso'),
+    mat('mat-areia', 'Areia média', 'm³', 'Material grosso'),
+    mat('mat-brita', 'Brita 1', 'm³', 'Material grosso'),
+    mat('mat-aco', 'Aço CA-50 10 mm', 'barra', 'Material grosso'),
+    mat('mat-bloco', 'Bloco cerâmico 9×19×19', 'un', 'Material grosso'),
+    mat('mat-porcelanato', 'Porcelanato 60×60', 'm²', 'Acabamento'),
+    mat('mat-rejunte', 'Rejunte flexível', 'kg', 'Acabamento'),
+    mat('mat-massa', 'Massa corrida', 'lata', 'Acabamento'),
+    mat('mat-manta', 'Manta líquida', 'balde', 'Acabamento'),
+    mat('mat-tubo', 'Tubo PVC esgoto 100 mm', 'barra', 'Instalações'),
+    mat('mat-fio', 'Cabo flexível 2,5 mm²', 'rolo', 'Instalações'),
+  ]
+  const hist = (...passos) => passos.map(([status, dia]) => ({ status, data: d(dia) }))
+  const ped = (id, obra_id, material_id, quantidade, frente, prioridade, status, historico, extra = {}) => ({
+    id, obra_id, material_id, quantidade, frente, prioridade, status, fornecedor: null, previsao_entrega: null,
+    qtd_bate_nf: null, estado_ok: null, avarias: null, foto_nf: null, historico, criado_por: P.israel, ...extra,
+  })
+  const recebido = (fornecedor, previsao, qtd_bate_nf = true, estado_ok = true, avarias = null) =>
+    ({ fornecedor, previsao_entrega: d(previsao), qtd_bate_nf, estado_ok, avarias })
+  const pedidos_material = [
+    ped('ped-tubo', 'obra-serra', 'mat-tubo', 12, 'Tubulação água fria e esgoto', 'Normal', 'Solicitar', hist(['Solicitar', -1])),
+    ped('ped-massa', 'obra-serra', 'mat-massa', 10, 'Pintura interna', 'Normal', 'Solicitar', hist(['Solicitar', -5])),
+    ped('ped-manta', 'obra-serra', 'mat-manta', 4, 'Impermeabilização laje cobertura', 'Crítico', 'Em cotação',
+      hist(['Solicitar', -3], ['Em cotação', -2])),
+    ped('ped-fio', 'obra-serra', 'mat-fio', 5, 'Elétrica — circuitos da suíte', 'Normal', 'Em cotação',
+      hist(['Solicitar', -9], ['Em cotação', -6])),
+    // O atrasado: previsão vencida há 3 dias e ainda em Comprado. É por ele que o reboco está parado.
+    ped('ped-argamassa', 'obra-serra', 'mat-argamassa', 120, 'Reboco fachada norte', 'Crítico', 'Comprado',
+      hist(['Solicitar', -14], ['Em cotação', -12], ['Comprado', -10]), { fornecedor: 'Depósito Boa Vista', previsao_entrega: d(-3) }),
+    ped('ped-areia', 'obra-serra', 'mat-areia', 6, 'Reboco fachada norte', 'Normal', 'Comprado',
+      hist(['Solicitar', -6], ['Em cotação', -5], ['Comprado', -2]), { fornecedor: 'Areal Rio Novo', previsao_entrega: d(3) }),
+    ped('ped-porcelanato', 'obra-serra', 'mat-porcelanato', 45, 'Revestimento banheiros', 'Normal', 'No almoxarifado',
+      hist(['Solicitar', -20], ['Em cotação', -18], ['Comprado', -15], ['No almoxarifado', -9]), recebido('Revestir Acabamentos', -9)),
+    ped('ped-brita', 'obra-serra', 'mat-brita', 4, 'Fundação — sapatas', 'Normal', 'No almoxarifado',
+      hist(['Solicitar', -8], ['Em cotação', -7], ['Comprado', -5], ['No almoxarifado', -2]),
+      recebido('Areal Rio Novo', -2, false, true, 'Vieram 3,5 m³; a nota diz 4 m³.')),
+    ped('ped-rejunte', 'obra-serra', 'mat-rejunte', 20, 'Revestimento banheiros', 'Normal', 'Entregue',
+      hist(['Solicitar', -16], ['Em cotação', -15], ['Comprado', -13], ['No almoxarifado', -11], ['Entregue', -4]), recebido('Revestir Acabamentos', -11)),
+    ped('ped-ubs-aco', 'obra-ubs', 'mat-aco', 80, 'Fundação — sapatas', 'Normal', 'Comprado',
+      hist(['Solicitar', -7], ['Em cotação', -6], ['Comprado', -4]), { fornecedor: 'Ferro Forte Distribuidora', previsao_entrega: d(5) }),
+    ped('ped-ubs-bloco', 'obra-ubs', 'mat-bloco', 2000, 'Alvenaria térreo — bloco A', 'Normal', 'Solicitar', hist(['Solicitar', -2])),
+  ]
+
   return {
     profiles, obras, membros, funcionarios, equipamentos, frentes_servico,
     rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos,
+    materiais, pedidos_material,
   }
 }

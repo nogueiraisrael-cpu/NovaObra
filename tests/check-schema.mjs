@@ -20,6 +20,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as dados from '../src/lib/dados.js'
 import { criarMock } from '../src/lib/mockData.js'
+import { hojeISO, somarDias } from '../src/lib/datas.js'
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
 const schema = JSON.parse(fs.readFileSync(path.join(aqui, '_schema-snapshot.json'), 'utf8'))
@@ -75,6 +76,13 @@ await d.resumoFechamento()
 await d.fecharRdo()
 const dias = (await d.listarDiarios()).data
 await d.obterDiario(dias[0].id)
+await d.listarQuadroMateriais()
+const pedido = await d.salvarPedido({ material_id: 'mat-areia', quantidade: '2,5', frente: 'Conferência', prioridade: 'Crítico' })
+await d.moverPedido(pedido.data.id, 'Em cotação')
+await d.moverPedido(pedido.data.id, 'Comprado', { fornecedor: 'Areal', previsao_entrega: somarDias(hojeISO(), 3) })
+await d.moverPedido(pedido.data.id, 'No almoxarifado', { qtd_bate_nf: true, estado_ok: false, avarias: 'Saco rasgado', foto_nf: 'data:,' })
+await d.moverPedido(pedido.data.id, 'Entregue', { frente: 'Conferência' })
+await d.apagarPedido(pedido.data.id)
 const func = await d.salvarFuncionario({ nome: 'Novo', funcao: 'Servente', obra_id: 'obra-serra' })
 await d.salvarFuncionario({ ...func.data, ativo: false })
 

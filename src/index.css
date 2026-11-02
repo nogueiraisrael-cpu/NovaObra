@@ -309,3 +309,19 @@ select.field{appearance:none;background-image:linear-gradient(45deg,transparent 
 .pizza-legenda b{color:var(--text)}
 .tabela-rolagem{overflow-x:auto}
 .tabela-obras{min-width:520px}
+
+/* ---------- materiais (quadro de pedidos) ---------- */
+/* Colunas lado a lado; no celular desliza para o lado, uma coluna por vez. */
+.kanban{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:var(--gutter);margin:0 calc(-1 * var(--gutter));padding:0 var(--gutter) 14px;align-items:flex-start}
+@media (min-width:900px){ .kanban{margin:0;padding:0 0 14px;scroll-snap-type:none} }
+.kcol{flex:0 0 min(84vw,290px);scroll-snap-align:start;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px;display:grid;gap:10px}
+.kcol-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-weight:700;font-size:16px;padding:2px 4px}
+.kcol-h span{color:var(--muted);font-size:15px}
+.kcol-vazia{color:var(--muted);font-size:15px;padding:16px 4px;text-align:center}
+.kcard{padding:14px}
+.kcard h3{font-size:17px}
+.kcard .meta b{color:var(--text)}
+.kcard-mais{flex:none;display:flex;align-items:center;gap:2px;min-height:44px;margin:-12px -8px 0 0;padding:0 6px;font-size:14px;font-weight:600;color:var(--accent-text)}
+.kcard-mais svg{width:18px;height:18px}
+.kcard-avancar{margin-top:12px;min-height:46px;font-size:15px}
+.kcard-avancar svg{width:18px;height:18px}

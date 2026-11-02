@@ -1,10 +1,12 @@
 {
-  "_tirado_em": "2026-11-01, do banco nova-obra (Supabase), depois da migration 20261101-03. Regenere depois de QUALQUER migration.",
+  "_tirado_em": "2026-11-01, do banco nova-obra (Supabase), depois da migration 20261101-05. Regenere depois de QUALQUER migration.",
   "equipamentos": ["id", "nome", "codigo", "situacao", "obra_id", "situacao_desde", "oficina", "previsao_retorno", "defeito", "created_at"],
   "fotos": ["id", "obra_id", "rdo_id", "rdo_frente_id", "caminho", "legenda", "visivel_cliente", "enviada_por", "created_at"],
   "frentes_servico": ["id", "obra_id", "nome", "etapa", "executor", "empreiteiro", "situacao", "parada_desde", "motivo_parada", "data_inicio", "data_conclusao", "created_at"],
   "funcionarios": ["id", "nome", "funcao", "obra_id", "ativo", "created_at"],
+  "materiais": ["id", "nome", "unidade", "categoria", "ativo", "created_at"],
   "obras": ["id", "nome", "codigo", "tipo", "endereco", "cidade", "cliente", "numero_contrato", "data_inicio", "data_meta_entrega", "situacao", "created_at"],
+  "pedidos_material": ["id", "obra_id", "material_id", "quantidade", "frente", "prioridade", "status", "fornecedor", "previsao_entrega", "qtd_bate_nf", "estado_ok", "avarias", "foto_nf", "historico", "criado_por", "created_at"],
   "rdo_efetivo": ["id", "rdo_id", "obra_id", "data", "funcionario_id", "situacao", "obra_destino_id", "created_at"],
   "rdo_equipamentos": ["id", "rdo_id", "obra_id", "equipamento_id", "situacao", "observacao", "created_at"],
   "rdo_frente_equipe": ["id", "rdo_frente_id", "obra_id", "funcionario_id", "created_at"],

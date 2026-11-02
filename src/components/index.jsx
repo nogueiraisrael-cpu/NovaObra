@@ -100,6 +100,19 @@ export function EmBreve({ titulo, fase, texto }) {
   )
 }
 
+// ---------- foto ----------
+// Encolhe a foto (lado maior 1280 px, JPEG) antes de gravar: provisório até o Storage.
+export async function encolherFoto(arquivo, ladoMaior = 1280) {
+  const imagem = await createImageBitmap(arquivo)
+  const escala = Math.min(1, ladoMaior / Math.max(imagem.width, imagem.height))
+  const tela = document.createElement('canvas')
+  tela.width = Math.round(imagem.width * escala)
+  tela.height = Math.round(imagem.height * escala)
+  tela.getContext('2d').drawImage(imagem, 0, 0, tela.width, tela.height)
+  imagem.close()
+  return tela.toDataURL('image/jpeg', 0.7)
+}
+
 // ---------- gaveta ----------
 export function Gaveta({ aberta, fechar, children, rotulo }) {
   // Esc fecha a gaveta (computador).

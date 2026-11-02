@@ -5,7 +5,7 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 
 - **Onde fica:** Supabase, projeto `nova-obra`, região São Paulo (`sa-east-1`), plano gratuito.
 - **Como o app entra:** endereço e chave publicável no `.env.local` (não vai para o Git).
-- **Atualizado em:** 01/11/2026 (módulo Diário de Obra, v1.0).
+- **Atualizado em:** 01/11/2026 (módulo Diário de Obra, v1.0, e Materiais — quadro de pedidos).
 
 ## ⚠️ O que é provisório e o passo 10 precisa fechar
 
@@ -24,7 +24,7 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 4. **Fotos** ficam dentro do próprio registro, encolhidas. O lugar certo é o Storage (arquivos);
    entra antes do uso real.
 
-## As tabelas (10)
+## As tabelas (12)
 
 | Tabela | O que guarda | Uma linha é… |
 |---|---|---|
@@ -38,6 +38,8 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 | `rdo_frentes` | O que aconteceu em cada frente no dia (e o motivo, se parou) | uma frente num diário |
 | `rdo_frente_equipe` | Quem trabalhou em qual frente naquele dia | uma pessoa numa frente num dia |
 | `fotos` | As fotos do dia, ligadas à obra, ao diário e à frente | uma foto |
+| `materiais` | O catálogo de materiais (nome, unidade, categoria), igual para todas as obras | um material |
+| `pedidos_material` | Cada pedido de material de uma obra: quantidade, frente, prioridade, em que coluna está (Solicitar → Entregue), fornecedor, previsão, checklist de recebimento, foto da NF e o histórico de colunas com data | um lote pedido |
 
 ## As travas que o próprio banco garante
 
@@ -49,6 +51,8 @@ Mesmo que a tela erre, o banco recusa:
 - **Trava de duas obras:** o mesmo funcionário só fica presente em uma obra por dia.
 - **Nada pendurado na obra errada:** a linha de efetivo, de equipamento ou de frente tem que ser da
   mesma obra do diário dela; a foto tem que ser da mesma obra do diário e da frente.
+- **Pedido coerente:** quantidade maior que zero; frente preenchida; de Comprado em diante exige fornecedor e
+  previsão; do almoxarifado em diante exige o checklist respondido.
 - **Toda linha de lançamento tem obra.** Funcionário e equipamento podem ficar sem obra.
 - **Coerência:** frente parada exige motivo; frente concluída exige data; deslocado exige a obra de
   destino; terceirizado exige o empreiteiro; equipamento "na obra" exige a obra (e fora dela, não tem).
@@ -69,3 +73,4 @@ relativas ao dia em que roda; rodar de novo não duplica nada.
 | `20261101-02-acesso-provisorio-dev.sql` | ⚠️ Abre tudo, provisório até o passo 10 |
 | `20261101-03-indices-das-ligacoes.sql` | Índices para as buscas por diário (aviso de desempenho do Supabase) |
 | `20261101-04-foto-na-frente-da-mesma-obra.sql` | A foto presa a uma frente tem que ser da mesma obra dessa frente (achado da revisão de código) |
+| `20261101-05-materiais.sql` | Cria `materiais` e `pedidos_material` (antecipado da v2). ⚠️ Também abertas sem login, provisório até o passo 10 |

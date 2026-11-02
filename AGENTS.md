@@ -10,7 +10,8 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
 1. **Toda tabela de lançamento tem `obra_id` obrigatório** (`not null`, FK para `obras`), com
    índice começando por `obra_id`. Tabela nova de módulo novo entra também em
    `TABELAS_DA_OBRA` (`src/lib/dados.js`). Exceção consciente: `funcionarios` e `equipamentos`
-   são cadastros que circulam entre obras — neles `obra_id` é a lotação atual e pode ser vazio.
+   são cadastros que circulam entre obras — neles `obra_id` é a lotação atual e pode ser vazio;
+   `materiais` é o catálogo, igual para todas as obras, e não tem `obra_id`.
 2. **Todo módulo novo filtra por `obra_id`.** Quem filtra é a camada de dados: as funções de
    `src/lib/dados.js` pegam a obra atual por dentro (`obraAtual()`); **as telas nunca passam
    `obra_id`**. Função de lançamento que não usa `obraAtual()` é bug.
@@ -29,7 +30,8 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    (ou um cliente) lendo a outra. Engenheiro vê todas; Cliente só as obras dele em `membros`.
    **⚠️ Exceção provisória em vigor:** `supabase/migrations/20261101-02-acesso-provisorio-dev.sql`
    abre as 10 tabelas para quem não fez login (`anon`, `using (true)`), por decisão do dono em
-   01/11/2026, enquanto o app roda só no computador dele e sem login. **O passo 10 (login) desfaz
+   01/11/2026, enquanto o app roda só no computador dele e sem login. A `-05-materiais.sql` faz o
+   mesmo com `materiais` e `pedidos_material`. **O passo 10 (login) desfaz
    isso antes de qualquer coisa ir para o ar.** O `check-grants` avisa em toda rodada.
 7. **Mock e seed sempre com DUAS obras diferentes** (`src/lib/mockData.js`): a UBS não tem
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —

@@ -5,7 +5,7 @@ import { useDados } from '../lib/useDados.js'
 import { diasParada, separarFrentes, rotuloExecutor } from '../lib/frentes.js'
 import { ETAPAS, EXECUTORES, SITUACOES_FRENTE_DIA, MOTIVOS_PARADA } from '../lib/listas.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
-import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, COR_FRENTE_DIA } from '../components/index.jsx'
+import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, encolherFoto, COR_FRENTE_DIA } from '../components/index.jsx'
 
 function CartaoFrente({ f, hoje, abrir }) {
   const dias = diasParada(f, hoje)
@@ -64,17 +64,6 @@ function FormNovaFrente({ fechar, salvo }) {
       </div>
     </>
   )
-}
-
-async function encolherFoto(arquivo, ladoMaior = 1280) {
-  const imagem = await createImageBitmap(arquivo)
-  const escala = Math.min(1, ladoMaior / Math.max(imagem.width, imagem.height))
-  const tela = document.createElement('canvas')
-  tela.width = Math.round(imagem.width * escala)
-  tela.height = Math.round(imagem.height * escala)
-  tela.getContext('2d').drawImage(imagem, 0, 0, tela.width, tela.height)
-  imagem.close()
-  return tela.toDataURL('image/jpeg', 0.7)
 }
 
 function PreencherFrente({ inicial, fechar, salvo }) {

@@ -42,6 +42,7 @@ A sua dor tem dois blocos de tamanho parecido. Fazer os dois de uma vez dá um s
 - **v1 — a rotina do dia (este plano):** lista de obras, RDO em 3 passos, frentes de serviço com foto e dias parados, prancha visual, equipamentos (onde está e quem está no conserto), cadastro de funcionários, acesso do cliente.
 - **v2 — material:** pedidos de material conferidos com a planilha de medição, aditivos, estoque de cimento/argamassa/massa corrida/areia/brita. Detalhes em "Melhorias para a v2".
 - **Mudança de 31/10/2026:** a **visualização das medições** (contrato e empreiteiro) saiu da v2 e entrou como fase v1.3. Ver "Medições" em Funcionalidades.
+- **Mudança de 01/11/2026:** o **quadro de pedidos de material** foi antecipado da v2 e já existe como aba "Materiais" dentro da obra: cada pedido (lote) anda por Solicitar → Em cotação → Comprado / a caminho → No almoxarifado → Entregue na frente, com checklist de recebimento, atrasados e lead time. Continua na v2: conferir o pedido com a planilha de medição e a lista de aditivo. Estoque continua cortado.
 
 **O que ele NÃO faz (v1):**
 - Orçamento e composição de preço (você já resolve isso; fica fora para sempre).

@@ -30,6 +30,11 @@ export const MOTIVOS_PARADA = [
   'Aguardando cliente', 'Aguardando terceirizado', 'Outro',
 ]
 
+// Materiais (quadro de pedidos). A ordem de STATUS_PEDIDO é a ordem das colunas.
+export const CATEGORIAS_MATERIAL = ['Material grosso', 'Acabamento', 'Instalações']
+export const PRIORIDADES_PEDIDO = ['Normal', 'Crítico']
+export const STATUS_PEDIDO = ['Solicitar', 'Em cotação', 'Comprado', 'No almoxarifado', 'Entregue']
+
 export const STATUS_RDO = ['Em andamento', 'Fechado']
 // Como o RDO de hoje aparece no cartão da obra (inclui o caso "não existe RDO").
 export const STATUS_RDO_HOJE = ['Não iniciado', 'Em andamento', 'Fechado']

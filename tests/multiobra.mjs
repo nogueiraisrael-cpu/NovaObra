@@ -77,6 +77,31 @@ conferir('da UBS não marca o dia da betoneira da Serra', (await dados.marcarEqu
 dados.definirObraAtual('obra-serra')
 conferir('e a betoneira continua na Serra', (await dados.listarEquipamentos()).data.naObra.some((e) => e.id === 'e-betoneira'), true)
 
+// Materiais: cada obra vê só o seu quadro, e não mexe nem apaga o pedido da outra.
+dados.definirObraAtual('obra-serra')
+const quadroSerra = (await dados.listarQuadroMateriais()).data
+dados.definirObraAtual('obra-ubs')
+const quadroUbs = (await dados.listarQuadroMateriais()).data
+conferir('pedidos da Serra são só da Serra', quadroSerra.pedidos.every((p) => p.obra_id === 'obra-serra'), true)
+conferir('UBS tem só os 2 pedidos dela', ids(quadroUbs.pedidos), ['ped-ubs-aco', 'ped-ubs-bloco'])
+conferir('o catálogo é o mesmo nas duas', quadroUbs.catalogo.length, quadroSerra.catalogo.length)
+conferir('sugestão de frente da UBS não traz frente da Serra', quadroUbs.frentes.includes('Reboco fachada norte'), false)
+conferir('da UBS não move pedido da Serra', (await dados.moverPedido('ped-tubo', 'Em cotação')).erro, 'Pedido não encontrado nesta obra.')
+conferir('da UBS não apaga pedido da Serra, e avisa', (await dados.apagarPedido('ped-tubo')).erro, 'Pedido não encontrado nesta obra.')
+const novoUbs = await dados.salvarPedido({ material_id: 'mat-cimento', quantidade: '30', frente: 'Fundação — sapatas', prioridade: 'Normal' })
+conferir('pedido novo entra na obra escolhida, em Solicitar', [novoUbs.data.obra_id, novoUbs.data.status], ['obra-ubs', 'Solicitar'])
+dados.definirObraAtual('obra-serra')
+const depoisSerra = (await dados.listarQuadroMateriais()).data.pedidos
+conferir('apagar pela UBS não apagou o pedido da Serra', depoisSerra.some((p) => p.id === 'ped-tubo'), true)
+conferir('o pedido novo da UBS não aparece na Serra', depoisSerra.some((p) => p.id === novoUbs.data.id), false)
+conferir('mover na Serra anda uma coluna e grava o histórico', (await dados.moverPedido('ped-tubo', 'Em cotação')).data.historico.map((h) => h.status), ['Solicitar', 'Em cotação'])
+conferir('o segundo toque igual é recusado', (await dados.moverPedido('ped-tubo', 'Em cotação')).erro, 'O pedido anda uma coluna por vez.')
+// Pedido criado na Serra não muda de obra se o seletor trocar enquanto o banco responde.
+const pedindo = dados.salvarPedido({ material_id: 'mat-areia', quantidade: '3', frente: 'Reboco fachada norte', prioridade: 'Normal' })
+dados.definirObraAtual('obra-ubs')
+conferir('o pedido tocado na Serra fica na Serra', (await pedindo).data.obra_id, 'obra-serra')
+conferir('e não aparece na UBS', (await dados.listarQuadroMateriais()).data.pedidos.some((p) => p.material_id === 'mat-areia'), false)
+
 // Trocar de obra no meio de uma gravação: ela termina na obra em que foi tocada.
 dados._reiniciarMock()
 await dados.entrar('eng@novaobra.test', 'x')

@@ -20,12 +20,14 @@ import { aplicarFechamento, validarPreenchimento, validarFrente } from './frente
 import { statusRdoHoje, validarObra, normalizarCodigo } from './obras.js'
 import { ordenarDiarios, resumirDiario } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
+import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido } from './materiais.js'
 
 export const USAR_MOCK = false
 
 // Tabelas de lançamento: obra_id obrigatório. Toda tabela nova de módulo novo entra aqui.
 export const TABELAS_DA_OBRA = [
   'rdos', 'rdo_efetivo', 'rdo_equipamentos', 'frentes_servico', 'rdo_frentes', 'rdo_frente_equipe', 'fotos',
+  'pedidos_material',
 ]
 
 // ---------------------------------------------------------------------------
@@ -664,6 +666,64 @@ export const mandarEquipamentoParaDeposito = (equipamentoId) => executar(async (
   const [e] = await atualizar('equipamentos', { id: equipamentoId, obra_id: obraAtual() },
     { situacao: 'No depósito', obra_id: null, situacao_desde: hoje() })
   return e ? ok(e) : falha('Equipamento não está nesta obra.')
+})
+
+// ---------------------------------------------------------------------------
+// Materiais: o quadro de pedidos da obra atual. O catálogo é igual para todas as obras.
+// ---------------------------------------------------------------------------
+
+const comMaterial = (pedido, catalogo) => {
+  const m = catalogo.find((x) => x.id === pedido.material_id)
+  return {
+    ...pedido,
+    quantidade: Number(pedido.quantidade),
+    material: m ? { nome: m.nome, unidade: m.unidade, categoria: m.categoria } : { nome: 'Material removido', unidade: '', categoria: null },
+  }
+}
+
+export const listarQuadroMateriais = () => executar(async () => {
+  const obraId = obraAtual()
+  const [pedidos, catalogo, frentes] = await Promise.all([
+    ler('pedidos_material', { obra_id: obraId }), ler('materiais'), ler('frentes_servico', { obra_id: obraId }),
+  ])
+  return ok({
+    pedidos: pedidos.map((p) => comMaterial(p, catalogo)),
+    catalogo: catalogo.filter((m) => m.ativo).sort(porNome),
+    // Sugestões para o campo "frente" (o pedido aceita texto livre, ex.: "Banheiro suíte").
+    frentes: frentes.filter((f) => f.situacao !== 'Concluída').sort(porNome).map((f) => f.nome),
+  })
+})
+
+export const salvarPedido = (dados) => executar(async () => {
+  // A obra lida no toque vale até o fim, mesmo que o seletor mude enquanto o banco responde.
+  const obraId = obraAtual()
+  const erro = Object.values(validarNovoPedido(dados))[0]
+  if (erro) return falha(erro)
+  const material = await um('materiais', { id: dados.material_id, ativo: true })
+  if (!material) return falha('Material não encontrado no catálogo.')
+  const novo = await inserir('pedidos_material', { ...novoPedido(dados, hoje()), obra_id: obraId, criado_por: usuario?.id ?? null })
+  return ok(comMaterial(novo, [material]))
+})
+
+// Mudar de coluna é uma gravação só (status + histórico + o que a coluna pede).
+export const moverPedido = (pedidoId, novoStatus, extras = {}) => executar(async () => {
+  const obraId = obraAtual()
+  const pedido = await um('pedidos_material', { id: pedidoId, obra_id: obraId })
+  if (!pedido) return falha('Pedido não encontrado nesta obra.')
+  const erro = Object.values(validarMovimento(pedido, novoStatus, extras, hoje()))[0]
+  if (erro) return falha(erro)
+  // O filtro pelo status lido protege do toque duplo e do outro aparelho: se o pedido já andou, nada muda.
+  const [salvo] = await atualizar('pedidos_material', { id: pedidoId, obra_id: obraId, status: pedido.status },
+    aplicarMovimento(pedido, novoStatus, extras, hoje()))
+  if (!salvo) return falha('Este pedido já tinha mudado de coluna (outro toque ou outro aparelho).')
+  return ok(comMaterial(salvo, [await um('materiais', { id: salvo.material_id })]))
+})
+
+export const apagarPedido = (pedidoId) => executar(async () => {
+  const filtro = { id: pedidoId, obra_id: obraAtual() }
+  if (!(await um('pedidos_material', filtro))) return falha('Pedido não encontrado nesta obra.')
+  await apagar('pedidos_material', filtro)
+  return ok(true)
 })
 
 // ---------------------------------------------------------------------------
