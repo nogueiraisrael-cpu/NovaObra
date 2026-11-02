@@ -263,3 +263,49 @@ select.field{appearance:none;background-image:linear-gradient(45deg,transparent 
 .demo{margin-top:28px;padding:16px;border-radius:12px;border:1.5px dashed var(--slate)}
 .demo p{color:var(--muted);font-size:14px;margin-bottom:10px}
 .demo .btn{width:100%;margin-top:8px}
+
+/* ---------- diários (histórico) ---------- */
+.clima-meta{display:flex;align-items:center;gap:6px}
+.clima-meta svg{width:18px;height:18px;flex:none}
+.dia-titulo{font-size:24px;font-weight:800;letter-spacing:-.01em}
+.linha-dia{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:16px}
+.linha-dia:first-of-type{border-top:0;padding-top:0}
+.texto-dia{font-size:16px;white-space:pre-wrap}
+.frente-dia.alert{background:var(--bad-bg);border:1.5px solid var(--bad-line)}
+.fotos-dia{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:12px}
+.fotos-dia figure{margin:0}
+.fotos-dia img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:var(--card-2)}
+.fotos-dia figcaption{font-size:13px;color:var(--muted);margin-top:4px}
+.so-impressao{display:none}
+
+/* Imprimir um diário: só o dia, em fundo branco, sem menu nem botões. */
+@media print{
+  :root{--text:#111;--muted:#444;--line:#bbb;--card:#fff;--card-2:#eee;--accent-text:#006c78;--bad-text:#a3241b;--bad-bg:#fff;--bad-line:#a3241b}
+  html,body{background:#fff;color:#111;font-size:12pt}
+  .side,.bottom,.obra-bar,.obra-tabs,.head,.nao-imprimir{display:none !important}
+  .main{margin:0;padding:0}
+  .so-impressao{display:block;font-weight:700;font-size:11pt;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px}
+  .block,.stats{border:1px solid #bbb;break-inside:avoid}
+  .pill{border:1px solid currentColor;background:none !important;color:#111 !important}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fotos-dia{grid-template-columns:repeat(4,1fr)}
+}
+
+/* ---------- efetivo geral (comparativo) ---------- */
+.efetivo-painel{display:grid;gap:12px}
+@media (min-width:700px){ .efetivo-painel{grid-template-columns:1fr 1fr;align-items:start} .efetivo-painel .block + .block{margin-top:0} }
+.tabela-funcoes,.tabela-obras{width:100%;border-collapse:collapse;font-size:16px;font-variant-numeric:tabular-nums}
+.tabela-funcoes th,.tabela-obras th{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:0 0 8px 10px}
+.tabela-funcoes th:first-child,.tabela-obras th:first-child{text-align:left;padding-left:0}
+.tabela-funcoes td,.tabela-obras td{padding:10px 0 10px 10px;border-top:1px solid var(--line);text-align:right}
+.tabela-funcoes td:first-child,.tabela-obras td:first-child{text-align:left;padding-left:0}
+.tabela-funcoes tfoot td,.tabela-obras tfoot td{font-weight:800;border-top:2px solid var(--slate)}
+.tabela-funcoes tr.apagada{opacity:.4}
+.amostra{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:10px;vertical-align:-1px}
+.pizza-bloco{display:grid;justify-items:center;gap:10px}
+.pizza{width:100%;max-width:240px;height:auto}
+.pizza path,.pizza circle{cursor:pointer;transition:opacity .15s}
+.pizza-legenda{min-height:24px;font-size:16px;color:var(--muted);text-align:center}
+.pizza-legenda b{color:var(--text)}
+.tabela-rolagem{overflow-x:auto}
+.tabela-obras{min-width:520px}

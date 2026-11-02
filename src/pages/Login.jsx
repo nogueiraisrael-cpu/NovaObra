@@ -57,7 +57,7 @@ export default function Login({ aoEntrar }) {
         </button>
 
         <div className="demo">
-          <p>Modo de teste: ainda não existe banco. Entre direto como:</p>
+          <p>Modo de teste: os dados já vêm do banco, mas o login de verdade só chega no passo 10. Entre direto como:</p>
           <button type="button" className="btn btn-ghost" onClick={() => entrarComo('eng@novaobra.test')}>Engenheiro</button>
           <button type="button" className="btn btn-ghost" onClick={() => entrarComo('helena@novaobra.test')}>Cliente (Dra. Helena)</button>
           <button type="button" className="btn btn-ghost" onClick={() => entrarComo('fulano@novaobra.test')}>Conta pendente</button>

@@ -5,7 +5,7 @@ import { listarPessoas, salvarFuncionario } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
 import { FUNCOES } from '../lib/listas.js'
-import { Cabecalho, Carregando, ErroCarga, Gaveta, Pill, Vazio, useToast } from '../components/index.jsx'
+import { Cabecalho, Carregando, ErroCarga, Gaveta, Icon, Pill, Vazio, useToast } from '../components/index.jsx'
 
 function FormFuncionario({ inicial, fechar, salvo }) {
   const { obras } = useObra()
@@ -58,7 +58,7 @@ function Linha({ f, abrir }) {
   )
 }
 
-export default function Pessoas() {
+export default function Pessoas({ goto }) {
   const { obra, obraId } = useObra()
   const toast = useToast()
   const pessoas = useDados(listarPessoas)
@@ -85,7 +85,13 @@ export default function Pessoas() {
   return (
     <>
       {cabecalho}
-      <div className="note" style={{ textAlign: 'left', padding: '14px 16px', fontSize: 15 }}>Presença do mês chega na v1.1.</div>
+      <button className="item" onClick={() => goto('efetivo')}>
+        <div className="item-top">
+          <div><h3>Efetivo geral</h3><div className="meta">Quantos de cada função em cada obra, com gráfico</div></div>
+          <Icon nome="chev" />
+        </div>
+      </button>
+      <div className="note" style={{ textAlign: 'left', padding: '14px 16px', fontSize: 15, marginTop: 12 }}>Presença do mês chega na v1.1.</div>
       <label className="label" htmlFor="busca-pessoa">Buscar por nome</label>
       <input id="busca-pessoa" className="field" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Ex.: João" />
       <div className="sec"><h2>{obra.nome}</h2><span className="t-muted" style={{ fontSize: 15 }}>{daObra.length}</span></div>

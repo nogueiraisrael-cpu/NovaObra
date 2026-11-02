@@ -8,11 +8,7 @@ import {
 import { useDados } from '../lib/useDados.js'
 import { resumoEfetivo } from '../lib/efetivo.js'
 import { CLIMAS, SITUACOES_EFETIVO_TOQUE, SITUACOES_EQUIPAMENTO_DIA } from '../lib/listas.js'
-import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, useToast } from '../components/index.jsx'
-
-const ICONE_CLIMA = { 'Bom': 'sol', 'Nublado': 'nublado', 'Chuva leve': 'chuva', 'Chuva forte': 'chuvaf' }
-const COR_EFETIVO = { Presente: 'ok', Falta: 'bad', Atestado: 'warn', Deslocado: 'info' }
-const COR_EQUIP = { Operando: 'ok', Parado: 'warn', Quebrado: 'bad' }
+import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, useToast, ICONE_CLIMA, COR_EFETIVO, COR_EQUIP } from '../components/index.jsx'
 
 function BlocoClima({ rdo, salvar }) {
   const valores = {

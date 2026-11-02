@@ -18,7 +18,7 @@ export default function Obra({ goto, params }) {
 
   let corpo
   switch (aba) {
-    case 'Diários': corpo = <Diarios />; break
+    case 'Diários': corpo = <Diarios irParaHoje={() => goto('obra', { aba: 'Hoje' })} />; break
     case 'Fotos': corpo = <Fotos />; break
     case 'Comentários': corpo = <Comentarios />; break
     case 'Pranchas': corpo = <Pranchas />; break

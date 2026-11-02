@@ -5,9 +5,7 @@ import { useDados } from '../lib/useDados.js'
 import { diasParada, separarFrentes, rotuloExecutor } from '../lib/frentes.js'
 import { ETAPAS, EXECUTORES, SITUACOES_FRENTE_DIA, MOTIVOS_PARADA } from '../lib/listas.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
-import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast } from '../components/index.jsx'
-
-const COR_DIA = { 'Em execução': 'ok', 'Parada': 'bad', 'Concluída': 'info' }
+import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, COR_FRENTE_DIA } from '../components/index.jsx'
 
 function CartaoFrente({ f, hoje, abrir }) {
   const dias = diasParada(f, hoje)
@@ -68,6 +66,17 @@ function FormNovaFrente({ fechar, salvo }) {
   )
 }
 
+async function encolherFoto(arquivo, ladoMaior = 1280) {
+  const imagem = await createImageBitmap(arquivo)
+  const escala = Math.min(1, ladoMaior / Math.max(imagem.width, imagem.height))
+  const tela = document.createElement('canvas')
+  tela.width = Math.round(imagem.width * escala)
+  tela.height = Math.round(imagem.height * escala)
+  tela.getContext('2d').drawImage(imagem, 0, 0, tela.width, tela.height)
+  imagem.close()
+  return tela.toDataURL('image/jpeg', 0.7)
+}
+
 function PreencherFrente({ inicial, fechar, salvo }) {
   const [p, setP] = useState({ situacao: inicial.situacao, motivo_parada: inicial.motivo_parada, descricao: inicial.descricao, equipe: new Set(inicial.equipe), fotos: inicial.fotos })
   const [erro, setErro] = useState(null)
@@ -82,11 +91,17 @@ function PreencherFrente({ inicial, fechar, salvo }) {
     setP({ ...p, equipe })
   }
 
-  // Mock: a foto fica só nesta aba do navegador. Na Etapa 7 ela é encolhida e vai para o Storage.
-  function anexar(e) {
+  // Provisório até o Storage: a foto é encolhida (lado maior 1280 px, JPEG) e vai
+  // dentro do próprio endereço gravado no banco, para sobreviver ao F5.
+  async function anexar(e) {
     const arquivos = [...e.target.files].slice(0, 5 - p.fotos.length)
     e.target.value = ''
-    setP({ ...p, fotos: [...p.fotos, ...arquivos.map((a) => ({ caminho: URL.createObjectURL(a), legenda: '' }))] })
+    try {
+      const novas = await Promise.all(arquivos.map(async (a) => ({ caminho: await encolherFoto(a), legenda: '' })))
+      setP((atual) => ({ ...atual, fotos: [...atual.fotos, ...novas] }))
+    } catch (_) {
+      setErro('Não foi possível ler essa foto. Tente outra.')
+    }
   }
 
   async function salvar() {
@@ -106,7 +121,7 @@ function PreencherFrente({ inicial, fechar, salvo }) {
       <div className="label">Situação hoje</div>
       <div className="seg three">
         {SITUACOES_FRENTE_DIA.map((s) => (
-          <button key={s} className={p.situacao === s ? COR_DIA[s] : ''} onClick={() => { setP({ ...p, situacao: s }); setConfirmarConclusao(false) }}>{s}</button>
+          <button key={s} className={p.situacao === s ? COR_FRENTE_DIA[s] : ''} onClick={() => { setP({ ...p, situacao: s }); setConfirmarConclusao(false) }}>{s}</button>
         ))}
       </div>
       {p.situacao === 'Parada' && (

@@ -1,0 +1,13 @@
+{
+  "_tirado_em": "2026-11-01, do banco nova-obra (Supabase), depois da migration 20261101-03. Regenere depois de QUALQUER migration.",
+  "equipamentos": ["id", "nome", "codigo", "situacao", "obra_id", "situacao_desde", "oficina", "previsao_retorno", "defeito", "created_at"],
+  "fotos": ["id", "obra_id", "rdo_id", "rdo_frente_id", "caminho", "legenda", "visivel_cliente", "enviada_por", "created_at"],
+  "frentes_servico": ["id", "obra_id", "nome", "etapa", "executor", "empreiteiro", "situacao", "parada_desde", "motivo_parada", "data_inicio", "data_conclusao", "created_at"],
+  "funcionarios": ["id", "nome", "funcao", "obra_id", "ativo", "created_at"],
+  "obras": ["id", "nome", "codigo", "tipo", "endereco", "cidade", "cliente", "numero_contrato", "data_inicio", "data_meta_entrega", "situacao", "created_at"],
+  "rdo_efetivo": ["id", "rdo_id", "obra_id", "data", "funcionario_id", "situacao", "obra_destino_id", "created_at"],
+  "rdo_equipamentos": ["id", "rdo_id", "obra_id", "equipamento_id", "situacao", "observacao", "created_at"],
+  "rdo_frente_equipe": ["id", "rdo_frente_id", "obra_id", "funcionario_id", "created_at"],
+  "rdo_frentes": ["id", "rdo_id", "obra_id", "frente_id", "situacao", "motivo_parada", "descricao", "created_at"],
+  "rdos": ["id", "obra_id", "data", "clima_manha", "clima_tarde", "praticavel_manha", "praticavel_tarde", "observacoes", "status", "criado_por", "fechado_por", "fechado_em", "created_at"]
+}

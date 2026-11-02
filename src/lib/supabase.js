@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-// As chaves entram na Etapa 7, no .env.local. Até lá o app roda no mock
-// (USAR_MOCK em dados.js) e esta conexão fica desligada.
+// A conexão com o banco. Quem usa é só src/lib/dados.js.
+// URL e chave vêm do .env.local (que não vai para o Git). A chave é a
+// PUBLICÁVEL (sb_publishable_...): pode ir no app. Nunca a secreta nem a service_role.
+// Sem o .env.local (ou nos testes, no Node), a conexão fica desligada.
 const env = import.meta.env ?? {}
 const url = env.VITE_SUPABASE_URL
-// Chave publicável (sb_publishable_...).
 const key = env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 export const supabase = url && key ? createClient(url, key) : null

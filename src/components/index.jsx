@@ -29,6 +29,12 @@ export function Icon({ nome, ...resto }) {
   return <svg viewBox="0 0 24 24" className="ico" aria-hidden="true" {...resto}>{ICONES[nome]}</svg>
 }
 
+// ---------- cor e ícone de cada situação (lançamento e histórico usam os mesmos) ----------
+export const ICONE_CLIMA = { 'Bom': 'sol', 'Nublado': 'nublado', 'Chuva leve': 'chuva', 'Chuva forte': 'chuvaf' }
+export const COR_EFETIVO = { Presente: 'ok', Falta: 'bad', Atestado: 'warn', Deslocado: 'info', 'Veio de outra obra': 'info' }
+export const COR_EQUIP = { Operando: 'ok', Parado: 'warn', Quebrado: 'bad' }
+export const COR_FRENTE_DIA = { 'Em execução': 'ok', 'Parada': 'bad', 'Concluída': 'info' }
+
 // ---------- etiquetas e números ----------
 export function Pill({ cor = 'idle', children }) {
   return <span className={`pill ${cor}`}>{children}</span>

@@ -9,13 +9,14 @@ import Ocorrencias from '../screens/ocorrencias.jsx'
 import Equipamentos from '../screens/equipamentos.jsx'
 import Pessoas from '../screens/pessoas.jsx'
 import Presenca from '../screens/presenca.jsx'
+import EfetivoGeral from '../screens/efetivoGeral.jsx'
 import Perfil from '../screens/perfil.jsx'
 
 const MENU = [
   { id: 'obras', rotulo: 'Obras', curto: 'Obras', telas: ['obras', 'obra'] },
   { id: 'ocorrencias', rotulo: 'Ocorrências', curto: 'Ocorrênc.', icone: 'ocorr', telas: ['ocorrencias'] },
   { id: 'equipamentos', rotulo: 'Equipamentos', curto: 'Equipam.', icone: 'equip', telas: ['equipamentos'] },
-  { id: 'pessoas', rotulo: 'Pessoas', curto: 'Pessoas', telas: ['pessoas', 'presenca'] },
+  { id: 'pessoas', rotulo: 'Pessoas', curto: 'Pessoas', telas: ['pessoas', 'presenca', 'efetivo'] },
   { id: 'perfil', rotulo: 'Perfil', curto: 'Perfil', telas: ['perfil'] },
 ]
 
@@ -51,6 +52,7 @@ export default function AppEngenheiro({ perfil, aoSair }) {
       case 'equipamentos': corpo = <Equipamentos />; break
       case 'pessoas': corpo = <Pessoas goto={goto} />; break
       case 'presenca': corpo = <Presenca goto={goto} />; break
+      case 'efetivo': corpo = <EfetivoGeral goto={goto} />; break
       case 'perfil': corpo = <Perfil perfil={perfil} aoSair={aoSair} />; break
       default: corpo = <Obras goto={goto} abrirObra={abrirObra} />
     }

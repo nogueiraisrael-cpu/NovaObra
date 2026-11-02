@@ -6,16 +6,26 @@
 // outra equipe e NENHUM equipamento. Se aparecer equipamento na UBS, vazou dado.
 //
 // As datas são relativas a hoje, para o exemplo continuar fazendo sentido amanhã.
+// O supabase-seed.sql foi gerado a partir daqui (01/11/2026): os ids viram uuid fixos.
 import { hojeISO, somarDias } from './datas.js'
+
+// As pessoas de exemplo já têm id no formato do banco (uuid): é o que vai em
+// criado_por / fechado_por / enviada_por. O login de verdade chega no passo 10.
+export const P = {
+  israel: '00000000-0000-4000-8000-00000000a001',
+  ricardo: '00000000-0000-4000-8000-00000000a002',
+  fulano: '00000000-0000-4000-8000-00000000f001',
+  helena: '00000000-0000-4000-8000-00000000c001',
+}
 
 export function criarMock(hoje = hojeISO()) {
   const d = (n) => somarDias(hoje, n)
 
   const profiles = [
-    { id: 'p-eng', nome: 'Eng. Israel', email: 'eng@novaobra.test', role: 'Engenheiro', ativo: true },
-    { id: 'p-ricardo', nome: 'Eng. Ricardo', email: 'ricardo@novaobra.test', role: 'Engenheiro', ativo: true },
-    { id: 'p-fulano', nome: 'Fulano Silva', email: 'fulano@novaobra.test', role: 'Pendente', ativo: true },
-    { id: 'p-helena', nome: 'Dra. Helena Duarte', email: 'helena@novaobra.test', role: 'Cliente', ativo: true },
+    { id: P.israel, nome: 'Eng. Israel', email: 'eng@novaobra.test', role: 'Engenheiro', ativo: true },
+    { id: P.ricardo, nome: 'Eng. Ricardo', email: 'ricardo@novaobra.test', role: 'Engenheiro', ativo: true },
+    { id: P.fulano, nome: 'Fulano Silva', email: 'fulano@novaobra.test', role: 'Pendente', ativo: true },
+    { id: P.helena, nome: 'Dra. Helena Duarte', email: 'helena@novaobra.test', role: 'Cliente', ativo: true },
   ]
 
   const obras = [
@@ -34,7 +44,7 @@ export function criarMock(hoje = hojeISO()) {
   ]
 
   const membros = [
-    { id: 'm1', obra_id: 'obra-serra', profile_id: 'p-helena', papel: 'Cliente' },
+    { id: 'm1', obra_id: 'obra-serra', profile_id: P.helena, papel: 'Cliente' },
   ]
 
   const f = (id, nome, funcao, obra_id) => ({ id, nome, funcao, obra_id, ativo: true })
@@ -81,13 +91,13 @@ export function criarMock(hoje = hojeISO()) {
   ontemFechado.setHours(17, 42, 0, 0)
   const rdo = (id, obra_id, data, status, extra = {}) => ({
     id, obra_id, data, clima_manha: 'Bom', clima_tarde: 'Bom', praticavel_manha: true, praticavel_tarde: true,
-    observacoes: '', status, criado_por: 'p-eng', fechado_por: null, fechado_em: null, ...extra,
+    observacoes: '', status, criado_por: P.israel, fechado_por: null, fechado_em: null, ...extra,
   })
   const rdos = [
-    rdo('rdo-serra-ontem', 'obra-serra', d(-1), 'Fechado', { fechado_por: 'p-ricardo', fechado_em: ontemFechado.toISOString() }),
+    rdo('rdo-serra-ontem', 'obra-serra', d(-1), 'Fechado', { fechado_por: P.ricardo, fechado_em: ontemFechado.toISOString() }),
     rdo('rdo-serra-hoje', 'obra-serra', hoje, 'Em andamento', { clima_tarde: 'Nublado' }),
     // UBS: o de ontem ficou aberto (aviso "RDO de ontem não fechado") e o de hoje não existe.
-    rdo('rdo-ubs-ontem', 'obra-ubs', d(-1), 'Em andamento', { criado_por: 'p-ricardo' }),
+    rdo('rdo-ubs-ontem', 'obra-ubs', d(-1), 'Em andamento', { criado_por: P.ricardo }),
   ]
 
   const ef = (id, funcionario_id, situacao, obra_destino_id = null) =>
@@ -119,8 +129,73 @@ export function criarMock(hoje = hojeISO()) {
     { id: 'rq3', rdo_frente_id: 'rf1', obra_id: 'obra-serra', funcionario_id: 'f-tiago' },
   ]
 
+  // ---- Dias passados, para a aba Diários ----
+  // Serra: 4 dias fechados (o de ontem e mais 3). UBS: só o de ontem, aberto.
+  // Coerentes com as frentes de hoje: reboco parado desde d(-6), impermeabilização desde d(-2).
+  const fotos = []
+  const as = (iso, h, min) => { const [a, m, dia] = iso.split('-').map(Number); return new Date(a, m - 1, dia, h, min).toISOString() }
+  rdos.push(
+    rdo('rdo-serra-4', 'obra-serra', d(-4), 'Fechado', { fechado_por: P.israel, fechado_em: as(d(-4), 17, 15) }),
+    rdo('rdo-serra-3', 'obra-serra', d(-3), 'Fechado', {
+      clima_tarde: 'Nublado', observacoes: 'Caminhão de areia chegou às 10h, descarregado no fundo do lote.',
+      fechado_por: P.ricardo, fechado_em: as(d(-3), 17, 50),
+    }),
+    rdo('rdo-serra-2', 'obra-serra', d(-2), 'Fechado', {
+      clima_manha: 'Nublado', clima_tarde: 'Chuva forte', praticavel_tarde: false,
+      observacoes: 'Chuva forte às 14h. Equipe recolhida e impermeabilização suspensa.',
+      fechado_por: P.israel, fechado_em: as(d(-2), 16, 40),
+    }),
+  )
+  const ontemSerra = rdos.find((r) => r.id === 'rdo-serra-ontem')
+  Object.assign(ontemSerra, { clima_manha: 'Chuva leve', clima_tarde: 'Nublado', observacoes: 'Laje da cobertura ainda molhada; impermeabilização segue parada.' })
+
+  const efetivoDoDia = (rdoId, obraId, data, ids, excecoes = {}) => ids.forEach((fid) =>
+    rdo_efetivo.push({ id: `ef-${rdoId}-${fid}`, rdo_id: rdoId, obra_id: obraId, data, funcionario_id: fid, situacao: excecoes[fid] ?? 'Presente', obra_destino_id: null }))
+  const daSerra = ['f-joao', 'f-marcos', 'f-tiago', 'f-paulo', 'f-rafael', 'f-luis', 'f-edson', 'f-bruno']
+  efetivoDoDia('rdo-serra-4', 'obra-serra', d(-4), daSerra, { 'f-paulo': 'Falta' })
+  efetivoDoDia('rdo-serra-3', 'obra-serra', d(-3), daSerra, { 'f-bruno': 'Atestado' })
+  efetivoDoDia('rdo-serra-2', 'obra-serra', d(-2), daSerra, { 'f-tiago': 'Falta' })
+  efetivoDoDia('rdo-serra-ontem', 'obra-serra', d(-1), daSerra)
+  efetivoDoDia('rdo-ubs-ontem', 'obra-ubs', d(-1), ['f-severino', 'f-francisco', 'f-antonio', 'f-damiao', 'f-cicero'], { 'f-cicero': 'Falta' })
+
+  const equipDoDia = (rdoId, extra = {}) => ['e-betoneira', 'e-andaime'].forEach((eid) =>
+    rdo_equipamentos.push({ id: `re-${rdoId}-${eid}`, rdo_id: rdoId, obra_id: 'obra-serra', equipamento_id: eid, situacao: 'Operando', observacao: '', ...extra[eid] }))
+  equipDoDia('rdo-serra-4')
+  equipDoDia('rdo-serra-3', { 'e-betoneira': { situacao: 'Parado', observacao: 'Sem areia até as 10h' } })
+  equipDoDia('rdo-serra-2', { 'e-andaime': { situacao: 'Parado', observacao: 'Chuva' } })
+  equipDoDia('rdo-serra-ontem', { 'e-andaime': { situacao: 'Parado', observacao: 'Aguardando a fachada' } })
+
+  // Foto de exemplo: um desenho, nunca foto real de obra.
+  const fotoExemplo = (cor) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="${cor}"/>` +
+    '<path d="M0 300 130 150l90 80 70-60 110 100v30z" fill="rgba(0,0,0,.28)"/><circle cx="320" cy="70" r="28" fill="rgba(255,255,255,.35)"/>' +
+    '<text x="20" y="44" font-family="sans-serif" font-size="22" font-weight="700" fill="#fff">FOTO DE EXEMPLO</text></svg>')
+  const frenteDoDia = (rdoId, obraId, frenteId, situacao, descricao, equipe = [], legendas = [], motivo = null) => {
+    const id = `rf-${rdoId}-${frenteId}`
+    rdo_frentes.push({ id, rdo_id: rdoId, obra_id: obraId, frente_id: frenteId, situacao, motivo_parada: motivo, descricao })
+    equipe.forEach((fid) => rdo_frente_equipe.push({ id: `rq-${id}-${fid}`, rdo_frente_id: id, obra_id: obraId, funcionario_id: fid }))
+    legendas.forEach(([legenda, cor], i) => fotos.push({
+      id: `ft-${id}-${i}`, obra_id: obraId, rdo_id: rdoId, rdo_frente_id: id, caminho: fotoExemplo(cor), legenda, visivel_cliente: true, enviada_por: P.israel,
+    }))
+  }
+  frenteDoDia('rdo-serra-4', 'obra-serra', 'fs-revest', 'Em execução', 'Assentamento do piso do banheiro da suíte', ['f-joao', 'f-marcos', 'f-tiago'], [['Piso da suíte', '#3D6B78'], ['Recortes do ralo', '#56707A']])
+  frenteDoDia('rdo-serra-4', 'obra-serra', 'fs-hidro', 'Em execução', 'Ramal de esgoto da cozinha', ['f-edson'], [['Ramal da cozinha', '#5B6E4A']])
+  frenteDoDia('rdo-serra-4', 'obra-serra', 'fs-imper', 'Em execução', 'Primeira demão da manta líquida', ['f-rafael', 'f-luis'])
+  frenteDoDia('rdo-serra-4', 'obra-serra', 'fs-reboco', 'Parada', 'Aguardando entrega de argamassa', [], [], 'Falta de material')
+  frenteDoDia('rdo-serra-3', 'obra-serra', 'fs-revest', 'Em execução', 'Parede do box da suíte', ['f-joao', 'f-marcos', 'f-tiago'], [['Box da suíte', '#3D6B78']])
+  frenteDoDia('rdo-serra-3', 'obra-serra', 'fs-imper', 'Em execução', 'Segunda demão e reforço nos ralos', ['f-rafael', 'f-luis'], [['Ralos da laje', '#6B5B4A'], ['Laje — vista geral', '#4A5A63']])
+  frenteDoDia('rdo-serra-3', 'obra-serra', 'fs-reboco', 'Parada', 'Argamassa prometida para a semana que vem', [], [], 'Falta de material')
+  frenteDoDia('rdo-serra-2', 'obra-serra', 'fs-revest', 'Em execução', 'Rejunte do banheiro da suíte', ['f-joao', 'f-marcos'], [['Rejunte', '#3D6B78']])
+  frenteDoDia('rdo-serra-2', 'obra-serra', 'fs-imper', 'Parada', 'Chuva forte a partir das 14h', [], [['Laje molhada', '#4A5A63']], 'Chuva')
+  frenteDoDia('rdo-serra-2', 'obra-serra', 'fs-reboco', 'Parada', '', [], [], 'Falta de material')
+  frenteDoDia('rdo-serra-ontem', 'obra-serra', 'fs-revest', 'Em execução', 'Início do banheiro social', ['f-joao', 'f-marcos', 'f-tiago'], [['Banheiro social', '#3D6B78']])
+  frenteDoDia('rdo-serra-ontem', 'obra-serra', 'fs-hidro', 'Em execução', 'Teste de estanqueidade da água fria', ['f-edson', 'f-paulo'])
+  frenteDoDia('rdo-serra-ontem', 'obra-serra', 'fs-imper', 'Parada', 'Laje ainda molhada', [], [], 'Chuva')
+  frenteDoDia('rdo-serra-ontem', 'obra-serra', 'fs-reboco', 'Parada', '', [], [], 'Falta de material')
+  frenteDoDia('rdo-ubs-ontem', 'obra-ubs', 'fs-ubs-sapatas', 'Em execução', 'Armação das sapatas S7 a S10', ['f-damiao', 'f-francisco'], [['Sapatas S7 a S10', '#6B5B4A']])
+
   return {
     profiles, obras, membros, funcionarios, equipamentos, frentes_servico,
-    rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos: [],
+    rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos,
   }
 }

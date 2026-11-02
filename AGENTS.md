@@ -15,8 +15,9 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    `src/lib/dados.js` pegam a obra atual por dentro (`obraAtual()`); **as telas nunca passam
    `obra_id`**. Função de lançamento que não usa `obraAtual()` é bug.
 3. **Nenhuma tela mostra dado de duas obras juntas**, a não ser que a tela seja explicitamente
-   um comparativo entre obras. Hoje só existe um: `src/screens/obras.jsx`
-   (`listarResumoObras`, uma consulta agregada — nunca um laço na tela chamando obra por obra).
+   um comparativo entre obras. Hoje existem dois: `src/screens/obras.jsx` (`listarResumoObras`)
+   e `src/screens/efetivoGeral.jsx` (`listarQuadroEfetivo`). Cada um é uma consulta agregada,
+   nunca um laço na tela chamando obra por obra.
    Exceção de regra de negócio: a trava "mesmo funcionário presente em duas obras no mesmo dia"
    e a lista "+ Trazer funcionário de outra obra" leem outras obras de propósito.
 4. **O seletor de obra fica sempre visível** no topo da shell (`SeletorObra` em
@@ -26,6 +27,10 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    fora do React (`useRef`, variável de módulo, `localStorage`) precisa ter o `obra_id` na chave.
 6. **RLS por obra desde a primeira migration.** `using (true)` em tabela de lançamento é uma obra
    (ou um cliente) lendo a outra. Engenheiro vê todas; Cliente só as obras dele em `membros`.
+   **⚠️ Exceção provisória em vigor:** `supabase/migrations/20261101-02-acesso-provisorio-dev.sql`
+   abre as 10 tabelas para quem não fez login (`anon`, `using (true)`), por decisão do dono em
+   01/11/2026, enquanto o app roda só no computador dele e sem login. **O passo 10 (login) desfaz
+   isso antes de qualquer coisa ir para o ar.** O `check-grants` avisa em toda rodada.
 7. **Mock e seed sempre com DUAS obras diferentes** (`src/lib/mockData.js`): a UBS não tem
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —
    módulo novo ganha a sua linha nesse teste.
@@ -39,9 +44,14 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
   com teste.
 - **Não → `src/screens/*.jsx`.** Estado de interface, layout, o que se toca. A tela **pede a
   decisão à lib**; não decide.
-- `src/lib/dados.js` — **única porta do banco.** Nenhuma tela chama o Supabase direto. Hoje roda
-  em mock (`USAR_MOCK = true`); na Etapa 7 o miolo passa a chamar o Supabase e as telas não mudam.
-- `src/lib/supabase.js` — a conexão.
+- `src/lib/dados.js` — **única porta do banco**, e o único arquivo que chama `supabase.from(...)`
+  (o `check-schema` reprova outro). As regras falam com o banco por quatro verbos (ler, inserir,
+  atualizar, apagar); quem atende é o Supabase (`USAR_MOCK = false`, desde 01/11/2026) ou o
+  banco em memória de `src/lib/bancoMemoria.js` (nos testes, e se `USAR_MOCK = true`). O login
+  ainda é de mentira até o passo 10: as pessoas vêm do `mockData`.
+- `src/lib/supabase.js` — a conexão. URL e chave publicável (`sb_publishable_...`) no `.env.local`,
+  que não vai para o Git. Nunca a chave secreta nem a `service_role` no app.
+- `banco-resumo.md` — o que cada tabela guarda, em linguagem simples. Atualize junto com a migration.
 
 Consequências práticas:
 
@@ -62,6 +72,14 @@ npm run check
 
 Build + lint + testes. **Fecha em zero** — não há linha de base herdada aqui. Aviso novo é seu e
 é de agora; conserte no mesmo lote. No Windows, se `npm` reclamar de `npm.ps1`, use `npm.cmd`.
+
+Dentro dos testes rodam também:
+- `tests/check-schema.mjs` — roda toda a camada de dados no banco em memória e confere cada coluna
+  usada (filtro, leitura, gravação) contra `tests/_schema-snapshot.json`, o retrato do banco real.
+  **Depois de QUALQUER migration, regenere o retrato** (consulta em `information_schema.columns`):
+  retrato velho passa verde mentindo.
+- `tests/check-grants.mjs` — lê `supabase/migrations/` e reprova tabela sem RLS, sem `grant ... to
+  authenticated`, com `grant all` ou aberta para `anon` sem marca.
 
 Nada disso prova que a tela funciona. Verde com a tela em branco é rotina: abra a tela, e troque
 de obra com ela aberta.
@@ -87,7 +105,19 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   faltando, não RLS. Nunca `grant all`, nunca `to anon`.
 - **As planilhas `.xlsx`/`.xlsm` da pasta não vão para o Git** (`.gitignore`): a de empreiteiro
   tem dados bancários. Use só para testar a importação (v1.3), nunca em demonstração.
-- **O mock vive em memória:** recarregar a página volta aos dados de exemplo. Não é bug.
+- **Desde 01/11/2026 o app grava no banco de verdade** (projeto Supabase `nova-obra`, São Paulo).
+  F5 **não** desfaz mais nada. Dado de teste se desfaz pela própria tela, ou com o ok do dono.
+  `supabase-seed.sql` replanta os exemplos (não duplica: ids fixos, `on conflict do nothing`).
+- **Toda mudança de banco é migration** em `supabase/migrations/AAAAMMDD-NN-descricao.sql`, aplicada
+  pelo agente com a mesma letra do arquivo. Nunca clique no painel.
+- **Datas do dia vêm do app** (`hojeISO()`), nunca de `current_date` no banco: o banco está em UTC
+  e à noite já seria amanhã. O seed usa o fuso de Natal (`America/Fortaleza`).
+- **O Supabase devolve no máximo 1.000 linhas por pedido**, sem avisar. O `ler` do `dados.js` já
+  pede em páginas; não troque por um `select` solto.
+- **Fotos, provisório até o Storage:** a foto é encolhida (1280 px, JPEG) e gravada dentro do
+  próprio endereço em `fotos.caminho`. Funciona, mas pesa no banco: o Storage entra antes do uso real.
+- **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO): se a internet cair
+  no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa.
 
 ## Higiene de código (vale para toda mudança)
 
@@ -106,6 +136,111 @@ Cada função morta é uma mentira que o próximo leitor precisa desmascarar.
   consome, flag que ninguém liga.
 - **Limpeza NUNCA toca no banco nem em arquivo de dado.** Tabela ou coluna órfã continua
   existindo até decisão de quem é dono. Na dúvida, pergunte.
+
+## Checklist de testes vivo
+
+Vale em toda conversa, daqui pra frente. O Israel (engenheiro, dono do produto) não programa:
+decide o produto e testa na tela. O agente constrói. Para ele saber **o que testar** e o agente
+saber **o que deu errado**, existe uma página de testes viva, que o agente mantém e ele marca.
+
+### 1. A página
+
+Na primeira melhoria que precisar de teste, crie uma página publicada (Artifact) chamada
+**"Testes do Nova Obra"**, com banco de dados próprio (as marcas ficam no servidor, não no
+navegador). Se a conversa não tiver ferramenta de página publicada, crie `testes.html` na pasta do
+projeto guardando as marcas no próprio navegador, e avise que nesse caso ele precisa colar o
+resultado de volta no chat. Depois de criada, **reuse sempre a mesma página** (mesmo link).
+
+A página tem:
+
+- **No topo, a rodada:** nome ("Rodada 2 · Cadastros no banco · 21/10"), nota curta do que mudou
+  e o que fazer antes de começar (ex.: "aperte Ctrl+F5").
+- **Um cartão por item**, agrupado por módulo, com:
+  - **título**: o que se testa, em uma linha;
+  - **passos** numerados, uma ação por passo, com os nomes exatos da tela ("Clique em
+    **+ Empresa**", não "crie uma empresa");
+  - **esperado**: o que ele deve ver se deu certo, de forma que dê para dizer sim ou não sem
+    interpretar;
+  - **três botões**: `A testar` · `Funcionou` · `Problema`;
+  - **campo de observação** para escrever o que viu.
+- Sem enfeite: é ferramenta. Funciona no celular.
+
+### 2. O ciclo
+
+1. O agente constrói a melhoria.
+2. **Antes de passar**, confere o que dá sozinho: `npm run check`, a tela aberta no navegador
+   (trocando de obra com ela aberta), e, quando mexer no banco, o teste de permissões. **Só passa
+   o que passou.** O que não conseguiu conferir (ex.: exige a senha dele), diz qual.
+3. Escreve os itens na página e manda o link com um resumo de uma linha por item.
+4. Ele testa e marca cada item, escrevendo o que viu nos que deram problema.
+5. Ele avisa ("atualizei os testes"). O agente lê as marcas direto da página; ele não copia nada
+   para o chat.
+6. **Para cada problema, a causa vem antes do conserto:** ler o código, os registros do servidor
+   e o banco. Explicar em uma linha o que estava acontecendo e o que mudou.
+7. **Limpar a página:** o que passou **sai**; o que deu problema volta como `A testar`, com os
+   passos ajustados; o que é novo entra. Atualizar a nota da rodada.
+8. Repetir até não sobrar nada. Aí a rodada fecha e a página diz "nada a testar agora".
+
+**Nada morto fica guardado.** A página mostra só o que falta testar. Histórico, se houver, é uma
+linha por item aprovado em `docs/DIARIO.md` (data, o que mudou, o que passou), nunca na página.
+
+### 3. Como escrever um bom item
+
+- **Um comportamento por item.** "Cadastrar e editar empresa" são dois, se podem falhar separados.
+- **Passos que qualquer pessoa repete** sem saber programar, na ordem da tela.
+- **Esperado observável:** "a empresa aparece na lista com o telefone novo", não "salva
+  corretamente".
+- **Teste o caminho errado também:** campo vazio, e-mail inválido, botão clicado duas vezes, o que
+  não deveria ser permitido.
+- **Diga qual conta usar** quando importar (Engenheiro, Cliente, Pendente).
+- **Diga se o teste grava dado de verdade**, e como desfazer depois. Enquanto `USAR_MOCK = true`,
+  F5 volta aos dados de exemplo — diga isso no item.
+
+### 4. Quando o banco entra (Etapa 7): itens que nunca faltam
+
+Para cada tela que passa a gravar, inclua itens que provem:
+
+| Prova | O item pergunta | Por que |
+|---|---|---|
+| **Ficou gravado** | Depois de salvar, **aperte F5**: continua lá? | O mock guardava na memória; o banco pode não ter gravado e a tela fingir que sim |
+| **Gravou certo** | O que voltou do F5 é exatamente o digitado (acento, data, número, ordem)? | Tradução entre tela e banco perde campo sem avisar |
+| **Cada um vê o seu** | Com outro perfil, e com outra obra, vejo só o que devo? | RLS é a única tranca de verdade; esconder botão não protege nada |
+| **Quem não pode, não consegue, e é avisado** | O perfil sem permissão tenta gravar: o banco recusa **e a tela diz por quê**? | Recusa calada parece bug; aviso claro é produto |
+| **Nada duplica** | Salvar duas vezes, importar de novo, tirar e pôr de volta: aparece repetido? | Clique duplo e reimportação são as duplicatas mais comuns |
+| **Apagar não some com histórico** | Desativar algo que outra tela usa: a outra continua funcionando? | Registro que outro lugar lê se desativa, não se apaga |
+| **Lista vazia e lista grande** | Sem dado, a tela diz o que fazer? Com muitos, aparece tudo? | O Supabase corta listas em 1.000 linhas sem avisar |
+| **Erro de rede** | Se a internet cair no meio, a tela diz que não salvou? | Gravação perdida sem aviso é o pior defeito possível |
+
+E do lado do agente, antes de passar qualquer item de banco:
+
+- **Toda mudança no banco é migration versionada** no projeto, nunca clique no painel.
+- **Teste de permissões automático:** cada perfil tenta ler e gravar no que é seu e no do vizinho
+  (outra obra, outro cliente), dentro de transação desfeita no fim. Roda após qualquer mudança de
+  RLS ou grant.
+- **Revisão de código** (ver "Antes de subir pro GitHub") em toda mudança na camada de dados, RLS
+  ou login, antes de subir.
+- **Avisos de segurança do painel do Supabase** (advisors) conferidos após cada mudança, cada um
+  explicado: intencional ou a corrigir.
+
+### 5. O que o agente nunca faz
+
+- Digitar senha, chave ou token, nem criar conta em nome dele. Se o teste precisa, o passo diz
+  "entre com a sua conta" e ele faz.
+- Pôr segredo (chave, senha, `.env`) no código, no Git ou na página de testes.
+- Usar dado real de cliente como exemplo. Exemplo é sempre fictício (nunca as planilhas da pasta).
+- Dizer que algo está pronto sem ter rodado o portão e olhado a tela; se não conseguiu olhar,
+  dizer isso.
+- Apagar dado de verdade para "limpar o teste". Desativar, sim; apagar, só com o ok dele.
+
+### 6. Como responder depois de cada rodada
+
+Curto, em português simples, sem jargão:
+
+- o que passou e saiu da página;
+- tabela com cada problema: **o que estava acontecendo** · **o que mudou**;
+- o que voltou para teste e o que é novo;
+- o que não deu para conferir e por quê;
+- o que espera decisão dele — uma pergunta de cada vez, com a recomendação do agente.
 
 ## O que entra neste arquivo
 
