@@ -24,13 +24,20 @@ import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQ
 import {
   montarEstoque, saldoDe, validarBaixa, lerMinimo, validarMinimo, efeitoNoEstoque, saidaDoQueSobrou, bloqueioNoEstoque, ordenarHistorico,
 } from './estoque.js'
+import {
+  validarAtividade, proximaOrdem, trocaDeOrdem, idsParaArquivar, idsParaDesarquivar, calendarioDaObra, validarCalendario, lerProgresso,
+  segundaDaSemana,
+} from './planejamento.js'
+import { validarRestricao, novoPrazo, podeMover } from './restricoes.js'
+import { validarCausa } from './curtoPrazo.js'
+import { STATUS_SEMANA } from './listas.js'
 
 export const USAR_MOCK = false
 
 // Tabelas de lançamento: obra_id obrigatório. Toda tabela nova de módulo novo entra aqui.
 export const TABELAS_DA_OBRA = [
   'rdos', 'rdo_efetivo', 'rdo_equipamentos', 'frentes_servico', 'rdo_frentes', 'rdo_frente_equipe', 'fotos',
-  'pedidos_material', 'insumos', 'movimentos_estoque',
+  'pedidos_material', 'insumos', 'movimentos_estoque', 'atividades', 'restricoes', 'semana_atividades', 'subtarefas',
 ]
 
 // ---------------------------------------------------------------------------
@@ -827,6 +834,264 @@ export const apagarPedido = (pedidoId) => executar(async () => {
   const filtro = { id: pedidoId, obra_id: obraAtual() }
   if (!(await um('pedidos_material', filtro))) return falha('Pedido não encontrado nesta obra.')
   await apagar('pedidos_material', filtro)
+  return ok(true)
+})
+
+// ---------------------------------------------------------------------------
+// Planejamento: a lista de atividades da obra atual. As quatro sub-abas leem esta
+// mesma lista (montarEap e companhia, em planejamento.js, fazem o resto).
+// ---------------------------------------------------------------------------
+
+const atividadesDaObra = (obraId) => ler('atividades', { obra_id: obraId })
+
+// Tudo do Planejamento da obra numa chamada só: atividades, calendário (dias de trabalho e
+// feriados), restrições, a situação de cada atividade em cada semana e as subtarefas.
+export const listarPlanejamento = () => executar(async () => {
+  const obraId = obraAtual()
+  const [atividades, obra, restricoes, semanas, subtarefas] = await Promise.all([
+    atividadesDaObra(obraId), um('obras', { id: obraId }), ler('restricoes', { obra_id: obraId }),
+    ler('semana_atividades', { obra_id: obraId }), ler('subtarefas', { obra_id: obraId }),
+  ])
+  return ok({ atividades, calendario: calendarioDaObra(obra), restricoes, semanas, subtarefas })
+})
+
+// Avanço real (0 a 100), só em atividade sem subatividade: o do grupo sai das filhas.
+export const salvarProgresso = (id, texto) => executar(async () => {
+  const obraId = obraAtual()
+  const progresso = lerProgresso(texto)
+  if (progresso === null) return falha('Informe um número de 0 a 100.')
+  const lista = await atividadesDaObra(obraId)
+  if (!lista.some((x) => x.id === id)) return falha('Atividade não encontrada nesta obra.')
+  if (lista.some((x) => x.pai_id === id && !x.arquivada)) return falha('O avanço de um grupo vem das subatividades.')
+  return ok((await atualizar('atividades', { id, obra_id: obraId }, { progresso }))[0])
+})
+
+export const salvarCalendario = ({ dias, feriados }) => executar(async () => {
+  const erro = validarCalendario({ dias })
+  if (erro) return falha(erro)
+  const cal = calendarioDaObra({ dias_trabalho: [...new Set(dias)].sort(), feriados })
+  const [obra] = await atualizar('obras', { id: obraAtual() }, { dias_trabalho: cal.dias, feriados: cal.feriados })
+  return obra ? ok(calendarioDaObra(obra)) : falha('Obra não encontrada.')
+})
+
+// Cria ou edita. Mudar de "dentro de" leva a atividade para o fim das novas irmãs.
+export const salvarAtividade = (dados) => executar(async () => {
+  const obraId = obraAtual()
+  const erro = Object.values(validarAtividade(dados))[0]
+  if (erro) return falha(erro)
+  const lista = await atividadesDaObra(obraId)
+  const atual = dados.id ? lista.find((x) => x.id === dados.id) : null
+  if (dados.id && !atual) return falha('Atividade não encontrada nesta obra.')
+  const paiId = dados.pai_id || null
+  if (paiId) {
+    const mae = lista.find((x) => x.id === paiId)
+    if (!mae || mae.arquivada) return falha('A atividade-mãe não existe nesta obra (ou está arquivada).')
+    if (atual && idsParaArquivar(lista, atual.id).includes(paiId)) return falha('Uma atividade não pode ficar dentro dela mesma.')
+  }
+  const campos = { titulo: dados.titulo.trim(), data_inicio: dados.data_inicio, data_fim: dados.data_fim, pai_id: paiId }
+  if (!atual || (atual.pai_id ?? null) !== paiId) campos.ordem = proximaOrdem(lista, paiId)
+  if (atual) return ok((await atualizar('atividades', { id: atual.id, obra_id: obraId }, campos))[0])
+  return ok(await inserir('atividades', { ...campos, obra_id: obraId }))
+})
+
+// Importação de planilha (já conferida na tela; ver importacao.js). `linhas` = paraGravar(...).
+// As atividades entram numa gravação só (tudo ou nada): os ids nascem aqui para a filha já
+// saber quem é a mãe. "substituir" arquiva as ativas DEPOIS de criar as novas: se a internet
+// cair entre as duas, ficam as duas listas, e é só arquivar as antigas na EAP.
+export const IMPORTACAO_MAXIMO = 500
+export const importarCronograma = (linhas, modo) => executar(async () => {
+  const obraId = obraAtual()
+  if (!['adicionar', 'substituir'].includes(modo)) return falha('Escolha entre adicionar e substituir.')
+  if (!linhas?.length) return falha('A planilha não tem nenhuma atividade.')
+  if (linhas.length > IMPORTACAO_MAXIMO) return falha(`A planilha tem ${linhas.length} atividades; o máximo é ${IMPORTACAO_MAXIMO} por vez.`)
+  for (const l of linhas) {
+    const erro = Object.values(validarAtividade(l))[0]
+    if (erro) return falha(`${l.chave}: ${erro}`)
+  }
+  const ids = new Map(linhas.map((l) => [l.chave, crypto.randomUUID()]))
+  if (linhas.some((l) => l.paiChave && !ids.has(l.paiChave))) return falha('A planilha tem item sem o item de cima.')
+  const lista = await atividadesDaObra(obraId)
+  const antigas = lista.filter((x) => !x.arquivada).map((x) => x.id)
+  const depoisDe = proximaOrdem(lista, null) // as de topo entram depois das que já existem
+  const novas = await inserirVarios('atividades', linhas.map((l) => ({
+    id: ids.get(l.chave), obra_id: obraId, pai_id: l.paiChave ? ids.get(l.paiChave) : null,
+    ordem: l.paiChave ? l.ordem : depoisDe + l.ordem, titulo: l.titulo.trim(),
+    data_inicio: l.data_inicio, data_fim: l.data_fim, progresso: 0, arquivada: false,
+  })))
+  if (modo === 'substituir' && antigas.length) await atualizar('atividades', { id: antigas, obra_id: obraId }, { arquivada: true })
+  return ok({ criadas: novas.length, arquivadas: modo === 'substituir' ? antigas.length : 0 })
+})
+
+// Subir (-1) ou descer (+1) entre as irmãs. São duas gravações: se a internet cair
+// no meio, as duas ficam com a mesma ordem, e tocar de novo desempata.
+export const moverAtividade = (id, direcao) => executar(async () => {
+  const obraId = obraAtual()
+  const lista = await atividadesDaObra(obraId)
+  if (!lista.some((x) => x.id === id)) return falha('Atividade não encontrada nesta obra.')
+  const troca = trocaDeOrdem(lista, id, direcao)
+  if (!troca) return falha(direcao < 0 ? 'Ela já é a primeira.' : 'Ela já é a última.')
+  for (const t of troca) await atualizar('atividades', { id: t.id, obra_id: obraId }, { ordem: t.ordem })
+  return ok(troca)
+})
+
+// Arquivar leva as filhas; desarquivar traz as filhas e as mães arquivadas. Nada se apaga.
+export const arquivarAtividade = (id, arquivar = true) => executar(async () => {
+  const obraId = obraAtual()
+  const lista = await atividadesDaObra(obraId)
+  if (!lista.some((x) => x.id === id)) return falha('Atividade não encontrada nesta obra.')
+  const ids = arquivar ? idsParaArquivar(lista, id) : idsParaDesarquivar(lista, id)
+  return ok(await atualizar('atividades', { id: ids, obra_id: obraId }, { arquivada: arquivar }))
+})
+
+// ---- Médio prazo: as restrições das atividades ----
+
+// A restrição precisa ser de uma atividade ativa desta obra.
+async function atividadeAtiva(obraId, id) {
+  const at = id ? await um('atividades', { id, obra_id: obraId }) : null
+  return at && !at.arquivada ? at : null
+}
+
+// Cria ou edita. O prazo no passado só é recusado ao criar (editar uma vencida pode).
+export const salvarRestricao = (dados) => executar(async () => {
+  const obraId = obraAtual()
+  const erro = Object.values(validarRestricao(dados, hoje()))[0]
+  if (erro) return falha(erro)
+  if (!(await atividadeAtiva(obraId, dados.atividade_id))) return falha('A atividade não existe nesta obra (ou está arquivada).')
+  const campos = {
+    atividade_id: dados.atividade_id, descricao: dados.descricao.trim(), tipo: dados.tipo,
+    prazo: dados.prazo, responsavel: dados.responsavel.trim(),
+  }
+  if (!dados.id) return ok(await inserir('restricoes', { ...campos, obra_id: obraId, resolvida: false, resolvida_em: null }))
+  const [salva] = await atualizar('restricoes', { id: dados.id, obra_id: obraId }, campos)
+  return salva ? ok(salva) : falha('Restrição não encontrada nesta obra.')
+})
+
+// Semana anterior (-1) ou próxima (+1): muda o prazo. O filtro pelo prazo lido protege do
+// toque duplo: se outro toque já mudou, este não muda de novo.
+export const moverRestricao = (id, direcao) => executar(async () => {
+  const obraId = obraAtual()
+  const r = await um('restricoes', { id, obra_id: obraId })
+  if (!r) return falha('Restrição não encontrada nesta obra.')
+  if (!podeMover(r, direcao, hoje())) return falha(r.resolvida ? 'Restrição resolvida não muda de semana.' : 'Ela já está na semana atual.')
+  const [salva] = await atualizar('restricoes', { id, obra_id: obraId, prazo: r.prazo }, { prazo: novoPrazo(r.prazo, direcao, hoje()) })
+  return salva ? ok(salva) : falha('Esta restrição já tinha mudado (outro toque ou outro aparelho).')
+})
+
+export const resolverRestricao = (id, resolvida = true) => executar(async () => {
+  const [salva] = await atualizar('restricoes', { id, obra_id: obraAtual() }, { resolvida, resolvida_em: resolvida ? hoje() : null })
+  return salva ? ok(salva) : falha('Restrição não encontrada nesta obra.')
+})
+
+// Só para restrição lançada por engano: a tela pede confirmação antes.
+export const apagarRestricao = (id) => executar(async () => {
+  const filtro = { id, obra_id: obraAtual() }
+  if (!(await um('restricoes', filtro))) return falha('Restrição não encontrada nesta obra.')
+  await apagar('restricoes', filtro)
+  return ok(true)
+})
+
+// ---- Curto prazo: o Kanban da semana e as subtarefas ----
+
+// O Kanban só mexe em atividade ativa, desta obra e sem subatividade (a do grupo sai das filhas).
+async function atividadeDoKanban(obraId, id) {
+  const lista = await atividadesDaObra(obraId)
+  const at = lista.find((x) => x.id === id && !x.arquivada)
+  if (!at) return { erro: 'Atividade não encontrada nesta obra.' }
+  if (lista.some((x) => x.pai_id === id && !x.arquivada)) return { erro: 'Um grupo não entra no Kanban: mova as subatividades dele.' }
+  return { at }
+}
+
+const semanaValida = (semana) => Boolean(semana) && segundaDaSemana(semana) === semana
+
+// Grava a linha da atividade naquela semana (cria na primeira mexida).
+async function gravarNaSemana(obraId, atividadeId, semana, campos) {
+  const filtro = { obra_id: obraId, atividade_id: atividadeId, semana }
+  const existente = await um('semana_atividades', filtro)
+  if (existente) return (await atualizar('semana_atividades', { id: existente.id, obra_id: obraId }, campos))[0]
+  try {
+    return await inserir('semana_atividades', { status: 'A fazer', nao_realizada: false, causa: null, progresso_antes: null, ...filtro, ...campos })
+  } catch (e) {
+    // Dois toques ao mesmo tempo: o outro já criou a linha. Atualiza a dele.
+    if (e.code !== '23505') throw e
+    const outra = await um('semana_atividades', filtro)
+    return (await atualizar('semana_atividades', { id: outra.id, obra_id: obraId }, campos))[0]
+  }
+}
+
+// Mudar de coluna. Ir para Concluído põe o avanço da atividade em 100% (o Longo prazo vê na
+// hora) e guarda o avanço de antes; sair de Concluído devolve. São duas gravações: se a
+// internet cair entre elas, mover de novo para a mesma coluna completa.
+export const moverNaSemana = (atividadeId, semana, status) => executar(async () => {
+  const obraId = obraAtual()
+  if (!STATUS_SEMANA.includes(status)) return falha('Coluna inválida.')
+  if (!semanaValida(semana)) return falha('Semana inválida.')
+  const { at, erro } = await atividadeDoKanban(obraId, atividadeId)
+  if (erro) return falha(erro)
+  const antes = await um('semana_atividades', { obra_id: obraId, atividade_id: atividadeId, semana })
+  const eraConcluida = antes?.status === 'Concluído'
+  const campos = { status }
+  if (status === 'Concluído') {
+    Object.assign(campos, { nao_realizada: false, causa: null })
+    if (!eraConcluida) campos.progresso_antes = at.progresso
+  } else if (eraConcluida) {
+    campos.progresso_antes = null
+  }
+  const salva = await gravarNaSemana(obraId, atividadeId, semana, campos)
+  if (status === 'Concluído' && at.progresso !== 100) {
+    await atualizar('atividades', { id: atividadeId, obra_id: obraId }, { progresso: 100 })
+  } else if (status !== 'Concluído' && eraConcluida && antes.progresso_antes !== null) {
+    await atualizar('atividades', { id: atividadeId, obra_id: obraId }, { progresso: antes.progresso_antes })
+  }
+  return ok(salva)
+})
+
+// "Não realizada" naquela semana, com a causa raiz. causa null = desmarcar.
+export const marcarNaoRealizada = (atividadeId, semana, causa) => executar(async () => {
+  const obraId = obraAtual()
+  if (causa !== null) {
+    const erro = validarCausa(causa)
+    if (erro) return falha(erro)
+  }
+  if (!semanaValida(semana)) return falha('Semana inválida.')
+  const { erro } = await atividadeDoKanban(obraId, atividadeId)
+  if (erro) return falha(erro)
+  const atual = await um('semana_atividades', { obra_id: obraId, atividade_id: atividadeId, semana })
+  if (causa !== null && atual?.status === 'Concluído') return falha('Atividade concluída não pode ser marcada como não realizada.')
+  return ok(await gravarNaSemana(obraId, atividadeId, semana, { nao_realizada: causa !== null, causa }))
+})
+
+export const criarSubtarefa = (atividadeId, titulo) => executar(async () => {
+  const obraId = obraAtual()
+  if (!titulo?.trim()) return falha('Escreva a subtarefa.')
+  const { erro } = await atividadeDoKanban(obraId, atividadeId)
+  if (erro) return falha(erro)
+  const irmas = await ler('subtarefas', { obra_id: obraId, atividade_id: atividadeId })
+  return ok(await inserir('subtarefas', {
+    obra_id: obraId, atividade_id: atividadeId, titulo: titulo.trim(),
+    ordem: irmas.length ? Math.max(...irmas.map((x) => x.ordem)) + 1 : 0, feita: false, nao_realizada: false, causa: null,
+  }))
+})
+
+// Marcar feita tira o "não realizada"; marcar não realizada (com causa) tira o feita.
+export const marcarSubtarefa = (id, { feita, causa }) => executar(async () => {
+  let campos
+  if (causa !== undefined && causa !== null) {
+    const erro = validarCausa(causa)
+    if (erro) return falha(erro)
+    campos = { feita: false, nao_realizada: true, causa }
+  } else if (causa === null) {
+    campos = { nao_realizada: false, causa: null }
+  } else {
+    campos = { feita: Boolean(feita), ...(feita ? { nao_realizada: false, causa: null } : {}) }
+  }
+  const [salva] = await atualizar('subtarefas', { id, obra_id: obraAtual() }, campos)
+  return salva ? ok(salva) : falha('Subtarefa não encontrada nesta obra.')
+})
+
+export const apagarSubtarefa = (id) => executar(async () => {
+  const filtro = { id, obra_id: obraAtual() }
+  if (!(await um('subtarefas', filtro))) return falha('Subtarefa não encontrada nesta obra.')
+  await apagar('subtarefas', filtro)
   return ok(true)
 })
 

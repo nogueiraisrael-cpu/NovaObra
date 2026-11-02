@@ -344,3 +344,127 @@ select.field{appearance:none;background-image:linear-gradient(45deg,transparent 
 .tabela-estoque td:nth-child(2),.tabela-estoque td:nth-child(3){white-space:nowrap}
 .link-insumo{min-height:44px;text-align:left;font-weight:700;color:var(--accent-text);font-size:15px}
 .minimo-linha{display:grid;grid-template-columns:1fr auto;gap:8px}
+
+/* ---------- planejamento: EAP ---------- */
+.eap{background:var(--card);border-radius:var(--radius);overflow:hidden}
+.eap-linha{width:100%;min-height:60px;display:flex;align-items:center;gap:12px;padding:10px 14px 10px calc(14px + var(--nivel) * 20px);border-top:1px solid var(--line);text-align:left}
+.eap-linha:first-child{border-top:0}
+.eap-linha:hover{background:var(--card-2)}
+.eap-linha > svg{width:20px;height:20px;color:var(--slate);flex:none}
+.eap-cod{flex:none;min-width:44px;font-size:14px;font-weight:700;color:var(--accent-text);font-variant-numeric:tabular-nums}
+.eap-txt{flex:1;min-width:0;display:grid;gap:2px}
+.eap-txt b{font-size:16px;font-weight:600;line-height:1.25}
+.eap-txt span{color:var(--muted);font-size:14px}
+.eap-linha.grupo .eap-txt b{font-weight:800}
+@media (max-width:420px){ .eap-linha{padding-left:calc(12px + var(--nivel) * 12px)} }
+.eap-acoes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
+
+/* ---------- planejamento: longo prazo (cronograma) ---------- */
+/* Computador: barras. Celular (até 700px): lista. As duas leem os mesmos números. */
+.cron-modo{flex:0 1 260px}
+.cron{overflow-x:auto;background:var(--card);border-radius:var(--radius)}
+.cron-tabela{display:grid}
+.cron-linha{display:grid;grid-template-columns:280px 1fr;align-items:stretch;min-height:44px;border-top:1px solid var(--line);text-align:left;width:100%}
+button.cron-linha:hover{background:var(--card-2)}
+.cron-cab{border-top:0;min-height:36px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cron-nome{padding:8px 10px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:center;border-right:1px solid var(--line)}
+.cron-nome b{color:var(--accent-text);font-weight:700;font-variant-numeric:tabular-nums}
+.cron-linha.grupo .cron-nome{font-weight:800}
+.cron-trilha{position:relative}
+.cron-cab .cron-trilha{display:flex}
+.cron-cab .cron-trilha span{flex:none;padding:10px 6px;border-left:1px solid var(--line);white-space:nowrap;overflow:hidden}
+.cron-hoje{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.7}
+.cron-barra{position:absolute;top:50%;transform:translateY(-50%);height:18px;border-radius:5px;background:#2C3A41;overflow:hidden;min-width:4px}
+.cron-linha.grupo .cron-barra{height:10px}
+.cron-feito{height:100%;background:var(--slate)}
+.cron-barra.ok .cron-feito{background:var(--ok)}
+.cron-barra.info .cron-feito{background:var(--accent)}
+.cron-barra.bad .cron-feito{background:var(--bad)}
+.cron-prev{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.cron-legenda{margin-top:10px}
+.cron-lista{display:none}
+.avanco{position:relative;height:8px;border-radius:9px;background:var(--card-2);margin-top:12px;overflow:hidden}
+.avanco-real{height:100%;background:var(--accent);border-radius:9px}
+.avanco-previsto{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--text)}
+.link-remover{min-height:44px;padding:0 6px;font-weight:700;color:var(--bad-text)}
+@media (max-width:700px){
+  .cron,.cron-legenda{display:none}
+  .cron-lista{display:grid}
+  .cron-modo{display:none}
+}
+
+/* ---------- planejamento: médio prazo (restrições) ---------- */
+/* Uma cor por tipo de restrição, só no rótulo (o fundo do cartão segue o padrão). */
+.tipo-material{--tipo:#E59A3C} .tipo-mao{--tipo:#5BA8F0} .tipo-metodo{--tipo:#B48CF2} .tipo-equipamento{--tipo:#F2D04A}
+.tipo-projeto{--tipo:#2CC6D6} .tipo-seguranca{--tipo:#FF7A70} .tipo-logistica{--tipo:#3DC28C}
+.tipo{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;letter-spacing:.04em;padding:5px 9px;border-radius:8px;
+  color:var(--tipo);background:color-mix(in srgb,var(--tipo) 16%,transparent);white-space:nowrap}
+.tipo svg{width:16px;height:16px}
+.tipos{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media (min-width:480px){ .tipos{grid-template-columns:repeat(3,1fr)} }
+.tipo-opcao{min-height:48px;border-radius:10px;background:var(--card-2);border:1.5px solid transparent;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:15px;font-weight:600;color:#D3DCE0;text-align:left}
+.tipo-opcao svg{width:20px;height:20px;color:var(--tipo);flex:none}
+.tipo-opcao.on{border-color:var(--tipo);background:color-mix(in srgb,var(--tipo) 16%,transparent);color:var(--text)}
+.rs-acoes{display:grid;grid-template-columns:48px 1fr 48px;gap:6px;margin-top:12px}
+.rs-acoes .btn{min-height:46px;padding:0;font-size:15px}
+.rs-acoes .btn svg{width:18px;height:18px}
+.kcard.resolvida{opacity:.7}
+.kcard.resolvida h3{text-decoration:line-through}
+.rs-sem{display:grid;gap:2px}
+.rs-sem small{font-size:13px;font-weight:500;color:var(--muted)}
+.rs-filtros{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;align-items:end}
+.rs-filtros .tab{grid-column:1 / -1;justify-self:start}
+@media (min-width:700px){ .rs-filtros{grid-template-columns:180px 240px auto} .rs-filtros .tab{grid-column:auto} }
+.rs-filtro{display:grid;gap:6px}
+.rs-filtro span{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- planejamento: curto prazo (Kanban da semana + PPC) ---------- */
+.semana-nav{display:grid;grid-template-columns:52px 1fr 52px;gap:8px;align-items:center;margin-top:4px}
+.semana-nav .btn{padding:0;font-size:24px}
+.semana-nome{text-align:center;display:grid;gap:2px}
+.semana-nome b{font-size:18px}
+.semana-nome span{color:var(--muted);font-size:14px}
+.ppc{margin-top:14px}
+.ppc-topo{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.ppc-num{font-size:56px;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--accent-text);margin-top:6px}
+/* Uma série só: uma cor, número em cima de cada barra, sem legenda. */
+.ppc-hist{display:flex;gap:8px;align-items:flex-end}
+.ppc-col{display:grid;justify-items:center;gap:4px;width:40px}
+.ppc-val{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.ppc-trilho{width:22px;height:64px;display:flex;align-items:flex-end;border-bottom:1px solid var(--line)}
+.ppc-barra{width:100%;background:var(--slate);border-radius:4px 4px 0 0;min-height:0}
+.ppc-col.atual .ppc-barra{background:var(--accent)}
+.ppc-col.atual .ppc-val{color:var(--text)}
+.ppc-sem{font-size:11px;color:var(--muted)}
+.kcard-mover{margin-top:12px;min-height:46px;font-size:15px}
+.causa-box{margin-top:12px;padding:14px;border-radius:12px;background:var(--bg-2);border:1px solid var(--line)}
+.subtarefa{border-top:1px solid var(--line);padding:6px 0}
+.subtarefa-linha{display:flex;align-items:center;gap:10px;min-height:48px}
+.check-sub{width:30px;height:30px;border-radius:8px;border:2px solid var(--slate);display:grid;place-items:center;flex:none;position:relative}
+.check-sub::before{content:"";position:absolute;inset:-9px}
+.check-sub.on{background:var(--ok);border-color:var(--ok)}
+.check-sub svg{width:18px;height:18px;stroke:#06221A;stroke-width:3}
+.subtarefa-txt{flex:1;min-width:0;display:grid;gap:2px;font-size:16px}
+.subtarefa-txt.feita{color:var(--muted);text-decoration:line-through}
+.subtarefa-txt small{font-size:13px;font-weight:600;text-decoration:none}
+.sub-acao{flex:none;min-height:44px;min-width:44px;padding:0 6px;font-size:14px;font-weight:700;color:var(--muted)}
+/* No computador, as 3 colunas da semana dividem a largura toda. */
+@media (min-width:900px){ .kanban-tres .kcol{flex:1 1 0;min-width:240px} }
+
+/* ---------- planejamento: importar cronograma por planilha ---------- */
+.imp-botoes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.imp-botoes .btn{font-size:15px;padding:0 10px;cursor:pointer;text-align:center}
+.imp-botoes .desligado{opacity:.55;cursor:not-allowed}
+.imp-lista{margin-top:14px;border-top:1px solid var(--line)}
+.imp-linha{padding:10px 0 10px calc(var(--nivel) * 14px);border-bottom:1px solid var(--line)}
+.imp-linha.erro{background:var(--bad-bg);padding-right:8px;border-left:3px solid var(--bad);padding-left:calc(8px + var(--nivel) * 14px)}
+.imp-topo{display:flex;align-items:center;gap:10px}
+.imp-txt{flex:1;min-width:0;display:grid;gap:2px}
+.imp-txt b{font-size:16px;line-height:1.25}
+.imp-txt span{color:var(--muted);font-size:13px}
+.imp-edicao{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.imp-edicao .imp-campo:nth-child(2){grid-column:1 / -1}
+.imp-edicao .btn{grid-column:1 / -1;min-height:44px}
+.imp-campo{display:grid;gap:4px}
+.imp-campo span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.imp-campo .field{min-height:46px;padding:8px 10px;font-size:16px}

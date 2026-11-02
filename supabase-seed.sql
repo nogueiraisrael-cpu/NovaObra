@@ -8,9 +8,9 @@ declare
   h date := (now() at time zone 'America/Fortaleza')::date;
 begin
 
-  insert into public.obras (id, nome, codigo, tipo, endereco, cidade, cliente, numero_contrato, data_inicio, data_meta_entrega, situacao) values
-    (md5('obra-serra')::uuid, 'Casa Alto da Serra 4', 'SERRA4', 'Alto padrão', 'Rua das Acácias, 410 — Alto da Serra', 'Natal', 'Dra. Helena Duarte', null, h + -150, h + 120, 'Em andamento'),
-    (md5('obra-ubs')::uuid, 'UBS Nova Esperança', 'UBS-NE', 'Licitação', 'Av. Tenente Medeiros, s/n — Nova Esperança', 'Parnamirim', 'Prefeitura de Parnamirim', 'CT 042/2026', h + -75, h + 210, 'Em andamento')
+  insert into public.obras (id, nome, codigo, tipo, endereco, cidade, cliente, numero_contrato, data_inicio, data_meta_entrega, situacao, dias_trabalho, feriados) values
+    (md5('obra-serra')::uuid, 'Casa Alto da Serra 4', 'SERRA4', 'Alto padrão', 'Rua das Acácias, 410 — Alto da Serra', 'Natal', 'Dra. Helena Duarte', null, h + -150, h + 120, 'Em andamento', '{1,2,3,4,5}'::smallint[], '{2026-11-20,2026-12-25}'::date[]),
+    (md5('obra-ubs')::uuid, 'UBS Nova Esperança', 'UBS-NE', 'Licitação', 'Av. Tenente Medeiros, s/n — Nova Esperança', 'Parnamirim', 'Prefeitura de Parnamirim', 'CT 042/2026', h + -75, h + 210, 'Em andamento', '{1,2,3,4,5,6}'::smallint[], '{}'::date[])
   on conflict do nothing;
 
   insert into public.funcionarios (id, nome, funcao, obra_id, ativo) values
@@ -229,5 +229,67 @@ begin
     (md5('mv-tinta-s')::uuid, md5('obra-serra')::uuid, md5('ins-tinta')::uuid, 'Saída', 6, h + -3, 'Pintura interna', 'Pedido', md5('ped-tinta')::uuid),
     (md5('mv-ubs-cimento-e')::uuid, md5('obra-ubs')::uuid, md5('ins-ubs-cimento')::uuid, 'Entrada', 40, h + -20, 'Saldo inicial', 'Manual', null),
     (md5('mv-ubs-cimento-s')::uuid, md5('obra-ubs')::uuid, md5('ins-ubs-cimento')::uuid, 'Saída', 15, h + -6, 'Fundação — sapatas', 'Manual', null)
+  on conflict do nothing;
+
+  -- Planejamento: EAP (migration 20261102-09). A mãe vem antes das filhas.
+  insert into public.atividades (id, obra_id, pai_id, ordem, titulo, data_inicio, data_fim, progresso, arquivada) values
+    (md5('at-dem')::uuid, md5('obra-serra')::uuid, null, 0, 'Demolição', h + -40, h + -30, 0, false),
+    (md5('at-dem-rev')::uuid, md5('obra-serra')::uuid, md5('at-dem')::uuid, 0, 'Retirada de revestimentos antigos', h + -40, h + -33, 100, false),
+    (md5('at-dem-ent')::uuid, md5('obra-serra')::uuid, md5('at-dem')::uuid, 1, 'Remoção de entulho', h + -34, h + -30, 100, false),
+    (md5('at-dem-chur')::uuid, md5('obra-serra')::uuid, md5('at-dem')::uuid, 2, 'Demolição da churrasqueira', h + -36, h + -35, 0, true),
+    (md5('at-hid')::uuid, md5('obra-serra')::uuid, null, 1, 'Hidráulica', h + -28, h + -6, 0, false),
+    (md5('at-hid-af')::uuid, md5('obra-serra')::uuid, md5('at-hid')::uuid, 0, 'Tubulação de água fria', h + -28, h + -14, 100, false),
+    (md5('at-hid-esg')::uuid, md5('obra-serra')::uuid, md5('at-hid')::uuid, 1, 'Esgoto dos banheiros', h + -20, h + -6, 100, false),
+    (md5('at-ele')::uuid, md5('obra-serra')::uuid, null, 2, 'Elétrica', h + -21, h + 10, 0, false),
+    (md5('at-ele-dut')::uuid, md5('obra-serra')::uuid, md5('at-ele')::uuid, 0, 'Eletrodutos e caixas', h + -21, h + -7, 100, false),
+    (md5('at-ele-fio')::uuid, md5('obra-serra')::uuid, md5('at-ele')::uuid, 1, 'Fiação e quadro', h + -3, h + 10, 20, false),
+    (md5('at-reb')::uuid, md5('obra-serra')::uuid, null, 3, 'Reboco', h + -10, h + 15, 0, false),
+    (md5('at-reb-int')::uuid, md5('obra-serra')::uuid, md5('at-reb')::uuid, 0, 'Reboco interno', h + -10, h + 8, 40, false),
+    (md5('at-reb-fach')::uuid, md5('obra-serra')::uuid, md5('at-reb')::uuid, 1, 'Reboco fachada norte', h + -5, h + 15, 30, false),
+    (md5('at-aca')::uuid, md5('obra-serra')::uuid, null, 4, 'Acabamento', h + 5, h + 40, 0, false),
+    (md5('at-aca-rev')::uuid, md5('obra-serra')::uuid, md5('at-aca')::uuid, 0, 'Revestimento cerâmico', h + 5, h + 25, 0, false),
+    (md5('at-aca-rev-ban')::uuid, md5('obra-serra')::uuid, md5('at-aca-rev')::uuid, 0, 'Banheiros', h + 5, h + 16, 0, false),
+    (md5('at-aca-rev-coz')::uuid, md5('obra-serra')::uuid, md5('at-aca-rev')::uuid, 1, 'Cozinha', h + 14, h + 25, 0, false),
+    (md5('at-aca-pin')::uuid, md5('obra-serra')::uuid, md5('at-aca')::uuid, 1, 'Pintura interna', h + 20, h + 40, 0, false),
+    (md5('at-ubs-fun')::uuid, md5('obra-ubs')::uuid, null, 0, 'Fundação', h + -10, h + 15, 0, false),
+    (md5('at-ubs-sap')::uuid, md5('obra-ubs')::uuid, md5('at-ubs-fun')::uuid, 0, 'Sapatas', h + -10, h + 5, 50, false),
+    (md5('at-ubs-vb')::uuid, md5('obra-ubs')::uuid, md5('at-ubs-fun')::uuid, 1, 'Vigas baldrame', h + 3, h + 15, 0, false)
+  on conflict do nothing;
+
+  -- Planejamento: restrições do Médio prazo (migration 20261102-11).
+  insert into public.restricoes (id, obra_id, atividade_id, descricao, tipo, prazo, responsavel, resolvida, resolvida_em) values
+    (md5('rs-andaime')::uuid, md5('obra-serra')::uuid, md5('at-reb-fach')::uuid, 'Trazer o andaime fachadeiro do depósito', 'Equipamento', h + -2, 'Eng. Ricardo', false, null),
+    (md5('rs-linha-vida')::uuid, md5('obra-serra')::uuid, md5('at-reb-fach')::uuid, 'Instalar linha de vida na fachada', 'Segurança', h + 1, 'Téc. segurança Ana', false, null),
+    (md5('rs-porcelanato')::uuid, md5('obra-serra')::uuid, md5('at-aca-rev-ban')::uuid, 'Porcelanato dos banheiros ainda não chegou', 'Material', h + 3, 'Eng. Israel', false, null),
+    (md5('rs-caminhao')::uuid, md5('obra-serra')::uuid, md5('at-aca-rev-ban')::uuid, 'Combinar a descarga do caminhão pela rua lateral', 'Logística', h + 4, 'Eng. Israel', false, null),
+    (md5('rs-paginacao')::uuid, md5('obra-serra')::uuid, md5('at-aca-rev-coz')::uuid, 'Cliente aprovar a paginação da cozinha', 'Projeto', h + 9, 'Dra. Helena', false, null),
+    (md5('rs-pintor')::uuid, md5('obra-serra')::uuid, md5('at-aca-pin')::uuid, 'Contratar mais um pintor', 'Mão de obra', h + 15, 'Eng. Ricardo', false, null),
+    (md5('rs-disjuntores')::uuid, md5('obra-serra')::uuid, md5('at-ele-fio')::uuid, 'Disjuntores do quadro em falta no fornecedor', 'Material', h + 22, 'Eng. Israel', false, null),
+    (md5('rs-traco')::uuid, md5('obra-serra')::uuid, md5('at-reb-int')::uuid, 'Definir o traço do reboco com a argamassa nova', 'Método', h + -8, 'Eng. Israel', true, h + -9),
+    (md5('rs-ubs-sondagem')::uuid, md5('obra-ubs')::uuid, md5('at-ubs-vb')::uuid, 'Laudo de sondagem atrasado', 'Projeto', h + 2, 'Prefeitura', false, null)
+  on conflict do nothing;
+
+  -- Planejamento: Curto prazo (migration 20261102-12). A semana é a segunda-feira da data.
+  insert into public.semana_atividades (id, obra_id, atividade_id, semana, status, nao_realizada, causa) values
+    (md5('sa-dem-rev')::uuid, md5('obra-serra')::uuid, md5('at-dem-rev')::uuid, date_trunc('week', h + -33)::date, 'Concluído', false, null),
+    (md5('sa-dem-ent')::uuid, md5('obra-serra')::uuid, md5('at-dem-ent')::uuid, date_trunc('week', h + -30)::date, 'Concluído', false, null),
+    (md5('sa-hid-af')::uuid, md5('obra-serra')::uuid, md5('at-hid-af')::uuid, date_trunc('week', h + -14)::date, 'Concluído', false, null),
+    (md5('sa-ele-dut')::uuid, md5('obra-serra')::uuid, md5('at-ele-dut')::uuid, date_trunc('week', h + 0)::date, 'Concluído', false, null),
+    (md5('sa-hid-esg')::uuid, md5('obra-serra')::uuid, md5('at-hid-esg')::uuid, date_trunc('week', h + -7)::date, 'Em andamento', true, 'Material'),
+    (md5('sa-hid-esg-fim')::uuid, md5('obra-serra')::uuid, md5('at-hid-esg')::uuid, date_trunc('week', h + 0)::date, 'Concluído', false, null),
+    (md5('sa-reb-int')::uuid, md5('obra-serra')::uuid, md5('at-reb-int')::uuid, date_trunc('week', h + 0)::date, 'Em andamento', false, null),
+    (md5('sa-reb-fach')::uuid, md5('obra-serra')::uuid, md5('at-reb-fach')::uuid, date_trunc('week', h + 0)::date, 'Em andamento', false, null),
+    (md5('sa-ubs-sap')::uuid, md5('obra-ubs')::uuid, md5('at-ubs-sap')::uuid, date_trunc('week', h + 0)::date, 'Em andamento', false, null)
+  on conflict do nothing;
+
+  insert into public.subtarefas (id, obra_id, atividade_id, titulo, ordem, feita, nao_realizada, causa) values
+    (md5('st-reb-int-1')::uuid, md5('obra-serra')::uuid, md5('at-reb-int')::uuid, 'Taliscas e mestras', 0, true, false, null),
+    (md5('st-reb-int-2')::uuid, md5('obra-serra')::uuid, md5('at-reb-int')::uuid, 'Chapisco das paredes', 1, true, false, null),
+    (md5('st-reb-int-3')::uuid, md5('obra-serra')::uuid, md5('at-reb-int')::uuid, 'Reboco da sala', 2, false, false, null),
+    (md5('st-reb-int-4')::uuid, md5('obra-serra')::uuid, md5('at-reb-int')::uuid, 'Reboco dos quartos', 3, false, false, null),
+    (md5('st-reb-fach-1')::uuid, md5('obra-serra')::uuid, md5('at-reb-fach')::uuid, 'Montar o andaime fachadeiro', 0, false, true, 'Equipamento'),
+    (md5('st-reb-fach-2')::uuid, md5('obra-serra')::uuid, md5('at-reb-fach')::uuid, 'Chapisco da fachada', 1, false, false, null),
+    (md5('st-ubs-sap-1')::uuid, md5('obra-ubs')::uuid, md5('at-ubs-sap')::uuid, 'Escavação', 0, true, false, null),
+    (md5('st-ubs-sap-2')::uuid, md5('obra-ubs')::uuid, md5('at-ubs-sap')::uuid, 'Armadura das sapatas', 1, false, false, null)
   on conflict do nothing;
 end $$;

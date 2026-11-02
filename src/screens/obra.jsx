@@ -1,4 +1,4 @@
-// Dentro da obra escolhida: abas Hoje · Diários · Fotos · Comentários · Pranchas · Medições · Materiais.
+// Dentro da obra escolhida: abas Hoje · Diários · Fotos · Comentários · Pranchas · Medições · Materiais · Planejamento.
 import { useObra } from '../lib/ObraContext.jsx'
 import { hojeISO, formatarDataLonga } from '../lib/datas.js'
 import { Cabecalho, Vazio } from '../components/index.jsx'
@@ -9,8 +9,9 @@ import Comentarios from './comentarios.jsx'
 import Pranchas from './pranchas.jsx'
 import Medicoes from './medicoes.jsx'
 import Materiais from './materiais.jsx'
+import Planejamento from './planejamento.jsx'
 
-const ABAS = ['Hoje', 'Diários', 'Fotos', 'Comentários', 'Pranchas', 'Medições', 'Materiais']
+const ABAS = ['Hoje', 'Diários', 'Fotos', 'Comentários', 'Pranchas', 'Medições', 'Materiais', 'Planejamento']
 
 export default function Obra({ goto, params }) {
   const { obra } = useObra()
@@ -25,6 +26,7 @@ export default function Obra({ goto, params }) {
     case 'Pranchas': corpo = <Pranchas />; break
     case 'Medições': corpo = <Medicoes />; break
     case 'Materiais': corpo = <Materiais />; break
+    case 'Planejamento': corpo = <Planejamento />; break
     default: corpo = obra.situacao === 'Concluída'
       ? <div style={{ marginTop: 16 }}><Vazio icone="obras" titulo="Obra concluída"
         texto="Para lançar diário, reabra a obra em Editar obra, na tela Obras."

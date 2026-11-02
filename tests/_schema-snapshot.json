@@ -1,5 +1,5 @@
 {
-  "_tirado_em": "2026-11-02, do banco nova-obra (Supabase), depois da migration 20261102-08. Regenere depois de QUALQUER migration.",
+  "_tirado_em": "2026-11-02, do banco nova-obra (Supabase), depois da migration 20261102-12. Regenere depois de QUALQUER migration.",
   "equipamentos": ["id", "nome", "codigo", "situacao", "obra_id", "situacao_desde", "oficina", "previsao_retorno", "defeito", "created_at"],
   "fotos": ["id", "obra_id", "rdo_id", "rdo_frente_id", "caminho", "legenda", "visivel_cliente", "enviada_por", "created_at"],
   "frentes_servico": ["id", "obra_id", "nome", "etapa", "executor", "empreiteiro", "situacao", "parada_desde", "motivo_parada", "data_inicio", "data_conclusao", "created_at"],
@@ -7,11 +7,15 @@
   "insumos": ["id", "obra_id", "material_id", "saldo_minimo", "created_at", "updated_at"],
   "materiais": ["id", "nome", "unidade", "categoria", "ativo", "created_at", "updated_at"],
   "movimentos_estoque": ["id", "obra_id", "insumo_id", "tipo", "quantidade", "data", "frente", "origem", "pedido_id", "created_at", "updated_at"],
-  "obras": ["id", "nome", "codigo", "tipo", "endereco", "cidade", "cliente", "numero_contrato", "data_inicio", "data_meta_entrega", "situacao", "created_at"],
+  "obras": ["id", "nome", "codigo", "tipo", "endereco", "cidade", "cliente", "numero_contrato", "data_inicio", "data_meta_entrega", "situacao", "created_at", "dias_trabalho", "feriados"],
   "pedidos_material": ["id", "obra_id", "material_id", "quantidade", "frente", "prioridade", "status", "fornecedor", "previsao_entrega", "qtd_bate_nf", "estado_ok", "avarias", "foto_nf", "historico", "criado_por", "created_at", "qtd_recebida", "updated_at"],
   "rdo_efetivo": ["id", "rdo_id", "obra_id", "data", "funcionario_id", "situacao", "obra_destino_id", "created_at"],
   "rdo_equipamentos": ["id", "rdo_id", "obra_id", "equipamento_id", "situacao", "observacao", "created_at"],
   "rdo_frente_equipe": ["id", "rdo_frente_id", "obra_id", "funcionario_id", "created_at"],
   "rdo_frentes": ["id", "rdo_id", "obra_id", "frente_id", "situacao", "motivo_parada", "descricao", "created_at"],
-  "rdos": ["id", "obra_id", "data", "clima_manha", "clima_tarde", "praticavel_manha", "praticavel_tarde", "observacoes", "status", "criado_por", "fechado_por", "fechado_em", "created_at"]
+  "rdos": ["id", "obra_id", "data", "clima_manha", "clima_tarde", "praticavel_manha", "praticavel_tarde", "observacoes", "status", "criado_por", "fechado_por", "fechado_em", "created_at"],
+  "atividades": ["id", "obra_id", "pai_id", "ordem", "titulo", "data_inicio", "data_fim", "arquivada", "created_at", "updated_at", "progresso"],
+  "restricoes": ["id", "obra_id", "atividade_id", "descricao", "tipo", "prazo", "responsavel", "resolvida", "resolvida_em", "created_at", "updated_at"],
+  "semana_atividades": ["id", "obra_id", "atividade_id", "semana", "status", "nao_realizada", "causa", "progresso_antes", "created_at", "updated_at"],
+  "subtarefas": ["id", "obra_id", "atividade_id", "titulo", "ordem", "feita", "nao_realizada", "causa", "created_at", "updated_at"]
 }

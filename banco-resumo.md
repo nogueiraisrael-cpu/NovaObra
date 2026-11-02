@@ -5,7 +5,7 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 
 - **Onde fica:** Supabase, projeto `nova-obra`, região São Paulo (`sa-east-1`), plano gratuito.
 - **Como o app entra:** endereço e chave publicável no `.env.local` (não vai para o Git).
-- **Atualizado em:** 01/11/2026 (módulo Diário de Obra, v1.0, e Materiais — quadro de pedidos e estoque).
+- **Atualizado em:** 02/11/2026 (módulo Diário de Obra, v1.0, Materiais — quadro de pedidos e estoque — e Planejamento — EAP).
 
 ## ⚠️ O que é provisório e o passo 10 precisa fechar
 
@@ -24,14 +24,14 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 4. **Fotos** ficam dentro do próprio registro, encolhidas. O lugar certo é o Storage (arquivos);
    entra antes do uso real.
 
-## As tabelas (14)
+## As tabelas (18)
 
 Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `movimentos_estoque`) existe
 `updated_at`: a hora da última alteração, que o próprio banco atualiza. O app nunca grava essa coluna.
 
 | Tabela | O que guarda | Uma linha é… |
 |---|---|---|
-| `obras` | Cada obra: nome, código curto (único), tipo, cidade, cliente, contrato, datas, situação | uma obra |
+| `obras` | Cada obra: nome, código curto (único), tipo, cidade, cliente, contrato, datas, situação, e o calendário do Planejamento (`dias_trabalho`: 0 = domingo … 6 = sábado; `feriados`) | uma obra |
 | `funcionarios` | O efetivo. Nome, função e a obra onde está lotado (pode ficar sem obra) | uma pessoa da equipe (não tem login) |
 | `equipamentos` | Betoneira, andaime etc.: onde está (na obra, no conserto, no depósito) e desde quando | um equipamento |
 | `frentes_servico` | Cada frente de serviço de uma obra e a situação dela (parada desde quando, por quê) | uma frente |
@@ -45,6 +45,10 @@ Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `mo
 | `pedidos_material` | Cada pedido de material de uma obra: quantidade, frente, prioridade, em que coluna está (Solicitar → Entregue), fornecedor, previsão, checklist de recebimento, foto da NF e o histórico de colunas com data | um lote pedido |
 | `insumos` | Cada material que a obra controla no estoque, com o saldo mínimo (0 = sem mínimo) | um material numa obra |
 | `movimentos_estoque` | Cada entrada ou saída do estoque: do pedido recebido/entregue ou da baixa manual. **O saldo não é guardado: é a soma destas linhas** | uma entrada ou saída |
+| `atividades` | O Planejamento: cada atividade da EAP de uma obra, com a atividade-mãe (`pai_id`), a posição entre as irmãs (`ordem`), início, fim, avanço real (`progresso`, 0 a 100, só nas atividades sem subatividade) e se está arquivada. **O código (1, 1.2, 1.2.1), o avanço dos grupos e o previsto não são guardados: saem da posição, das filhas e das datas.** Não se apaga, se arquiva. Tem `updated_at` automático | uma atividade |
+| `restricoes` | O Médio prazo: cada restrição (impedimento) de uma atividade: descrição, tipo (Material, Mão de obra, Método, Equipamento, Projeto, Segurança, Logística), prazo para resolver, responsável e se já foi resolvida (e quando). **A coluna da semana no quadro é a do prazo**: mover de semana é mudar o prazo. Tem `updated_at` automático | uma restrição |
+| `semana_atividades` | O Curto prazo: como cada atividade ficou numa semana (a semana é a segunda-feira): A fazer, Em andamento ou Concluído, e se foi "não realizada" com a causa raiz. Sem linha = A fazer. **O PPC não é guardado: sai destas linhas.** Concluir põe o avanço da atividade em 100% e guarda o de antes (`progresso_antes`) para devolver se voltar | uma atividade numa semana |
+| `subtarefas` | O checklist dentro de cada atividade: feita, ou não realizada com a causa raiz | uma subtarefa |
 
 ## As travas que o próprio banco garante
 
@@ -85,3 +89,7 @@ relativas ao dia em que roda; rodar de novo não duplica nada.
 | `20261101-06-estoque.sql` | Cria `insumos` e `movimentos_estoque` e a quantidade recebida no pedido. ⚠️ Também abertas sem login, provisório até o passo 10 |
 | `20261102-07-estoque-nunca-negativo.sql` | Trava no banco: nenhuma gravação deixa um insumo com saldo negativo (achado da revisão de código) |
 | `20261102-08-materiais-updated-at.sql` | `updated_at` automático nas quatro tabelas de Materiais |
+| `20261102-09-planejamento-eap.sql` | Cria `atividades` (Planejamento, antecipado em 02/11/2026). A mãe é sempre da mesma obra; o fim nunca antes do início. ⚠️ Também aberta sem login, provisório até o passo 10 |
+| `20261102-10-planejamento-longo-prazo.sql` | Avanço real (`progresso`) nas atividades e o calendário da obra (`dias_trabalho`, `feriados`) em `obras` |
+| `20261102-11-planejamento-restricoes.sql` | Cria `restricoes` (Médio prazo). A atividade é sempre da mesma obra; resolvida sempre tem data. ⚠️ Também aberta sem login, provisório até o passo 10 |
+| `20261102-12-planejamento-curto-prazo.sql` | Cria `semana_atividades` e `subtarefas` (Curto prazo). Semana sempre é segunda-feira; uma linha por atividade por semana; não realizada sempre tem causa. ⚠️ Também abertas sem login, provisório até o passo 10 |

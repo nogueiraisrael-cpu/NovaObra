@@ -38,6 +38,16 @@ export const STATUS_PEDIDO = ['Solicitar', 'Em cotação', 'Comprado', 'No almox
 export const TIPOS_MOVIMENTO = ['Entrada', 'Saída']
 export const ORIGENS_MOVIMENTO = ['Pedido', 'Manual']
 
+// Planejamento — Médio prazo: o tipo de cada restrição (impedimento) de uma atividade.
+export const TIPOS_RESTRICAO = ['Material', 'Mão de obra', 'Método', 'Equipamento', 'Projeto', 'Segurança', 'Logística']
+
+// Planejamento — Curto prazo: as colunas do Kanban da semana (nesta ordem) e a causa raiz
+// de uma atividade ou subtarefa "Não realizada".
+export const STATUS_SEMANA = ['A fazer', 'Em andamento', 'Concluído']
+export const CAUSAS_NAO_REALIZADO = [
+  'Material', 'Mão de obra', 'Projeto', 'Clima', 'Equipamento', 'Serviço anterior', 'Restrição não resolvida', 'Outro',
+]
+
 export const STATUS_RDO = ['Em andamento', 'Fechado']
 // Como o RDO de hoje aparece no cartão da obra (inclui o caso "não existe RDO").
 export const STATUS_RDO_HOJE = ['Não iniciado', 'Em andamento', 'Fechado']

@@ -44,12 +44,13 @@ A sua dor tem dois blocos de tamanho parecido. Fazer os dois de uma vez dá um s
 - **Mudança de 31/10/2026:** a **visualização das medições** (contrato e empreiteiro) saiu da v2 e entrou como fase v1.3. Ver "Medições" em Funcionalidades.
 - **Mudança de 01/11/2026:** o **quadro de pedidos de material** foi antecipado da v2 e já existe como aba "Materiais" dentro da obra: cada pedido (lote) anda por Solicitar → Em cotação → Comprado / a caminho → No almoxarifado → Entregue na frente, com checklist de recebimento, atrasados e lead time. Continua na v2: conferir o pedido com a planilha de medição e a lista de aditivo.
 - **Mudança de 01/11/2026 (2):** o **estoque** voltou, opcional, como sub-aba Estoque dentro de Materiais. Para não dobrar o lançamento: a entrada é automática quando o pedido chega no almoxarifado (com a quantidade que chegou de fato), a saída é automática quando ele é entregue na frente, e a baixa manual fica só para consumo parcial. Insumo com saldo no mínimo aparece como "Crítico".
+- **Mudança de 02/11/2026:** o **Planejamento** (Last Planner) foi antecipado e entra como aba "Planejamento" dentro da obra, com quatro sub-abas que usam a mesma lista de atividades: EAP (árvore com código automático), Longo prazo (cronograma em barras simples, sem MS Project), Médio prazo (restrições das próximas semanas) e Curto prazo (kanban da semana e PPC). Construído uma sub-aba por vez, começando pela EAP. Isso substitui a linha "Cronograma estilo MS Project / Gantt" do que a v1 não faz: continua fora importar ou imitar o MS Project.
 
 **O que ele NÃO faz (v1):**
 - Orçamento e composição de preço (você já resolve isso; fica fora para sempre).
 - Pedidos, aditivo e estoque (vão para a v2, ver acima).
 - Fazer a medição dentro do app: a medição continua sendo feita na sua planilha. O app só **lê** a planilha pronta e mostra o painel (v1.3).
-- Cronograma estilo MS Project / Gantt.
+- Cronograma estilo MS Project / Gantt (importar ou imitar o MS Project). O planejamento simples entrou em 02/11/2026, ver acima.
 - App de loja (Play Store / App Store): é um site que abre no celular e pode ser fixado na tela inicial.
 - Funcionar sem internet: o app precisa de sinal para salvar. `[DESCOBRIR NO USO]`
 

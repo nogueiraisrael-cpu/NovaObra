@@ -6,10 +6,12 @@
 // outra equipe e NENHUM equipamento. Se aparecer equipamento na UBS, vazou dado.
 // Nos materiais, a UBS tem só 2 pedidos (aço e bloco); a Serra, 10. No estoque, a Serra tem
 // 2 insumos críticos; a UBS, só o cimento e nenhum crítico.
+// No planejamento, a Serra tem a EAP inteira (5 grupos, uma arquivada); a UBS, só a fundação.
 //
 // As datas são relativas a hoje, para o exemplo continuar fazendo sentido amanhã.
 // O supabase-seed.sql foi gerado a partir daqui (01/11/2026): os ids viram uuid fixos.
 import { hojeISO, somarDias } from './datas.js'
+import { segundaDaSemana } from './planejamento.js'
 
 // As pessoas de exemplo já têm id no formato do banco (uuid): é o que vai em
 // criado_por / fechado_por / enviada_por. O login de verdade chega no passo 10.
@@ -36,12 +38,16 @@ export function criarMock(hoje = hojeISO()) {
       endereco: 'Rua das Acácias, 410 — Alto da Serra', cidade: 'Natal',
       cliente: 'Dra. Helena Duarte', numero_contrato: null,
       data_inicio: d(-150), data_meta_entrega: d(120), situacao: 'Em andamento',
+      // Calendário do Planejamento: segunda a sexta, com os feriados nacionais do fim do ano.
+      dias_trabalho: [1, 2, 3, 4, 5], feriados: ['2026-11-20', '2026-12-25'],
     },
     {
       id: 'obra-ubs', nome: 'UBS Nova Esperança', codigo: 'UBS-NE', tipo: 'Licitação',
       endereco: 'Av. Tenente Medeiros, s/n — Nova Esperança', cidade: 'Parnamirim',
       cliente: 'Prefeitura de Parnamirim', numero_contrato: 'CT 042/2026',
       data_inicio: d(-75), data_meta_entrega: d(210), situacao: 'Em andamento',
+      // A licitação trabalha também no sábado.
+      dias_trabalho: [1, 2, 3, 4, 5, 6], feriados: [],
     },
   ]
 
@@ -275,9 +281,91 @@ export function criarMock(hoje = hojeISO()) {
     mv('mv-ubs-cimento-s', 'obra-ubs', 'ins-ubs-cimento', 'Saída', 15, -6, 'Fundação — sapatas', 'Manual'),
   ]
 
+  // ---- Planejamento: a EAP de cada obra (a mãe vem antes das filhas: o seed insere nesta ordem) ----
+  // Serra: 5 grupos, 10 atividades e uma arquivada (a churrasqueira, que o cliente desistiu).
+  // UBS: só a fundação, com duas atividades.
+  // Avanço real só nas atividades sem filhas: Reboco interno e Sapatas da UBS ficam ATRASADAS;
+  // Reboco fachada está em dia; Esgoto e Eletrodutos terminaram atrasados, nesta semana.
+  const at = (id, obra_id, pai_id, ordem, titulo, ini, fim, progresso = 0, arquivada = false) =>
+    ({ id, obra_id, pai_id, ordem, titulo, data_inicio: d(ini), data_fim: d(fim), progresso, arquivada })
+  const atividades = [
+    at('at-dem', 'obra-serra', null, 0, 'Demolição', -40, -30),
+    at('at-dem-rev', 'obra-serra', 'at-dem', 0, 'Retirada de revestimentos antigos', -40, -33, 100),
+    at('at-dem-ent', 'obra-serra', 'at-dem', 1, 'Remoção de entulho', -34, -30, 100),
+    at('at-dem-chur', 'obra-serra', 'at-dem', 2, 'Demolição da churrasqueira', -36, -35, 0, true),
+    at('at-hid', 'obra-serra', null, 1, 'Hidráulica', -28, -6),
+    at('at-hid-af', 'obra-serra', 'at-hid', 0, 'Tubulação de água fria', -28, -14, 100),
+    at('at-hid-esg', 'obra-serra', 'at-hid', 1, 'Esgoto dos banheiros', -20, -6, 100),
+    at('at-ele', 'obra-serra', null, 2, 'Elétrica', -21, 10),
+    at('at-ele-dut', 'obra-serra', 'at-ele', 0, 'Eletrodutos e caixas', -21, -7, 100),
+    at('at-ele-fio', 'obra-serra', 'at-ele', 1, 'Fiação e quadro', -3, 10, 20),
+    at('at-reb', 'obra-serra', null, 3, 'Reboco', -10, 15),
+    at('at-reb-int', 'obra-serra', 'at-reb', 0, 'Reboco interno', -10, 8, 40),
+    at('at-reb-fach', 'obra-serra', 'at-reb', 1, 'Reboco fachada norte', -5, 15, 30),
+    at('at-aca', 'obra-serra', null, 4, 'Acabamento', 5, 40),
+    at('at-aca-rev', 'obra-serra', 'at-aca', 0, 'Revestimento cerâmico', 5, 25),
+    at('at-aca-rev-ban', 'obra-serra', 'at-aca-rev', 0, 'Banheiros', 5, 16),
+    at('at-aca-rev-coz', 'obra-serra', 'at-aca-rev', 1, 'Cozinha', 14, 25),
+    at('at-aca-pin', 'obra-serra', 'at-aca', 1, 'Pintura interna', 20, 40),
+    at('at-ubs-fun', 'obra-ubs', null, 0, 'Fundação', -10, 15),
+    at('at-ubs-sap', 'obra-ubs', 'at-ubs-fun', 0, 'Sapatas', -10, 5, 50),
+    at('at-ubs-vb', 'obra-ubs', 'at-ubs-fun', 1, 'Vigas baldrame', 3, 15),
+  ]
+
+  // ---- Planejamento — Médio prazo: as restrições das atividades ----
+  // Serra: 8 restrições espalhadas pelas próximas semanas, de 7 tipos; a do andaime está VENCIDA
+  // e a do traço do reboco já foi resolvida. UBS: só o laudo de sondagem.
+  const rs = (id, obra_id, atividade_id, descricao, tipo, prazo, responsavel, resolvidaEm = null) => ({
+    id, obra_id, atividade_id, descricao, tipo, prazo: d(prazo), responsavel,
+    resolvida: resolvidaEm !== null, resolvida_em: resolvidaEm === null ? null : d(resolvidaEm),
+  })
+  const restricoes = [
+    rs('rs-andaime', 'obra-serra', 'at-reb-fach', 'Trazer o andaime fachadeiro do depósito', 'Equipamento', -2, 'Eng. Ricardo'),
+    rs('rs-linha-vida', 'obra-serra', 'at-reb-fach', 'Instalar linha de vida na fachada', 'Segurança', 1, 'Téc. segurança Ana'),
+    rs('rs-porcelanato', 'obra-serra', 'at-aca-rev-ban', 'Porcelanato dos banheiros ainda não chegou', 'Material', 3, 'Eng. Israel'),
+    rs('rs-caminhao', 'obra-serra', 'at-aca-rev-ban', 'Combinar a descarga do caminhão pela rua lateral', 'Logística', 4, 'Eng. Israel'),
+    rs('rs-paginacao', 'obra-serra', 'at-aca-rev-coz', 'Cliente aprovar a paginação da cozinha', 'Projeto', 9, 'Dra. Helena'),
+    rs('rs-pintor', 'obra-serra', 'at-aca-pin', 'Contratar mais um pintor', 'Mão de obra', 15, 'Eng. Ricardo'),
+    rs('rs-disjuntores', 'obra-serra', 'at-ele-fio', 'Disjuntores do quadro em falta no fornecedor', 'Material', 22, 'Eng. Israel'),
+    rs('rs-traco', 'obra-serra', 'at-reb-int', 'Definir o traço do reboco com a argamassa nova', 'Método', -8, 'Eng. Israel', -9),
+    rs('rs-ubs-sondagem', 'obra-ubs', 'at-ubs-vb', 'Laudo de sondagem atrasado', 'Projeto', 2, 'Prefeitura'),
+  ]
+
+  // ---- Planejamento — Curto prazo: como cada atividade ficou em cada semana (a semana é a
+  // segunda-feira) e o checklist de subtarefas. As concluídas do passado dão histórico ao PPC.
+  // O Esgoto ficou "não realizado" por falta de material na semana passada e, junto com os
+  // Eletrodutos, terminou atrasado NESTA semana: o PPC da semana atual já nasce em 2 de 6.
+  // (A semana passada é seg(-7), nunca seg(-6): num domingo, -6 cairia nesta mesma semana.)
+  const seg = (dia) => segundaDaSemana(d(dia))
+  const sa = (id, obra_id, atividade_id, semana, status, causa = null) =>
+    ({ id, obra_id, atividade_id, semana, status, nao_realizada: causa !== null, causa, progresso_antes: null })
+  const semana_atividades = [
+    sa('sa-dem-rev', 'obra-serra', 'at-dem-rev', seg(-33), 'Concluído'),
+    sa('sa-dem-ent', 'obra-serra', 'at-dem-ent', seg(-30), 'Concluído'),
+    sa('sa-hid-af', 'obra-serra', 'at-hid-af', seg(-14), 'Concluído'),
+    sa('sa-ele-dut', 'obra-serra', 'at-ele-dut', seg(0), 'Concluído'),
+    sa('sa-hid-esg', 'obra-serra', 'at-hid-esg', seg(-7), 'Em andamento', 'Material'),
+    sa('sa-hid-esg-fim', 'obra-serra', 'at-hid-esg', seg(0), 'Concluído'),
+    sa('sa-reb-int', 'obra-serra', 'at-reb-int', seg(0), 'Em andamento'),
+    sa('sa-reb-fach', 'obra-serra', 'at-reb-fach', seg(0), 'Em andamento'),
+    sa('sa-ubs-sap', 'obra-ubs', 'at-ubs-sap', seg(0), 'Em andamento'),
+  ]
+  const st = (id, obra_id, atividade_id, ordem, titulo, feita = false, causa = null) =>
+    ({ id, obra_id, atividade_id, ordem, titulo, feita, nao_realizada: causa !== null, causa })
+  const subtarefas = [
+    st('st-reb-int-1', 'obra-serra', 'at-reb-int', 0, 'Taliscas e mestras', true),
+    st('st-reb-int-2', 'obra-serra', 'at-reb-int', 1, 'Chapisco das paredes', true),
+    st('st-reb-int-3', 'obra-serra', 'at-reb-int', 2, 'Reboco da sala'),
+    st('st-reb-int-4', 'obra-serra', 'at-reb-int', 3, 'Reboco dos quartos'),
+    st('st-reb-fach-1', 'obra-serra', 'at-reb-fach', 0, 'Montar o andaime fachadeiro', false, 'Equipamento'),
+    st('st-reb-fach-2', 'obra-serra', 'at-reb-fach', 1, 'Chapisco da fachada'),
+    st('st-ubs-sap-1', 'obra-ubs', 'at-ubs-sap', 0, 'Escavação', true),
+    st('st-ubs-sap-2', 'obra-ubs', 'at-ubs-sap', 1, 'Armadura das sapatas'),
+  ]
+
   return {
     profiles, obras, membros, funcionarios, equipamentos, frentes_servico,
     rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos,
-    materiais, pedidos_material, insumos, movimentos_estoque,
+    materiais, pedidos_material, insumos, movimentos_estoque, atividades, restricoes, semana_atividades, subtarefas,
   }
 }

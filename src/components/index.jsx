@@ -23,6 +23,11 @@ const ICONES = {
   frente: <><path d="M4 20V9l8-5 8 5v11" /><path d="M9 20v-5h6v5" /><path d="M12 9v.01" /></>,
   relogio: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   troca: <path d="M7 7h11l-3-3M17 17H6l3 3" />,
+  caixa: <><path d="m3 7 9-4 9 4v10l-9 4-9-4z" /><path d="m3 7 9 4 9-4M12 11v10" /></>,
+  prancheta: <><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3" /></>,
+  planta: <><path d="M4 4h16v16H4z" /><path d="M4 11h7v9M11 4v4M15 11h5" /></>,
+  escudo: <><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z" /><path d="m9 12 2 2 4-4" /></>,
+  caminhao: <><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></>,
 }
 
 export function Icon({ nome, ...resto }) {
@@ -34,6 +39,19 @@ export const ICONE_CLIMA = { 'Bom': 'sol', 'Nublado': 'nublado', 'Chuva leve': '
 export const COR_EFETIVO = { Presente: 'ok', Falta: 'bad', Atestado: 'warn', Deslocado: 'info', 'Veio de outra obra': 'info' }
 export const COR_EQUIP = { Operando: 'ok', Parado: 'warn', Quebrado: 'bad' }
 export const COR_FRENTE_DIA = { 'Em execução': 'ok', 'Parada': 'bad', 'Concluída': 'info' }
+// Restrições do Médio prazo: cada tipo com ícone e cor próprios (as cores em index.css, .tipo-*).
+export const ICONE_RESTRICAO = {
+  'Material': 'caixa', 'Mão de obra': 'pessoas', 'Método': 'prancheta', 'Equipamento': 'equip',
+  'Projeto': 'planta', 'Segurança': 'escudo', 'Logística': 'caminhao',
+}
+export const CLASSE_RESTRICAO = {
+  'Material': 'material', 'Mão de obra': 'mao', 'Método': 'metodo', 'Equipamento': 'equipamento',
+  'Projeto': 'projeto', 'Segurança': 'seguranca', 'Logística': 'logistica',
+}
+
+export function TipoRestricao({ tipo }) {
+  return <span className={`tipo tipo-${CLASSE_RESTRICAO[tipo]}`}><Icon nome={ICONE_RESTRICAO[tipo]} />{tipo}</span>
+}
 
 // ---------- etiquetas e números ----------
 export function Pill({ cor = 'idle', children }) {
