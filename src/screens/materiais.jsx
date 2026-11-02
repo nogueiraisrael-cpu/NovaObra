@@ -1,16 +1,19 @@
-// Materiais — quadro de pedidos da obra atual (aba dentro da obra).
+// Materiais — quadro de pedidos e estoque da obra atual (aba dentro da obra).
 // Cada cartão é um lote ("50 sacos de cimento") que anda pelas colunas por botões, sem arrastar.
-// Tudo otimista: o cartão muda na hora e volta ao que era se o banco recusar.
+// O estoque (sub-aba Estoque) recebe o lote que chega no almoxarifado e dá baixa no que é entregue.
+// Tudo otimista: o cartão (ou o saldo) muda na hora e volta ao que era se o banco recusar.
 import { useState } from 'react'
-import { listarQuadroMateriais, salvarPedido, moverPedido, apagarPedido } from '../lib/dados.js'
+import { listarQuadroMateriais, salvarPedido, moverPedido, apagarPedido, registrarBaixa, desfazerBaixa, salvarMinimo } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import {
   proximoStatus, statusAnterior, diasNaColuna, leadTime, estaAtrasado, recebidoComProblema, foiRecebido, contadores, montarQuadro,
-  validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, pedeFormulario, filtrarQuantidade, quantidadeComUnidade,
+  validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, pedeFormulario, filtrarQuantidade, quantidadeComUnidade, lerQuantidade,
 } from '../lib/materiais.js'
+import { ajustarLinha, contarCriticos, efeitoNoEstoque, lerMinimo } from '../lib/estoque.js'
 import { PRIORIDADES_PEDIDO, CATEGORIAS_MATERIAL, STATUS_PEDIDO } from '../lib/listas.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
-import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, encolherFoto } from '../components/index.jsx'
+import { Carregando, ErroCampo, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, encolherFoto } from '../components/index.jsx'
+import { VistaEstoque, FormBaixa, HistoricoInsumo } from './estoque.jsx'
 
 const TITULO = {
   'Solicitar': 'Solicitar', 'Em cotação': 'Em cotação', 'Comprado': 'Comprado / a caminho',
@@ -21,10 +24,6 @@ const ACAO = { 'Em cotação': 'Mandar cotar', 'Comprado': 'Marcar comprado', 'N
 const COR_CATEGORIA = { 'Material grosso': 'info', 'Acabamento': 'ok', 'Instalações': 'ok' }
 
 const dias = (n) => `${n} ${n === 1 ? 'dia' : 'dias'}`
-
-function ErroCampo({ erro }) {
-  return erro ? <div className="err">{erro}</div> : null
-}
 
 function SimNao({ id, valor, mudar }) {
   return (
@@ -95,7 +94,7 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
   // A previsão sempre nasce com hoje: uma previsão antiga (de antes de o pedido voltar) já venceu.
   const [form, setForm] = useState({
     fornecedor: pedido.fornecedor ?? '', previsao_entrega: hoje,
-    qtd_bate_nf: null, estado_ok: null, avarias: '', foto_nf: '', frente: pedido.frente,
+    qtd_bate_nf: null, qtd_recebida: '', estado_ok: null, avarias: '', foto_nf: '', frente: pedido.frente,
   })
   const [tocados, setTocados] = useState({})
   const [tentou, setTentou] = useState(false)
@@ -148,6 +147,15 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
           <div className="label" id="mv-nf">A quantidade bate com a nota fiscal?</div>
           <SimNao id="mv-nf" valor={form.qtd_bate_nf} mudar={(v) => mudar('qtd_bate_nf', v)} />
           <ErroCampo erro={mostrar('qtd_bate_nf')} />
+          {form.qtd_bate_nf === false && (
+            <>
+              <label className="label" htmlFor="mv-qtd">Quanto chegou de fato ({pedido.material.unidade})</label>
+              <input id="mv-qtd" className="field" inputMode="decimal" autoComplete="off" placeholder={`Pedido: ${quantidadeComUnidade(pedido.quantidade, pedido.material.unidade)}`}
+                value={form.qtd_recebida} onChange={(e) => setForm({ ...form, qtd_recebida: filtrarQuantidade(e.target.value) })} onBlur={() => tocar('qtd_recebida')} />
+              <ErroCampo erro={mostrar('qtd_recebida')} />
+              <div className="hint">É essa quantidade que entra no estoque.</div>
+            </>
+          )}
           <div className="label" id="mv-estado">O material chegou em perfeito estado?</div>
           <SimNao id="mv-estado" valor={form.estado_ok} mudar={(v) => mudar('estado_ok', v)} />
           <ErroCampo erro={mostrar('estado_ok')} />
@@ -214,6 +222,7 @@ function Detalhes({ pedido, hoje, fechar, voltar, excluir }) {
         <>
           <div className="label">Recebimento</div>
           <div className="linha-dia"><span>Quantidade bate com a NF</span>{resposta(pedido.qtd_bate_nf)}</div>
+          {pedido.qtd_recebida != null && <div className="linha-dia"><span>Chegou (entrou no estoque)</span><b>{quantidadeComUnidade(pedido.qtd_recebida, pedido.material.unidade)}</b></div>}
           <div className="linha-dia"><span>Material em perfeito estado</span>{resposta(pedido.estado_ok)}</div>
           {pedido.avarias && <div className="linha-dia"><span>Avarias: {pedido.avarias}</span></div>}
           {pedido.foto_nf && <div className="fotos-dia"><figure><img src={pedido.foto_nf} alt="Foto da nota fiscal" /><figcaption>Nota fiscal</figcaption></figure></div>}
@@ -286,8 +295,11 @@ function Cartao({ p, hoje, pausa, avancar, abrir }) {
 export default function Materiais() {
   const toast = useToast()
   const quadro = useDados(listarQuadroMateriais)
-  const [pedidos, setPedidos] = useState(null) // cópia local, para o otimista
-  const [gaveta, setGaveta] = useState(null) // {tipo:'novo'} | {tipo:'mover', pedido, novo} | {tipo:'detalhes', pedido}
+  const [pedidos, setPedidos] = useState(null) // cópias locais, para o otimista
+  const [estoque, setEstoque] = useState(null)
+  // {tipo:'novo'} | {tipo:'mover', pedido, novo} | {tipo:'detalhes', pedido} | {tipo:'baixa'} | {tipo:'insumo', id}
+  const [gaveta, setGaveta] = useState(null)
+  const [vista, setVista] = useState('Pedidos')
   const [verEntregues, setVerEntregues] = useState(false)
   // Ao mover, o cartão sai da coluna na hora e o de baixo sobe para o mesmo lugar: sem esta
   // pausa, o segundo toque de um toque duplo avançaria o pedido de baixo.
@@ -298,22 +310,29 @@ export default function Materiais() {
   async function recarregar() {
     await quadro.recarregar()
     setPedidos(null)
+    setEstoque(null)
   }
 
-  // Depois de uma gravação recusada, busca o quadro de novo sem sair da tela. Se nem isso
-  // der (internet caiu), o quadro fica como está, com o cartão já de volta e o aviso na tela.
+  // Busca de novo sem sair da tela: depois de uma gravação recusada, e depois de um pedido
+  // que mexeu no estoque. Se nem isso der (internet caiu), fica como está.
   async function atualizarQuieto() {
     const { data } = await listarQuadroMateriais()
-    if (data) setPedidos(data.pedidos)
+    if (!data) return
+    setPedidos(data.pedidos)
+    setEstoque(data.estoque)
   }
 
   if (quadro.carregando) return <Carregando />
   if (quadro.erro) return <ErroCarga erro={quadro.erro} tentar={recarregar} />
 
   const lista = pedidos ?? quadro.data.pedidos
+  const insumos = estoque ?? quadro.data.estoque
   const { catalogo, frentes } = quadro.data
   const mudarLista = (fn) => setPedidos((atual) => fn(atual ?? quadro.data.pedidos))
   const trocar = (id, novo) => mudarLista((l) => l.map((p) => (p.id === id ? novo : p)))
+  const mudarInsumo = (id, fn) => setEstoque((atual) => (atual ?? quadro.data.estoque).map((l) => (l.id === id ? fn(l) : l)))
+  // A gaveta guarda só o id: o histórico mostra o saldo e o mínimo de agora, não os de quando abriu.
+  const insumoAberto = gaveta?.tipo === 'insumo' ? insumos.find((l) => l.id === gaveta.id) : null
 
   async function criar(f) {
     const material = catalogo.find((m) => m.id === f.material_id)
@@ -345,6 +364,41 @@ export default function Materiais() {
     }
     trocar(p.id, data)
     toast(novo === 'Entregue' && !verEntregues ? `Entregue em ${data.frente}. Veja em Ver entregues.` : `${p.material.nome}: ${TITULO[novo]}`)
+    if (efeitoNoEstoque(p, data)) atualizarQuieto()
+  }
+
+  async function darBaixa(f) {
+    const n = lerQuantidade(f.quantidade)
+    setGaveta(null)
+    mudarInsumo(f.insumo_id, (l) => ajustarLinha(l, -n))
+    const { erro } = await registrarBaixa(f)
+    if (erro) {
+      mudarInsumo(f.insumo_id, (l) => ajustarLinha(l, n))
+      toast(`Baixa não registrada: ${erro}`, 'bad')
+      return atualizarQuieto()
+    }
+    toast('Baixa registrada')
+  }
+
+  async function mudarMinimo(id, texto) {
+    const antes = insumos.find((l) => l.id === id)
+    mudarInsumo(id, (l) => ajustarLinha({ ...l, saldo_minimo: lerMinimo(texto) }, 0))
+    const { erro } = await salvarMinimo(id, texto)
+    if (erro) {
+      mudarInsumo(id, () => antes)
+      return toast(`Mínimo não salvo: ${erro}`, 'bad')
+    }
+    toast('Mínimo salvo')
+  }
+
+  async function desfazerUmaBaixa(m) {
+    mudarInsumo(m.insumo_id, (l) => ajustarLinha(l, m.quantidade))
+    const { erro } = await desfazerBaixa(m.id)
+    if (erro) {
+      mudarInsumo(m.insumo_id, (l) => ajustarLinha(l, -m.quantidade))
+      return toast(`Baixa não desfeita: ${erro}`, 'bad')
+    }
+    toast('Baixa desfeita')
   }
 
   function avancar(p, novo) {
@@ -377,23 +431,20 @@ export default function Materiais() {
         {gaveta?.tipo === 'detalhes' && <Detalhes pedido={gaveta.pedido} hoje={hoje} fechar={() => setGaveta(null)}
           voltar={() => mover(gaveta.pedido, statusAnterior(gaveta.pedido.status))} excluir={() => excluir(gaveta.pedido)} />}
       </Gaveta>
+      <Gaveta aberta={gaveta?.tipo === 'baixa'} fechar={() => setGaveta(null)} rotulo="Baixa de estoque">
+        {gaveta?.tipo === 'baixa' && <FormBaixa linhas={insumos} frentes={frentes} hoje={hoje} fechar={() => setGaveta(null)} salvar={darBaixa} />}
+      </Gaveta>
+      <Gaveta aberta={gaveta?.tipo === 'insumo'} fechar={() => setGaveta(null)} rotulo="Histórico do insumo">
+        {gaveta?.tipo === 'insumo' && insumoAberto && <HistoricoInsumo key={insumoAberto.id} linha={insumoAberto} fechar={() => setGaveta(null)} salvarMinimo={mudarMinimo} desfazerBaixa={desfazerUmaBaixa} />}
+      </Gaveta>
     </>
   )
 
-  if (!lista.length) {
-    return (
-      <div style={{ marginTop: 16 }}>
-        <Vazio icone="frente" titulo="Nenhum pedido de material nesta obra"
-          texto="Faça o primeiro: escolha o material, a quantidade e a frente. Leva menos de 30 segundos."
-          acao={<button className="btn btn-primary" onClick={() => setGaveta({ tipo: 'novo' })}>+ Fazer o primeiro pedido</button>} />
-        {gavetas}
-      </div>
-    )
-  }
-
   const colunas = montarQuadro(lista, hoje)
   const n = contadores(lista, hoje)
+  const criticos = contarCriticos(insumos)
   const visiveis = STATUS_PEDIDO.filter((s) => s !== 'Entregue' || verEntregues)
+  const baixa = <button className="link" disabled={!insumos.some((l) => l.saldo > 0)} onClick={() => setGaveta({ tipo: 'baixa' })}>Baixa de estoque</button>
 
   return (
     <>
@@ -402,27 +453,53 @@ export default function Materiais() {
           { valor: n.em_cotacao, rotulo: 'em cotação', cor: 'accent' },
           { valor: n.chegando_semana, rotulo: 'chegando esta semana', cor: 'ok' },
           { valor: n.atrasados, rotulo: n.atrasados === 1 ? 'atrasado' : 'atrasados', cor: n.atrasados ? 'bad' : '' },
+          { valor: criticos, rotulo: criticos === 1 ? 'insumo crítico' : 'insumos críticos', cor: criticos ? 'bad' : '' },
         ]} />
       </div>
-      <div className="sec">
-        <h2>Pedidos</h2>
-        <button className="link" onClick={() => setGaveta({ tipo: 'novo' })}>+ Novo pedido</button>
-      </div>
-      <div className="tabs" style={{ marginTop: 0, marginBottom: 12 }}>
-        <button className={`tab${verEntregues ? ' on' : ''}`} onClick={() => setVerEntregues(!verEntregues)} aria-pressed={verEntregues}>
-          Ver entregues ({colunas.Entregue.length})
-        </button>
-      </div>
-      <div className="kanban">
-        {visiveis.map((s) => (
-          <section className="kcol" key={s} aria-label={TITULO[s]}>
-            <div className="kcol-h">{TITULO[s]}<span>{colunas[s].length}</span></div>
-            {colunas[s].length
-              ? colunas[s].map((p) => <Cartao key={p.id} p={p} hoje={hoje} pausa={pausa} avancar={avancar} abrir={(x) => setGaveta({ tipo: 'detalhes', pedido: x })} />)
-              : <div className="kcol-vazia">Nenhum pedido aqui</div>}
-          </section>
+      <div className="tabs" role="tablist">
+        {['Pedidos', 'Estoque'].map((v) => (
+          <button key={v} role="tab" aria-selected={vista === v} className={`tab${vista === v ? ' on' : ''}`} onClick={() => setVista(v)}>{v}</button>
         ))}
       </div>
+
+      {vista === 'Estoque' && (
+        <>
+          <div className="sec"><h2>Estoque</h2>{baixa}</div>
+          <VistaEstoque linhas={insumos} abrir={(id) => setGaveta({ tipo: 'insumo', id })} />
+        </>
+      )}
+
+      {vista === 'Pedidos' && (lista.length
+        ? (
+          <>
+            <div className="sec">
+              <h2>Pedidos</h2>
+              <div className="sec-acoes">{baixa}<button className="link" onClick={() => setGaveta({ tipo: 'novo' })}>+ Novo pedido</button></div>
+            </div>
+            <div className="tabs" style={{ marginTop: 0, marginBottom: 12 }}>
+              <button className={`tab${verEntregues ? ' on' : ''}`} onClick={() => setVerEntregues(!verEntregues)} aria-pressed={verEntregues}>
+                Ver entregues ({colunas.Entregue.length})
+              </button>
+            </div>
+            <div className="kanban">
+              {visiveis.map((s) => (
+                <section className="kcol" key={s} aria-label={TITULO[s]}>
+                  <div className="kcol-h">{TITULO[s]}<span>{colunas[s].length}</span></div>
+                  {colunas[s].length
+                    ? colunas[s].map((p) => <Cartao key={p.id} p={p} hoje={hoje} pausa={pausa} avancar={avancar} abrir={(x) => setGaveta({ tipo: 'detalhes', pedido: x })} />)
+                    : <div className="kcol-vazia">Nenhum pedido aqui</div>}
+                </section>
+              ))}
+            </div>
+          </>
+        )
+        : (
+          <div style={{ marginTop: 16 }}>
+            <Vazio icone="frente" titulo="Nenhum pedido de material nesta obra"
+              texto="Faça o primeiro: escolha o material, a quantidade e a frente. Leva menos de 30 segundos."
+              acao={<button className="btn btn-primary" onClick={() => setGaveta({ tipo: 'novo' })}>+ Fazer o primeiro pedido</button>} />
+          </div>
+        ))}
       {gavetas}
     </>
   )

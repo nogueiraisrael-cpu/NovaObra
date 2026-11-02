@@ -24,8 +24,8 @@ conferir('ponto sem grupo de 3 é decimal (não vira 25)', [lerQuantidade('2.5')
 conferir('zero e texto não são quantidade', [lerQuantidade('0'), lerQuantidade('abc'), lerQuantidade('')], [null, null, null])
 conferir('campo de quantidade só aceita número', [filtrarQuantidade('5a0'), filtrarQuantidade('2,555'), filtrarQuantidade('1,2,3')], ['50', '2,55', '1,23'])
 
-conferir('plural da unidade', [quantidadeComUnidade(10, 'lata'), quantidadeComUnidade(1, 'saco'), quantidadeComUnidade(6, 'm³'), quantidadeComUnidade(2000, 'un'), quantidadeComUnidade(2.5, 'kg')],
-  ['10 latas', '1 saco', '6 m³', '2.000 un', '2,5 kg'])
+conferir('plural da unidade', [quantidadeComUnidade(10, 'lata'), quantidadeComUnidade(1, 'saco'), quantidadeComUnidade(6, 'm³'), quantidadeComUnidade(2000, 'un'), quantidadeComUnidade(2.5, 'kg'), quantidadeComUnidade(0, 'saco')],
+  ['10 latas', '1 saco', '6 m³', '2.000 un', '2,5 kg', '0 sacos'])
 
 const andando =p('a', 'Comprado', { historico: [{ status: 'Solicitar', data: '2026-10-20' }, { status: 'Em cotação', data: '2026-10-22' }, { status: 'Comprado', data: '2026-10-28' }] })
 conferir('há 4 dias na coluna Comprado', diasNaColuna(andando, hoje), 4)
@@ -78,7 +78,7 @@ conferir('novo pedido completo passa', validarNovoPedido({ material_id: 'm', qua
 conferir('não pula coluna', validarMovimento(p('x', 'Solicitar'), 'Comprado', { fornecedor: 'F', previsao_entrega: hoje }, hoje).status, 'O pedido anda uma coluna por vez.')
 conferir('comprado sem fornecedor nem previsão', Object.keys(validarMovimento(p('x', 'Em cotação'), 'Comprado', {}, hoje)), ['fornecedor', 'previsao_entrega'])
 conferir('almoxarifado sem o checklist', Object.keys(validarMovimento(p('x', 'Comprado'), 'No almoxarifado', { avarias: '' }, hoje)), ['qtd_bate_nf', 'estado_ok'])
-conferir('checklist com "não" é resposta válida', validarMovimento(p('x', 'Comprado'), 'No almoxarifado', { qtd_bate_nf: false, estado_ok: false }, hoje), {})
+conferir('checklist com "não" é resposta válida', validarMovimento(p('x', 'Comprado'), 'No almoxarifado', { qtd_bate_nf: false, qtd_recebida: '3', estado_ok: false }, hoje), {})
 conferir('entregue sem frente', Object.keys(validarMovimento(p('x', 'No almoxarifado'), 'Entregue', { frente: '' }, hoje)), ['frente'])
 conferir('previsão antes de hoje é recusada', validarMovimento(p('x', 'Em cotação'), 'Comprado', { fornecedor: 'F', previsao_entrega: '2026-10-31' }, hoje).previsao_entrega, 'A previsão não pode ser antes de hoje.')
 conferir('quais colunas abrem formulário', ['Em cotação', 'Comprado', 'No almoxarifado', 'Entregue'].map(pedeFormulario), [false, true, true, true])

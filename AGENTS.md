@@ -30,9 +30,10 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    (ou um cliente) lendo a outra. Engenheiro vê todas; Cliente só as obras dele em `membros`.
    **⚠️ Exceção provisória em vigor:** `supabase/migrations/20261101-02-acesso-provisorio-dev.sql`
    abre as 10 tabelas para quem não fez login (`anon`, `using (true)`), por decisão do dono em
-   01/11/2026, enquanto o app roda só no computador dele e sem login. A `-05-materiais.sql` faz o
-   mesmo com `materiais` e `pedidos_material`. **O passo 10 (login) desfaz
-   isso antes de qualquer coisa ir para o ar.** O `check-grants` avisa em toda rodada.
+   01/11/2026, enquanto o app roda só no computador dele e sem login. A `-05-materiais.sql` e a
+   `-06-estoque.sql` fazem o mesmo com `materiais`, `pedidos_material`, `insumos` e
+   `movimentos_estoque`. **O passo 10 (login) desfaz isso antes de qualquer coisa ir para o ar.**
+   O `check-grants` avisa em toda rodada.
 7. **Mock e seed sempre com DUAS obras diferentes** (`src/lib/mockData.js`): a UBS não tem
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —
    módulo novo ganha a sua linha nesse teste.
@@ -118,8 +119,11 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   pede em páginas; não troque por um `select` solto.
 - **Fotos, provisório até o Storage:** a foto é encolhida (1280 px, JPEG) e gravada dentro do
   próprio endereço em `fotos.caminho`. Funciona, mas pesa no banco: o Storage entra antes do uso real.
-- **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO): se a internet cair
-  no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa.
+- **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido): se a internet cair
+  no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
+  a coluna e depois a movimentação de estoque: voltar a coluna e avançar de novo completa.
+- **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
+  qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 
 ## Higiene de código (vale para toda mudança)
 

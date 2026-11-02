@@ -325,3 +325,22 @@ select.field{appearance:none;background-image:linear-gradient(45deg,transparent 
 .kcard-mais svg{width:18px;height:18px}
 .kcard-avancar{margin-top:12px;min-height:46px;font-size:15px}
 .kcard-avancar svg{width:18px;height:18px}
+.sec-acoes{display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end}
+.sec .link:disabled{color:var(--muted)}
+
+/* quatro números no topo: lado a lado no computador, 2 × 2 no celular */
+.stats.four{grid-template-columns:repeat(4,1fr)}
+@media (max-width:600px){
+  .stats.four{grid-template-columns:repeat(2,1fr);row-gap:18px}
+  .stats.four .stat:nth-child(3){border-left:0}
+}
+
+/* ---------- estoque ---------- */
+.estoque-filtros{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:12px}
+.tabela-estoque{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+.tabela-estoque th{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:0 8px 8px 0}
+.tabela-estoque td{padding:6px 8px 6px 0;border-top:1px solid var(--line);vertical-align:middle}
+.tabela-estoque th:last-child,.tabela-estoque td:last-child{padding-right:0;text-align:right}
+.tabela-estoque td:nth-child(2),.tabela-estoque td:nth-child(3){white-space:nowrap}
+.link-insumo{min-height:44px;text-align:left;font-weight:700;color:var(--accent-text);font-size:15px}
+.minimo-linha{display:grid;grid-template-columns:1fr auto;gap:8px}

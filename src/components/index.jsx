@@ -42,7 +42,7 @@ export function Pill({ cor = 'idle', children }) {
 
 export function Stats({ itens }) {
   return (
-    <section className="stats">
+    <section className={`stats${itens.length === 4 ? ' four' : ''}`}>
       {itens.map((s) => (
         <div className="stat" key={s.rotulo}>
           <div className={`n ${s.cor ?? ''}`}>{s.valor}{s.de !== undefined && <small>/{s.de}</small>}</div>
@@ -78,6 +78,11 @@ export function Vazio({ icone = 'frente', titulo, texto, acao, pequeno }) {
       {acao}
     </div>
   )
+}
+
+// Aviso vermelho embaixo de um campo de formulário.
+export function ErroCampo({ erro }) {
+  return erro ? <div className="err">{erro}</div> : null
 }
 
 export function Carregando() {

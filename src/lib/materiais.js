@@ -29,9 +29,9 @@ export function filtrarQuantidade(texto) {
 
 export const formatarQuantidade = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 
-// "10 latas", "1 saco", "6 m³", "2.000 un": só a unidade escrita por extenso ganha plural.
+// "10 latas", "1 saco", "0 sacos", "6 m³", "2.000 un": só a unidade escrita por extenso ganha plural.
 export function quantidadeComUnidade(n, unidade) {
-  const plural = Number(n) > 1 && /^[a-zà-ú]+$/i.test(unidade) && unidade !== 'un' && /[aeiou]$/i.test(unidade)
+  const plural = (Number(n) > 1 || Number(n) === 0) && /^[a-zà-ú]+$/i.test(unidade) && unidade !== 'un' && /[aeiou]$/i.test(unidade)
   return `${formatarQuantidade(n)} ${plural ? `${unidade}s` : unidade}`.trim()
 }
 
@@ -120,6 +120,7 @@ export function validarMovimento(pedido, novo, extras, hoje) {
   }
   if (novo === 'No almoxarifado') {
     if (typeof extras.qtd_bate_nf !== 'boolean') erros.qtd_bate_nf = 'Responda se a quantidade bate com a NF.'
+    if (extras.qtd_bate_nf === false && lerQuantidade(extras.qtd_recebida) === null) erros.qtd_recebida = 'Informe quanto chegou de fato.'
     if (typeof extras.estado_ok !== 'boolean') erros.estado_ok = 'Responda se o material chegou em perfeito estado.'
   }
   if (novo === 'Entregue' && !extras.frente?.trim()) erros.frente = 'Confirme a frente de aplicação.'
@@ -137,6 +138,8 @@ export function aplicarMovimento(pedido, novo, extras, hoje) {
   }
   if (novo === 'No almoxarifado') {
     campos.qtd_bate_nf = extras.qtd_bate_nf
+    // É o que entra no estoque: o pedido inteiro se bate com a nota, senão o que chegou de fato.
+    campos.qtd_recebida = extras.qtd_bate_nf ? pedido.quantidade : lerQuantidade(extras.qtd_recebida)
     campos.estado_ok = extras.estado_ok
     campos.avarias = extras.avarias?.trim() || null
     campos.foto_nf = extras.foto_nf || null

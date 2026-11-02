@@ -28,6 +28,9 @@ export const UNICOS = {
   rdo_equipamentos: [{ nome: 'rdo_equipamentos_um_por_equipamento', colunas: ['rdo_id', 'equipamento_id'] }],
   rdo_frentes: [{ nome: 'rdo_frentes_uma_por_frente', colunas: ['rdo_id', 'frente_id'] }],
   rdo_frente_equipe: [{ nome: 'rdo_frente_equipe_uma_vez', colunas: ['rdo_frente_id', 'funcionario_id'] }],
+  insumos: [{ nome: 'insumos_um_por_material', colunas: ['obra_id', 'material_id'] }],
+  // Como no Postgres, linha sem pedido (baixa manual) não conta para a trava.
+  movimentos_estoque: [{ nome: 'movimentos_um_por_pedido', colunas: ['pedido_id', 'tipo'], vale: (l) => l.pedido_id != null }],
 }
 
 // Recusa a tabela que ficaria com linha repetida, no mesmo formato do erro do Supabase.

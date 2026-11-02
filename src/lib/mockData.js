@@ -4,7 +4,8 @@
 // DUAS obras, de propósito e bem diferentes (o-segundo): a Serra tem RDO de hoje
 // em andamento, 8 funcionários e equipamentos; a UBS não tem RDO de hoje, tem
 // outra equipe e NENHUM equipamento. Se aparecer equipamento na UBS, vazou dado.
-// Nos materiais, a UBS tem só 2 pedidos (aço e bloco); a Serra, 10.
+// Nos materiais, a UBS tem só 2 pedidos (aço e bloco); a Serra, 10. No estoque, a Serra tem
+// 2 insumos críticos; a UBS, só o cimento e nenhum crítico.
 //
 // As datas são relativas a hoje, para o exemplo continuar fazendo sentido amanhã.
 // O supabase-seed.sql foi gerado a partir daqui (01/11/2026): os ids viram uuid fixos.
@@ -217,10 +218,10 @@ export function criarMock(hoje = hojeISO()) {
   const hist = (...passos) => passos.map(([status, dia]) => ({ status, data: d(dia) }))
   const ped = (id, obra_id, material_id, quantidade, frente, prioridade, status, historico, extra = {}) => ({
     id, obra_id, material_id, quantidade, frente, prioridade, status, fornecedor: null, previsao_entrega: null,
-    qtd_bate_nf: null, estado_ok: null, avarias: null, foto_nf: null, historico, criado_por: P.israel, ...extra,
+    qtd_bate_nf: null, qtd_recebida: null, estado_ok: null, avarias: null, foto_nf: null, historico, criado_por: P.israel, ...extra,
   })
-  const recebido = (fornecedor, previsao, qtd_bate_nf = true, estado_ok = true, avarias = null) =>
-    ({ fornecedor, previsao_entrega: d(previsao), qtd_bate_nf, estado_ok, avarias })
+  const recebido = (fornecedor, previsao, qtd_recebida, qtd_bate_nf = true, estado_ok = true, avarias = null) =>
+    ({ fornecedor, previsao_entrega: d(previsao), qtd_recebida, qtd_bate_nf, estado_ok, avarias })
   const pedidos_material = [
     ped('ped-tubo', 'obra-serra', 'mat-tubo', 12, 'Tubulação água fria e esgoto', 'Normal', 'Solicitar', hist(['Solicitar', -1])),
     ped('ped-massa', 'obra-serra', 'mat-massa', 10, 'Pintura interna', 'Normal', 'Solicitar', hist(['Solicitar', -5])),
@@ -234,22 +235,49 @@ export function criarMock(hoje = hojeISO()) {
     ped('ped-areia', 'obra-serra', 'mat-areia', 6, 'Reboco fachada norte', 'Normal', 'Comprado',
       hist(['Solicitar', -6], ['Em cotação', -5], ['Comprado', -2]), { fornecedor: 'Areal Rio Novo', previsao_entrega: d(3) }),
     ped('ped-porcelanato', 'obra-serra', 'mat-porcelanato', 45, 'Revestimento banheiros', 'Normal', 'No almoxarifado',
-      hist(['Solicitar', -20], ['Em cotação', -18], ['Comprado', -15], ['No almoxarifado', -9]), recebido('Revestir Acabamentos', -9)),
+      hist(['Solicitar', -20], ['Em cotação', -18], ['Comprado', -15], ['No almoxarifado', -9]), recebido('Revestir Acabamentos', -9, 45)),
     ped('ped-brita', 'obra-serra', 'mat-brita', 4, 'Fundação — sapatas', 'Normal', 'No almoxarifado',
       hist(['Solicitar', -8], ['Em cotação', -7], ['Comprado', -5], ['No almoxarifado', -2]),
-      recebido('Areal Rio Novo', -2, false, true, 'Vieram 3,5 m³; a nota diz 4 m³.')),
+      recebido('Areal Rio Novo', -2, 3.5, false, true, 'Vieram 3,5 m³; a nota diz 4 m³.')),
     ped('ped-rejunte', 'obra-serra', 'mat-rejunte', 20, 'Revestimento banheiros', 'Normal', 'Entregue',
-      hist(['Solicitar', -16], ['Em cotação', -15], ['Comprado', -13], ['No almoxarifado', -11], ['Entregue', -4]), recebido('Revestir Acabamentos', -11)),
+      hist(['Solicitar', -16], ['Em cotação', -15], ['Comprado', -13], ['No almoxarifado', -11], ['Entregue', -4]), recebido('Revestir Acabamentos', -11, 20)),
     ped('ped-tinta', 'obra-serra', 'mat-tinta', 6, 'Pintura interna', 'Normal', 'Entregue',
-      hist(['Solicitar', -12], ['Em cotação', -11], ['Comprado', -9], ['No almoxarifado', -6], ['Entregue', -3]), recebido('Tintas Boa Cor', -6)),
+      hist(['Solicitar', -12], ['Em cotação', -11], ['Comprado', -9], ['No almoxarifado', -6], ['Entregue', -3]), recebido('Tintas Boa Cor', -6, 6)),
     ped('ped-ubs-aco', 'obra-ubs', 'mat-aco', 80, 'Fundação — sapatas', 'Normal', 'Comprado',
       hist(['Solicitar', -7], ['Em cotação', -6], ['Comprado', -4]), { fornecedor: 'Ferro Forte Distribuidora', previsao_entrega: d(5) }),
     ped('ped-ubs-bloco', 'obra-ubs', 'mat-bloco', 2000, 'Alvenaria térreo — bloco A', 'Normal', 'Solicitar', hist(['Solicitar', -2])),
   ]
 
+  // ---- Estoque: insumos de cada obra e as movimentações (o saldo é a soma delas) ----
+  // Serra: as entradas e saídas dos pedidos recebidos e entregues, mais duas baixas manuais.
+  //   Brita (1,5 de mínimo 2) e Rejunte (0 de mínimo 5) ficam CRÍTICOS; a Tinta não tem mínimo.
+  // UBS: só o cimento, com saldo inicial lançado à mão, sem nenhum crítico.
+  const ins = (id, obra_id, material_id, saldo_minimo) => ({ id, obra_id, material_id, saldo_minimo })
+  const insumos = [
+    ins('ins-porcelanato', 'obra-serra', 'mat-porcelanato', 10),
+    ins('ins-brita', 'obra-serra', 'mat-brita', 2),
+    ins('ins-rejunte', 'obra-serra', 'mat-rejunte', 5),
+    ins('ins-tinta', 'obra-serra', 'mat-tinta', 0),
+    ins('ins-ubs-cimento', 'obra-ubs', 'mat-cimento', 20),
+  ]
+  const mv = (id, obra_id, insumo_id, tipo, quantidade, dia, frente, origem, pedido_id = null) =>
+    ({ id, obra_id, insumo_id, tipo, quantidade, data: d(dia), frente, origem, pedido_id })
+  const movimentos_estoque = [
+    mv('mv-porcelanato-e', 'obra-serra', 'ins-porcelanato', 'Entrada', 45, -9, 'Revestimento banheiros', 'Pedido', 'ped-porcelanato'),
+    mv('mv-porcelanato-s', 'obra-serra', 'ins-porcelanato', 'Saída', 30, -4, 'Revestimento banheiros', 'Manual'),
+    mv('mv-brita-e', 'obra-serra', 'ins-brita', 'Entrada', 3.5, -2, 'Fundação — sapatas', 'Pedido', 'ped-brita'),
+    mv('mv-brita-s', 'obra-serra', 'ins-brita', 'Saída', 2, -1, 'Fundação — sapatas', 'Manual'),
+    mv('mv-rejunte-e', 'obra-serra', 'ins-rejunte', 'Entrada', 20, -11, 'Revestimento banheiros', 'Pedido', 'ped-rejunte'),
+    mv('mv-rejunte-s', 'obra-serra', 'ins-rejunte', 'Saída', 20, -4, 'Revestimento banheiros', 'Pedido', 'ped-rejunte'),
+    mv('mv-tinta-e', 'obra-serra', 'ins-tinta', 'Entrada', 6, -6, 'Pintura interna', 'Pedido', 'ped-tinta'),
+    mv('mv-tinta-s', 'obra-serra', 'ins-tinta', 'Saída', 6, -3, 'Pintura interna', 'Pedido', 'ped-tinta'),
+    mv('mv-ubs-cimento-e', 'obra-ubs', 'ins-ubs-cimento', 'Entrada', 40, -20, 'Saldo inicial', 'Manual'),
+    mv('mv-ubs-cimento-s', 'obra-ubs', 'ins-ubs-cimento', 'Saída', 15, -6, 'Fundação — sapatas', 'Manual'),
+  ]
+
   return {
     profiles, obras, membros, funcionarios, equipamentos, frentes_servico,
     rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos,
-    materiais, pedidos_material,
+    materiais, pedidos_material, insumos, movimentos_estoque,
   }
 }

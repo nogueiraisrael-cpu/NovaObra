@@ -102,6 +102,50 @@ dados.definirObraAtual('obra-ubs')
 conferir('o pedido tocado na Serra fica na Serra', (await pedindo).data.obra_id, 'obra-serra')
 conferir('e não aparece na UBS', (await dados.listarQuadroMateriais()).data.pedidos.some((p) => p.material_id === 'mat-areia'), false)
 
+// Estoque: cada obra vê só os insumos dela, e não dá baixa no insumo da outra.
+dados._reiniciarMock()
+await dados.entrar('eng@novaobra.test', 'x')
+const hojeISOteste = (await import('../src/lib/datas.js')).hojeISO()
+const linhaDe = (estoque, nome) => estoque.find((l) => l.nome.startsWith(nome))
+dados.definirObraAtual('obra-serra')
+const estoqueSerra = (await dados.listarQuadroMateriais()).data.estoque
+dados.definirObraAtual('obra-ubs')
+const estoqueUbs = (await dados.listarQuadroMateriais()).data.estoque
+conferir('estoque da UBS: só o cimento dela', estoqueUbs.map((l) => [l.nome, l.saldo]), [['Cimento CP-II 50 kg', 25]])
+conferir('estoque da Serra: 4 insumos, 2 críticos', [estoqueSerra.length, estoqueSerra.filter((l) => l.situacao === 'Crítico').length], [4, 2])
+conferir('da UBS não dá baixa no insumo da Serra', (await dados.registrarBaixa({ insumo_id: 'ins-brita', quantidade: '1', frente: 'X', data: hojeISOteste })).erro, 'Insumo não encontrado nesta obra.')
+conferir('da UBS não abre o histórico da Serra', (await dados.obterHistoricoInsumo('ins-brita')).erro, 'Insumo não encontrado nesta obra.')
+conferir('da UBS não muda o mínimo da Serra', (await dados.salvarMinimo('ins-brita', '9')).erro, 'Insumo não encontrado nesta obra.')
+conferir('baixa maior que o saldo é recusada', (await dados.registrarBaixa({ insumo_id: 'ins-ubs-cimento', quantidade: '26', frente: 'Sapatas', data: hojeISOteste })).erro,
+  'Saldo insuficiente: há só 25 sacos no estoque.')
+conferir('baixa dentro do saldo grava', (await dados.registrarBaixa({ insumo_id: 'ins-ubs-cimento', quantidade: '5', frente: 'Sapatas', data: hojeISOteste })).data.obra_id, 'obra-ubs')
+conferir('e o saldo cai para 20, que é o mínimo: vira crítico', linhaDe((await dados.listarQuadroMateriais()).data.estoque, 'Cimento').situacao, 'Crítico')
+dados.definirObraAtual('obra-serra')
+conferir('da Serra não desfaz a baixa da UBS', (await dados.desfazerBaixa('mv-ubs-cimento-s')).erro, 'Baixa não encontrada nesta obra.')
+conferir('desfazer só vale para baixa manual (não para saída de pedido)', (await dados.desfazerBaixa('mv-rejunte-s')).erro, 'Baixa não encontrada nesta obra.')
+conferir('desfazer a baixa manual da brita devolve o saldo', [(await dados.desfazerBaixa('mv-brita-s')).erro, linhaDe((await dados.listarQuadroMateriais()).data.estoque, 'Brita').saldo], [null, 3.5])
+await dados.registrarBaixa({ insumo_id: 'ins-brita', quantidade: '2', frente: 'Fundação — sapatas', data: hojeISOteste })
+conferir('a baixa da UBS não mexeu na Serra', (await dados.listarQuadroMateriais()).data.estoque.map((l) => l.saldo), estoqueSerra.map((l) => l.saldo))
+
+// Pedido recebido dá entrada (criando o insumo); entregue dá saída; voltar desfaz.
+const chegou = { qtd_bate_nf: false, qtd_recebida: '5,5', estado_ok: true }
+await dados.moverPedido('ped-areia', 'No almoxarifado', chegou)
+const comAreia = (await dados.listarQuadroMateriais()).data.estoque
+conferir('areia recebida: insumo novo com o que chegou, sem mínimo', [linhaDe(comAreia, 'Areia')?.saldo, linhaDe(comAreia, 'Areia')?.situacao], [5.5, 'Sem mínimo'])
+await dados.moverPedido('ped-areia', 'Comprado')
+conferir('voltar o recebimento tira a entrada', linhaDe((await dados.listarQuadroMateriais()).data.estoque, 'Areia').saldo, 0)
+await dados.moverPedido('ped-areia', 'No almoxarifado', chegou)
+conferir('receber de novo não duplica a entrada', linhaDe((await dados.listarQuadroMateriais()).data.estoque, 'Areia').saldo, 5.5)
+await dados.moverPedido('ped-areia', 'Entregue', { frente: 'Reboco fachada norte' })
+conferir('entregar na frente dá saída do lote', linhaDe((await dados.listarQuadroMateriais()).data.estoque, 'Areia').saldo, 0)
+// Porcelanato: chegaram 45, saíram 30 por baixa manual. Entregar leva só os 15 que sobraram.
+conferir('entregar depois de baixa parcial passa', (await dados.moverPedido('ped-porcelanato', 'Entregue', { frente: 'Revestimento banheiros' })).erro, null)
+conferir('e leva só o que sobrou do lote (saldo 0, não negativo)', linhaDe((await dados.listarQuadroMateriais()).data.estoque, 'Porcelanato').saldo, 0)
+await dados.moverPedido('ped-porcelanato', 'No almoxarifado')
+conferir('voltar a entrega devolve os 15', linhaDe((await dados.listarQuadroMateriais()).data.estoque, 'Porcelanato').saldo, 15)
+conferir('voltar recebimento já consumido é bloqueado', (await dados.moverPedido('ped-brita', 'Comprado')).erro,
+  'Parte deste lote já saiu do estoque (há 1,5 m³). Não dá para voltar o recebimento.')
+
 // Trocar de obra no meio de uma gravação: ela termina na obra em que foi tocada.
 dados._reiniciarMock()
 await dados.entrar('eng@novaobra.test', 'x')

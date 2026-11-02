@@ -20,14 +20,17 @@ import { aplicarFechamento, validarPreenchimento, validarFrente } from './frente
 import { statusRdoHoje, validarObra, normalizarCodigo } from './obras.js'
 import { ordenarDiarios, resumirDiario } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
-import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido } from './materiais.js'
+import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade } from './materiais.js'
+import {
+  montarEstoque, saldoDe, validarBaixa, lerMinimo, validarMinimo, efeitoNoEstoque, saidaDoQueSobrou, bloqueioNoEstoque, ordenarHistorico,
+} from './estoque.js'
 
 export const USAR_MOCK = false
 
 // Tabelas de lançamento: obra_id obrigatório. Toda tabela nova de módulo novo entra aqui.
 export const TABELAS_DA_OBRA = [
   'rdos', 'rdo_efetivo', 'rdo_equipamentos', 'frentes_servico', 'rdo_frentes', 'rdo_frente_equipe', 'fotos',
-  'pedidos_material',
+  'pedidos_material', 'insumos', 'movimentos_estoque',
 ]
 
 // ---------------------------------------------------------------------------
@@ -107,6 +110,7 @@ function traduzirErro(e) {
   if (!e.doBanco) return e.message
   if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
   if (e.code === '23505' && /uma_presenca_por_dia/.test(e.message)) return 'Esse funcionário já está presente hoje em outra obra.'
+  if (/saldo_negativo/.test(e.message)) return 'O estoque ficaria negativo: alguém mexeu neste insumo ao mesmo tempo. Confira o saldo e tente de novo.'
   if (e.code === '23505') return 'Isso já está gravado (registro repetido).'
   if (e.code === '23514') return 'O banco recusou um valor fora da lista permitida.'
   if (e.code === '23503') return 'Este registro aponta para algo que não existe mais.'
@@ -681,16 +685,19 @@ const comMaterial = (pedido, catalogo) => {
   }
 }
 
+// O quadro e o estoque vêm numa chamada só: o contador "Insumos críticos" fica no topo dos dois.
 export const listarQuadroMateriais = () => executar(async () => {
   const obraId = obraAtual()
-  const [pedidos, catalogo, frentes] = await Promise.all([
+  const [pedidos, catalogo, frentes, insumos, movimentos] = await Promise.all([
     ler('pedidos_material', { obra_id: obraId }), ler('materiais'), ler('frentes_servico', { obra_id: obraId }),
+    ler('insumos', { obra_id: obraId }), ler('movimentos_estoque', { obra_id: obraId }),
   ])
   return ok({
     pedidos: pedidos.map((p) => comMaterial(p, catalogo)),
     catalogo: catalogo.filter((m) => m.ativo).sort(porNome),
     // Sugestões para o campo "frente" (o pedido aceita texto livre, ex.: "Banheiro suíte").
     frentes: frentes.filter((f) => f.situacao !== 'Concluída').sort(porNome).map((f) => f.nome),
+    estoque: montarEstoque(insumos, movimentos, catalogo),
   })
 })
 
@@ -705,18 +712,115 @@ export const salvarPedido = (dados) => executar(async () => {
   return ok(comMaterial(novo, [material]))
 })
 
-// Mudar de coluna é uma gravação só (status + histórico + o que a coluna pede).
+// Mudar de coluna grava o pedido (status + histórico + o que a coluna pede) e, quando
+// for o caso, mexe no estoque: chegar no almoxarifado dá entrada, entregar na frente dá
+// saída do que sobrou do lote, e voltar desfaz. O estoque é conferido ANTES de o pedido
+// mudar; a movimentação vem DEPOIS, numa segunda gravação. Se a internet cair entre as
+// duas, o pedido fica na coluna nova sem a movimentação: voltar a coluna e avançar de
+// novo completa (voltar sem movimentação lançada não mexe no estoque).
 export const moverPedido = (pedidoId, novoStatus, extras = {}) => executar(async () => {
   const obraId = obraAtual()
   const pedido = await um('pedidos_material', { id: pedidoId, obra_id: obraId })
   if (!pedido) return falha('Pedido não encontrado nesta obra.')
   const erro = Object.values(validarMovimento(pedido, novoStatus, extras, hoje()))[0]
   if (erro) return falha(erro)
+  const campos = aplicarMovimento(pedido, novoStatus, extras, hoje())
+  const material = await um('materiais', { id: pedido.material_id })
+  const estoque = await efeitoDoPedido(obraId, pedido, { ...pedido, ...campos })
+  const bloqueio = estoque && bloqueioNoEstoque(estoque.efeito, estoque.saldo, material?.unidade ?? '')
+  if (bloqueio) return falha(bloqueio)
   // O filtro pelo status lido protege do toque duplo e do outro aparelho: se o pedido já andou, nada muda.
-  const [salvo] = await atualizar('pedidos_material', { id: pedidoId, obra_id: obraId, status: pedido.status },
-    aplicarMovimento(pedido, novoStatus, extras, hoje()))
+  const [salvo] = await atualizar('pedidos_material', { id: pedidoId, obra_id: obraId, status: pedido.status }, campos)
   if (!salvo) return falha('Este pedido já tinha mudado de coluna (outro toque ou outro aparelho).')
-  return ok(comMaterial(salvo, [await um('materiais', { id: salvo.material_id })]))
+  if (estoque) await aplicarNoEstoque(obraId, salvo, estoque)
+  return ok(comMaterial(salvo, [material]))
+})
+
+// ---- Estoque (aba Materiais → Estoque). O saldo é a soma das movimentações. ----
+
+async function saldoDoInsumo(obraId, insumoId) {
+  return saldoDe(await ler('movimentos_estoque', { obra_id: obraId, insumo_id: insumoId }), insumoId)
+}
+
+// O que o movimento do pedido faz no estoque, com o insumo e o saldo de agora. Null = nada.
+async function efeitoDoPedido(obraId, antes, depois) {
+  let efeito = efeitoNoEstoque(antes, depois)
+  if (!efeito) return null
+  const insumo = await um('insumos', { obra_id: obraId, material_id: antes.material_id })
+  // Desfazer só existe se a movimentação existe, e desfaz exatamente o que ela lançou.
+  if (efeito.desfazer) {
+    const lancado = insumo && await um('movimentos_estoque', { obra_id: obraId, pedido_id: antes.id, tipo: efeito.tipo })
+    if (!lancado) return null
+    efeito = { ...efeito, quantidade: Number(lancado.quantidade) }
+  }
+  const saldo = insumo ? await saldoDoInsumo(obraId, insumo.id) : 0
+  efeito = saidaDoQueSobrou(efeito, saldo)
+  return efeito && { efeito, insumo, saldo }
+}
+
+// O insumo do material nesta obra; nasce sem mínimo na primeira entrada.
+async function garantirInsumo(obraId, materialId) {
+  const existente = await um('insumos', { obra_id: obraId, material_id: materialId })
+  if (existente) return existente
+  try {
+    return await inserir('insumos', { obra_id: obraId, material_id: materialId, saldo_minimo: 0 })
+  } catch (e) {
+    // Dois toques ao mesmo tempo: o outro já criou. Usa o dele.
+    if (e.code === '23505') return um('insumos', { obra_id: obraId, material_id: materialId })
+    throw e
+  }
+}
+
+async function aplicarNoEstoque(obraId, pedido, { efeito, insumo }) {
+  const { tipo, desfazer, quantidade } = efeito
+  if (desfazer) return apagar('movimentos_estoque', { obra_id: obraId, pedido_id: pedido.id, tipo })
+  const alvo = insumo ?? await garantirInsumo(obraId, pedido.material_id)
+  const campos = { quantidade, data: hoje(), frente: pedido.frente }
+  const existente = await um('movimentos_estoque', { obra_id: obraId, pedido_id: pedido.id, tipo })
+  if (existente) return atualizar('movimentos_estoque', { id: existente.id, obra_id: obraId }, campos)
+  return inserir('movimentos_estoque', { ...campos, obra_id: obraId, insumo_id: alvo.id, tipo, origem: 'Pedido', pedido_id: pedido.id })
+}
+
+// Baixa manual. O saldo nunca fica negativo.
+export const registrarBaixa = (dados) => executar(async () => {
+  const obraId = obraAtual()
+  const insumo = dados.insumo_id ? await um('insumos', { id: dados.insumo_id, obra_id: obraId }) : null
+  if (dados.insumo_id && !insumo) return falha('Insumo não encontrado nesta obra.')
+  const [linha] = insumo
+    ? montarEstoque([insumo], await ler('movimentos_estoque', { obra_id: obraId, insumo_id: insumo.id }), await ler('materiais', { id: insumo.material_id }))
+    : []
+  const erro = Object.values(validarBaixa(dados, linha, hoje()))[0]
+  if (erro) return falha(erro)
+  return ok(await inserir('movimentos_estoque', {
+    obra_id: obraId, insumo_id: insumo.id, tipo: 'Saída', quantidade: lerQuantidade(dados.quantidade),
+    data: dados.data, frente: dados.frente.trim(), origem: 'Manual', pedido_id: null,
+  }))
+})
+
+// Desfaz uma baixa manual lançada errado. Só baixa manual: o que veio de pedido se desfaz
+// voltando o pedido de coluna, e apagar uma saída nunca deixa o saldo negativo.
+export const desfazerBaixa = (movimentoId) => executar(async () => {
+  const filtro = { id: movimentoId, obra_id: obraAtual(), tipo: 'Saída', origem: 'Manual' }
+  const mov = await um('movimentos_estoque', filtro)
+  if (!mov) return falha('Baixa não encontrada nesta obra.')
+  await apagar('movimentos_estoque', filtro)
+  return ok(true)
+})
+
+// Histórico de um insumo, do mais novo para o mais antigo.
+export const obterHistoricoInsumo = (insumoId) => executar(async () => {
+  const obraId = obraAtual()
+  if (!(await um('insumos', { id: insumoId, obra_id: obraId }))) return falha('Insumo não encontrado nesta obra.')
+  const movimentos = await ler('movimentos_estoque', { obra_id: obraId, insumo_id: insumoId })
+  return ok(ordenarHistorico(movimentos.map((m) => ({ ...m, quantidade: Number(m.quantidade) }))))
+})
+
+export const salvarMinimo = (insumoId, texto) => executar(async () => {
+  const obraId = obraAtual()
+  const erro = validarMinimo(texto)
+  if (erro) return falha(erro)
+  const [salvo] = await atualizar('insumos', { id: insumoId, obra_id: obraId }, { saldo_minimo: lerMinimo(texto) })
+  return salvo ? ok(salvo) : falha('Insumo não encontrado nesta obra.')
 })
 
 export const apagarPedido = (pedidoId) => executar(async () => {

@@ -34,6 +34,9 @@ export const MOTIVOS_PARADA = [
 export const CATEGORIAS_MATERIAL = ['Material grosso', 'Acabamento', 'Instalações']
 export const PRIORIDADES_PEDIDO = ['Normal', 'Crítico']
 export const STATUS_PEDIDO = ['Solicitar', 'Em cotação', 'Comprado', 'No almoxarifado', 'Entregue']
+// Estoque (movimentos_estoque).
+export const TIPOS_MOVIMENTO = ['Entrada', 'Saída']
+export const ORIGENS_MOVIMENTO = ['Pedido', 'Manual']
 
 export const STATUS_RDO = ['Em andamento', 'Fechado']
 // Como o RDO de hoje aparece no cartão da obra (inclui o caso "não existe RDO").

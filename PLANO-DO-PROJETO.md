@@ -42,7 +42,8 @@ A sua dor tem dois blocos de tamanho parecido. Fazer os dois de uma vez dá um s
 - **v1 — a rotina do dia (este plano):** lista de obras, RDO em 3 passos, frentes de serviço com foto e dias parados, prancha visual, equipamentos (onde está e quem está no conserto), cadastro de funcionários, acesso do cliente.
 - **v2 — material:** pedidos de material conferidos com a planilha de medição, aditivos, estoque de cimento/argamassa/massa corrida/areia/brita. Detalhes em "Melhorias para a v2".
 - **Mudança de 31/10/2026:** a **visualização das medições** (contrato e empreiteiro) saiu da v2 e entrou como fase v1.3. Ver "Medições" em Funcionalidades.
-- **Mudança de 01/11/2026:** o **quadro de pedidos de material** foi antecipado da v2 e já existe como aba "Materiais" dentro da obra: cada pedido (lote) anda por Solicitar → Em cotação → Comprado / a caminho → No almoxarifado → Entregue na frente, com checklist de recebimento, atrasados e lead time. Continua na v2: conferir o pedido com a planilha de medição e a lista de aditivo. Estoque continua cortado.
+- **Mudança de 01/11/2026:** o **quadro de pedidos de material** foi antecipado da v2 e já existe como aba "Materiais" dentro da obra: cada pedido (lote) anda por Solicitar → Em cotação → Comprado / a caminho → No almoxarifado → Entregue na frente, com checklist de recebimento, atrasados e lead time. Continua na v2: conferir o pedido com a planilha de medição e a lista de aditivo.
+- **Mudança de 01/11/2026 (2):** o **estoque** voltou, opcional, como sub-aba Estoque dentro de Materiais. Para não dobrar o lançamento: a entrada é automática quando o pedido chega no almoxarifado (com a quantidade que chegou de fato), a saída é automática quando ele é entregue na frente, e a baixa manual fica só para consumo parcial. Insumo com saldo no mínimo aparece como "Crítico".
 
 **O que ele NÃO faz (v1):**
 - Orçamento e composição de preço (você já resolve isso; fica fora para sempre).
@@ -400,7 +401,7 @@ Login
 
 - ~~Medição por empreiteiro~~ — entrou na v1.3 como painel lido da planilha (31/10/2026).
 - **Pedidos de material x planilha de medição, e aditivo** — continua na v2. Fica mais fácil depois da v1.3, porque os itens da planilha já estarão no app: cada pedido é comparado com eles, e o que não existir na planilha ou passar da quantidade entra numa lista de aditivo.
-- **Estoque de cimento, argamassa, massa corrida, areia e brita por obra** — cortado: entrada (pedido recebido) e saída (consumo no RDO) dobram o trabalho de lançamento no dia a dia.
+- ~~Estoque por obra~~ — voltou em 01/11/2026 como parte de Materiais, com entrada e saída automáticas pelos pedidos (ver "Corte: v1 e v2").
 - **Valores (preço, medição em R$)** — entram na v1.3, pela planilha de medição, e ficam escondidos do cliente.
 - **Cronograma** — cortado: a prancha visual e as frentes já mostram avanço para o cliente.
 - **RDO em PDF assinado** — não é necessário: o app é só para controle interno. A v1 tem só a versão para imprimir pelo navegador.
