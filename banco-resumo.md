@@ -14,8 +14,9 @@ bloqueada não lê nada. O **Engenheiro** (admin_master) vê e faz tudo, em toda
 grava só nas obras liberadas para ele em `membros`; não vê Medições; não apaga diário, frente, obra,
 funcionário, equipamento, material do catálogo nem baixa manual de estoque; apaga pedido só em "Solicitar".
 Funcionários e equipamentos ele vê todos (só nome e função), porque o efetivo do dia mostra quem veio de outra
-obra. O **Cliente** (v1.1) só vê as obras dele, nenhum lançamento ainda. O teste
-`supabase/testes/permissoes.sql` confere 40 casos (último resultado: 40 de 40, 03/11/2026).
+obra, mas só muda os das obras dele e os sem obra. Nem o Engenheiro apaga diário fechado ou com fotos. O **Cliente** (v1.1) só vê as obras dele, nenhum lançamento ainda. O teste
+`supabase/testes/permissoes.sql` confere 48 casos (último resultado: 48 de 48, 03/11/2026). A trava "presente em duas obras" do
+gerente lê as outras obras pela função `efetivo_do_dia` (só quem está em qual obra no dia).
 
 ## O que ainda falta
 
@@ -115,3 +116,5 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | `20261103-16-fotos-no-storage.sql` | Cria a pasta privada `fotos` no Storage (só JPEG, até 2 MB) e as regras de ler, mandar e apagar: conta ativa, nas obras que vê; o diário para Engenheiro e Gerente, a nota fiscal só para o Engenheiro. Testado em 03/11/2026 |
 | `20261103-17-fotos-nome-do-arquivo.sql` | Achado da revisão: a regra das fotos passa a exigir o nome que o app gera (`<id>.jpg`); vazio, `..` ou nome livre são recusados |
 | `20261103-18-rls-por-perfil-e-obra.sql` | **Fecha o banco.** Apaga as 20 regras provisórias abertas, tira tudo de quem não fez login e põe as regras do quadro por perfil e por obra (função `privado.sou_equipe`). Testado em 03/11/2026: 40 de 40 |
+| `20261103-19-perfis-sem-anon.sql` | `profiles` e `membros` sem a liberação padrão para quem não fez login |
+| `20261103-20-correcoes-da-revisao-rls.sql` | Achados da revisão: o gerente só mexe em movimento de pedido (não na baixa manual), só muda funcionário e equipamento das obras dele, enxerga a trava de presença pela função `efetivo_do_dia`; diário fechado ou com fotos não se apaga. Testado: 48 de 48 |

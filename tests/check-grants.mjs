@@ -69,6 +69,11 @@ const fechou = textos.find(({ sql }) => sql.includes('fecha-provisorio-passo-10'
 if (fechou) {
   if (!/revoke\s+all\s+on\s+public\.%i\s+from\s+anon/i.test(fechou.sql) || !/drop\s+policy\s+if\s+exists\s+"dev_provisorio_aberto"/i.test(fechou.sql)) {
     problemas.push(`[PROVISÓRIO] ${fechou.f} diz que fecha o provisório, mas não apaga as regras abertas nem tira o anon`)
+  } else if (provisorios.some((f) => f > fechou.f)) {
+    // Liberação aberta criada DEPOIS do fechamento: ela vale de novo, e não pode passar calada.
+    for (const f of provisorios.filter((p) => p > fechou.f)) {
+      problemas.push(`[ANON] ${f} abre o banco depois de ${fechou.f} ter fechado o provisório`)
+    }
   } else if (provisorios.length) {
     console.log(`✓ check-grants: o provisório aberto de ${provisorios.length} migration(s) foi fechado em ${fechou.f}`)
   }

@@ -381,7 +381,12 @@ export const salvarObra = (dados) => executar(async () => {
 
 const rdoDeHoje = (obraId) => um('rdos', { obra_id: obraId, data: hoje() })
 // Todas as linhas de efetivo do dia, de TODAS as obras: a trava de duas obras precisa delas.
-const linhasDoDia = () => ler('rdo_efetivo', { data: hoje() })
+// O efetivo de hoje de TODAS as obras: a trava "presente em duas obras" lê as outras de propósito.
+// O admin lê a tabela; o gerente, que não vê as outras obras, pela função efetivo_do_dia
+// (migration -20), que entrega só quem está em qual obra.
+const linhasDoDia = async () => (authReal() && !veTodasAsObras(usuario)
+  ? resposta(await supabase.rpc('efetivo_do_dia', { dia: hoje() }))
+  : ler('rdo_efetivo', { data: hoje() }))
 const equipamentosNaObra = (obraId) => ler('equipamentos', { situacao: 'Na obra', obra_id: obraId })
 
 async function efetivoDaObraHoje(obraId) {

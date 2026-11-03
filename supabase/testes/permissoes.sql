@@ -62,6 +62,7 @@ begin
   select count(*) into n from public.obras; insert into _r values ('cliente vê só a obra dele', n = 1);
   select count(*) into n from public.rdos; insert into _r values ('cliente ainda não vê diário (v1.1)', n = 0);
   select count(*) into n from public.medicoes; insert into _r values ('cliente nunca vê medição', n = 0);
+  select count(*) into n from public.efetivo_do_dia((now() at time zone 'America/Fortaleza')::date); insert into _r values ('cliente não vê o efetivo do dia', n = 0);
   select count(*) into n from public.fotos; insert into _r values ('cliente ainda não vê foto (v1.1)', n = 0);
   reset role;
 
@@ -110,6 +111,20 @@ begin
     update public.profiles set role = 'admin_master' where id = ger;
     insert into _r values ('gerente não vira admin', false);
   exception when insufficient_privilege then insert into _r values ('gerente não vira admin', true); end;
+  begin
+    update public.movimentos_estoque set origem = 'Pedido' where obra_id = ubs and origem = 'Manual';
+    get diagnostics n = row_count;
+    insert into _r values ('gerente não transforma baixa manual em de pedido', n = 0);
+  exception when others then insert into _r values ('gerente não transforma baixa manual em de pedido', true); end;
+  update public.funcionarios set nome = nome where obra_id = serra; get diagnostics n = row_count;
+  insert into _r values ('gerente não muda funcionário lotado na Serra', n = 0);
+  update public.funcionarios set nome = nome where obra_id = ubs; get diagnostics n = row_count;
+  insert into _r values ('gerente muda funcionário lotado na UBS', n > 0);
+  update public.equipamentos set nome = nome where obra_id = serra; get diagnostics n = row_count;
+  insert into _r values ('gerente não mexe em equipamento da Serra', n = 0);
+  select count(distinct obra_id) into n from public.efetivo_do_dia((now() at time zone 'America/Fortaleza')::date);
+  insert into _r values ('gerente enxerga quem está presente em qualquer obra hoje (trava)', n >= 1);
+  select count(*) into n from public.rdo_efetivo where obra_id = serra; insert into _r values ('mas não lê o efetivo da Serra direto', n = 0);
   insert into _r values ('gerente abre foto do diário da UBS', privado.pode_foto(ubs || '/diario/' || gen_random_uuid() || '.jpg'));
   insert into _r values ('gerente não abre nota fiscal', not privado.pode_foto(ubs || '/nota-fiscal/' || gen_random_uuid() || '.jpg'));
   insert into _r values ('gerente não abre foto da Serra', not privado.pode_foto(serra || '/diario/' || gen_random_uuid() || '.jpg'));
@@ -123,6 +138,8 @@ begin
   select count(*) into n from public.profiles; insert into _r values ('engenheiro vê todos os perfis', n >= 5);
   update public.obras set nome = nome where id = ubs; get diagnostics n = row_count;
   insert into _r values ('engenheiro edita a obra', n = 1);
+  delete from public.rdos where status = 'Fechado'; get diagnostics n = row_count;
+  insert into _r values ('nem o engenheiro apaga diário fechado', n = 0);
   insert into _r values ('engenheiro abre nota fiscal', privado.pode_foto(ubs || '/nota-fiscal/' || gen_random_uuid() || '.jpg'));
   reset role;
 
