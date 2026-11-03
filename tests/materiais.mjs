@@ -92,6 +92,7 @@ conferir('ir para Comprado grava fornecedor, previsão e histórico', comprado,
   { status: 'Comprado', historico: [{ status: 'Solicitar', data: '2026-10-20' }, { status: 'Comprado', data: hoje }], fornecedor: 'Casa do Construtor', previsao_entrega: '2026-11-05' })
 const recebido = aplicarMovimento(p('x', 'Comprado'), 'No almoxarifado', { qtd_bate_nf: true, estado_ok: false, avarias: '  ', foto_nf: '' }, hoje)
 conferir('checklist gravado; avaria em branco vira vazio', [recebido.qtd_bate_nf, recebido.estado_ok, recebido.avarias, recebido.foto_nf], [true, false, null, null])
+conferir('receber sem a chave da nota não mexe na nota (quem não pode ver)', 'foto_nf' in aplicarMovimento(p('x', 'Comprado'), 'No almoxarifado', { qtd_bate_nf: true, estado_ok: true }, hoje), false)
 conferir('voltar só muda coluna e histórico', Object.keys(aplicarMovimento(p('x', 'Comprado'), 'Em cotação', {}, hoje)), ['status', 'historico'])
 
 console.log(`${ok}/${tot} — materiais`)

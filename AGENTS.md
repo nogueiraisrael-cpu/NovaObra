@@ -140,10 +140,11 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   e à noite já seria amanhã. O seed usa o fuso de Natal (`America/Fortaleza`).
 - **O Supabase devolve no máximo 1.000 linhas por pedido**, sem avisar. O `ler` do `dados.js` já
   pede em páginas; não troque por um `select` solto.
-- **Fotos moram no Storage** (pasta privada `fotos`, migration -16) desde 03/11/2026: a tela encolhe
-  (`encolherFoto`, 1200 px, JPEG 0,8), `uploadFoto` manda e a tabela guarda só o caminho
+- **Fotos moram no Storage** (pasta privada `fotos`, migration -16) desde 03/11/2026: a tela entrega o arquivo
+  e `uploadFoto` encolhe (`src/lib/imagem.js`, 1200 px, JPEG 0,8) e manda; a tabela guarda só o caminho
   `<obra_id>/<modulo>/<id>.jpg`. O endereço para mostrar é assinado na leitura (1 hora) e **nunca se grava**.
-  Quem pode abrir é o próprio caminho que diz (`privado.pode_foto`): nota fiscal só o admin. As fotos de exemplo
+  Quem pode abrir é o próprio caminho que diz (`privado.pode_foto`): nota fiscal só o admin. O app só apaga
+  arquivo da mesma obra e módulo do registro (`caminhoEhDe`). As fotos de exemplo
   antigas continuam dentro da tabela (`data:`) e aparecem iguais. Foto tirada e descartada antes de salvar
   fica solta no Storage (não aparece, só ocupa espaço).
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
@@ -155,7 +156,9 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   no meio, a medição fica sem linhas, e trocar de novo completa. Importar medição grava o cabeçalho e as linhas; se as
   linhas falharem, o próprio `dados.js` desfaz o cabeçalho. Em Usuários, salvar grava o perfil e depois as obras
   liberadas (apaga as que saíram, grava as novas), e virar Engenheiro grava o perfil e depois apaga a lista de
-  obras: se cair no meio, salvar de novo completa.
+  obras: se cair no meio, salvar de novo completa. Foto: sobe o arquivo e só depois grava o registro (caiu no
+  meio, sobra um arquivo solto, sem estrago); ao tirar uma foto da frente, apagar o pedido ou receber de novo,
+  grava a tabela e depois apaga o arquivo (caiu no meio, idem).
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

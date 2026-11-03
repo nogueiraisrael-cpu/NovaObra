@@ -1,11 +1,11 @@
 // RDO passo 2 — frentes de serviço, gaveta "Preencher frente" e Fechar RDO (v1.0).
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listarFrentes, salvarFrente, obterPreenchimento, salvarPreenchimento, resumoFechamento, fecharRdo, uploadFoto } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { diasParada, separarFrentes, rotuloExecutor } from '../lib/frentes.js'
 import { ETAPAS, EXECUTORES, SITUACOES_FRENTE_DIA, MOTIVOS_PARADA } from '../lib/listas.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
-import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, encolherFoto, COR_FRENTE_DIA } from '../components/index.jsx'
+import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, COR_FRENTE_DIA } from '../components/index.jsx'
 
 function CartaoFrente({ f, hoje, abrir }) {
   const dias = diasParada(f, hoje)
@@ -83,23 +83,32 @@ function PreencherFrente({ inicial, fechar, salvo }) {
   // A prévia aparece na hora; a foto encolhe e sobe para o Storage logo depois. Se não subir,
   // ela sai da lista com o aviso, e o resto do que foi preenchido continua para salvar.
   const enviando = p.fotos.some((ft) => !ft.caminho)
+  // Prévias locais (blob:) ocupam memória: liberadas ao tirar a foto e ao fechar a gaveta.
+  const previas = useRef(new Set())
+  const tiradas = useRef(new Set())
+  useEffect(() => () => previas.current.forEach((u) => URL.revokeObjectURL(u)), [])
+  function tirarFoto(i) {
+    const ft = p.fotos[i]
+    if (ft.chave) tiradas.current.add(ft.chave)
+    if (previas.current.delete(ft.url)) URL.revokeObjectURL(ft.url)
+    setP({ ...p, fotos: p.fotos.filter((_, j) => j !== i) })
+  }
   function anexar(e) {
     const arquivos = [...e.target.files].slice(0, 5 - p.fotos.length)
     e.target.value = ''
     for (const arquivo of arquivos) {
       const chave = crypto.randomUUID()
       const previa = URL.createObjectURL(arquivo)
+      previas.current.add(previa)
       setP((atual) => ({ ...atual, fotos: [...atual.fotos, { chave, url: previa, caminho: null, legenda: '' }] }))
-      encolherFoto(arquivo)
-        .then((foto) => uploadFoto(foto, 'diario'))
-        .catch((falhou) => ({ erro: falhou.message }))
-        .then(({ data, erro: falhou }) => {
-          setP((atual) => ({
-            ...atual,
-            fotos: falhou ? atual.fotos.filter((ft) => ft.chave !== chave) : atual.fotos.map((ft) => (ft.chave === chave ? { ...ft, caminho: data.caminho } : ft)),
-          }))
-          if (falhou) setErro(falhou)
-        })
+      uploadFoto(arquivo, 'diario').then(({ data, erro: falhou }) => {
+        if (tiradas.current.has(chave)) return // a pessoa já tirou esta foto: nem aviso, nem volta
+        setP((atual) => ({
+          ...atual,
+          fotos: falhou ? atual.fotos.filter((ft) => ft.chave !== chave) : atual.fotos.map((ft) => (ft.chave === chave ? { ...ft, caminho: data.caminho } : ft)),
+        }))
+        if (falhou) setErro(falhou)
+      })
     }
   }
 
@@ -163,7 +172,7 @@ function PreencherFrente({ inicial, fechar, salvo }) {
           {p.fotos.map((ft, i) => (
             <div className={`thumb${ft.caminho ? '' : ' subindo'}`} key={ft.chave ?? ft.id ?? ft.caminho}>
               <img src={ft.url ?? ft.caminho} alt={`Foto ${i + 1}${ft.caminho ? '' : ' (subindo)'}`} />
-              <button aria-label={`Tirar foto ${i + 1}`} onClick={() => setP({ ...p, fotos: p.fotos.filter((_, j) => j !== i) })}>×</button>
+              <button aria-label={`Tirar foto ${i + 1}`} onClick={() => tirarFoto(i)}>×</button>
             </div>
           ))}
         </div>

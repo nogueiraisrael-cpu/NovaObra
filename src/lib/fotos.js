@@ -22,6 +22,14 @@ export function caminhoDaFoto(obraId, modulo, id) {
 // Essas aparecem como estão; só as do Storage precisam de endereço assinado.
 export const estaNoStorage = (caminho) => Boolean(caminho) && !/^(data:|blob:|https?:)/.test(caminho)
 
+// O caminho é de um arquivo desta obra e deste módulo? Só esses o app apaga: um caminho trocado
+// na tabela (as tabelas de lançamento ainda estão abertas até a fase 5) não apaga foto de outro lugar.
+export function caminhoEhDe(caminho, obraId, modulo) {
+  if (!estaNoStorage(caminho)) return false
+  const partes = caminho.split('/')
+  return partes.length === 3 && partes[0] === obraId && partes[1] === modulo && /^[0-9a-f-]{36}\.jpg$/.test(partes[2])
+}
+
 // Erro do Storage em frase de gente. Falhou o envio: o resto do que a pessoa digitou não se perde.
 export function mensagemDoEnvio(erro) {
   const texto = `${erro?.statusCode ?? ''} ${erro?.message ?? ''}`

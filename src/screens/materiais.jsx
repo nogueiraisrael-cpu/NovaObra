@@ -2,7 +2,7 @@
 // Cada cartão é um lote ("50 sacos de cimento") que anda pelas colunas por botões, sem arrastar.
 // O estoque (sub-aba Estoque) recebe o lote que chega no almoxarifado e dá baixa no que é entregue.
 // Tudo otimista: o cartão (ou o saldo) muda na hora e volta ao que era se o banco recusar.
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listarQuadroMateriais, salvarPedido, moverPedido, apagarPedido, registrarBaixa, desfazerBaixa, salvarMinimo, posso, uploadFoto } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import {
@@ -12,7 +12,7 @@ import {
 import { ajustarLinha, contarCriticos, efeitoNoEstoque, lerMinimo } from '../lib/estoque.js'
 import { PRIORIDADES_PEDIDO, CATEGORIAS_MATERIAL, STATUS_PEDIDO } from '../lib/listas.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
-import { Carregando, ErroCampo, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, encolherFoto } from '../components/index.jsx'
+import { Carregando, ErroCampo, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast } from '../components/index.jsx'
 import { VistaEstoque, FormBaixa, HistoricoInsumo } from './estoque.jsx'
 
 const TITULO = {
@@ -107,20 +107,32 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
 
   // Prévia na hora; a foto sobe para o Storage logo depois. Não subiu: aviso, e o recebimento
   // continua podendo ser confirmado sem a foto.
+  // Cada foto escolhida ganha um número: só a última vale. Tirar a foto (×) ou escolher outra no
+  // meio do envio faz o envio antigo ser ignorado quando terminar.
   const [previaNF, setPreviaNF] = useState(null)
   const [enviandoNF, setEnviandoNF] = useState(false)
+  const vezDaNF = useRef(0)
+  useEffect(() => () => { if (previaNF) URL.revokeObjectURL(previaNF) }, [previaNF])
+  function tirarNF() {
+    vezDaNF.current++
+    setPreviaNF(null)
+    setEnviandoNF(false)
+    setForm((atual) => ({ ...atual, foto_nf: '' }))
+  }
   async function anexarNF(e) {
     const arquivo = e.target.files[0]
     e.target.value = ''
     if (!arquivo) return
+    const vez = ++vezDaNF.current
     setPreviaNF(URL.createObjectURL(arquivo))
     setEnviandoNF(true)
     setErroFoto(null)
-    const { data, erro: falhou } = await encolherFoto(arquivo).then((foto) => uploadFoto(foto, 'nota-fiscal')).catch((x) => ({ erro: x.message }))
+    setForm((atual) => ({ ...atual, foto_nf: '' }))
+    const { data, erro: falhou } = await uploadFoto(arquivo, 'nota-fiscal')
+    if (vez !== vezDaNF.current) return
     setEnviandoNF(false)
     if (falhou) {
       setPreviaNF(null)
-      setForm((atual) => ({ ...atual, foto_nf: '' }))
       return setErroFoto(falhou)
     }
     setForm((atual) => ({ ...atual, foto_nf: data.caminho }))
@@ -184,7 +196,7 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
           </div>
           {previaNF && (
             <div className="thumbs">
-              <div className={`thumb${enviandoNF ? ' subindo' : ''}`}><img src={previaNF} alt={enviandoNF ? 'Foto da nota fiscal (subindo)' : 'Foto da nota fiscal'} /><button aria-label="Tirar a foto da nota" onClick={() => { setPreviaNF(null); setForm({ ...form, foto_nf: '' }) }}>×</button></div>
+              <div className={`thumb${enviandoNF ? ' subindo' : ''}`}><img src={previaNF} alt={enviandoNF ? 'Foto da nota fiscal (subindo)' : 'Foto da nota fiscal'} /><button aria-label="Tirar a foto da nota" onClick={tirarNF}>×</button></div>
             </div>
           )}
           <ErroCampo erro={erroFoto} />

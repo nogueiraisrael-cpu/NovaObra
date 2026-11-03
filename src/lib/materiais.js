@@ -142,7 +142,7 @@ export function aplicarMovimento(pedido, novo, extras, hoje) {
     campos.qtd_recebida = extras.qtd_bate_nf ? pedido.quantidade : lerQuantidade(extras.qtd_recebida)
     campos.estado_ok = extras.estado_ok
     campos.avarias = extras.avarias?.trim() || null
-    campos.foto_nf = extras.foto_nf || null
+    if ('foto_nf' in extras) campos.foto_nf = extras.foto_nf || null
   }
   if (novo === 'Entregue') campos.frente = extras.frente.trim()
   return campos

@@ -33,7 +33,8 @@ import {
   validarEntrada, validarCadastro, validarEmail, validarSenha, mensagemDoLogin, mensagemDoPerfil, AVISO_BLOQUEADO,
 } from './login.js'
 import { fraseDoErroInterno } from './erros.js'
-import { PASTA_DE_FOTOS, VALIDADE_DO_ENDERECO, caminhoDaFoto, estaNoStorage, mensagemDoEnvio } from './fotos.js'
+import { PASTA_DE_FOTOS, VALIDADE_DO_ENDERECO, caminhoDaFoto, caminhoEhDe, estaNoStorage, mensagemDoEnvio } from './fotos.js'
+import { encolherFoto } from './imagem.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
 
 // Tabelas de lançamento: obra_id obrigatório. Toda tabela nova de módulo novo entra aqui.
@@ -650,7 +651,7 @@ export const salvarPreenchimento = (frenteId, { situacao, motivo_parada, descric
     obra_id: obraId, rdo_id: rdo.id, rdo_frente_id: rf.id, caminho: ft.caminho, legenda: ft.legenda ?? '', visivel_cliente: true, enviada_por: usuario?.id ?? null,
   })))
   const ficaram = new Set(fotos.map((ft) => ft.caminho))
-  await apagarArquivos(antes.map((ft) => ft.caminho).filter((c) => !ficaram.has(c)))
+  await apagarArquivos(antes.map((ft) => ft.caminho).filter((c) => !ficaram.has(c)), obraId, 'diario')
   return ok(rf)
 })
 
@@ -868,7 +869,9 @@ export const moverPedido = (pedidoId, novoStatus, extras = {}) => executar(async
   if (!pedido) return falha('Pedido não encontrado nesta obra.')
   const erro = Object.values(validarMovimento(pedido, novoStatus, extras, hoje()))[0]
   if (erro) return falha(erro)
-  const campos = aplicarMovimento(pedido, novoStatus, extras, hoje())
+  // Quem não pode ver a nota fiscal não mexe nela: receber de novo não apaga a que o admin pôs.
+  const { foto_nf, ...semNota } = extras
+  const campos = aplicarMovimento(pedido, novoStatus, posso('pedidos.ver_nota_fiscal') ? { ...semNota, foto_nf } : semNota, hoje())
   const material = await um('materiais', { id: pedido.material_id })
   const estoque = await efeitoDoPedido(obraId, pedido, { ...pedido, ...campos })
   const bloqueio = estoque && bloqueioNoEstoque(estoque.efeito, estoque.saldo, material?.unidade ?? '')
@@ -877,7 +880,7 @@ export const moverPedido = (pedidoId, novoStatus, extras = {}) => executar(async
   const [salvo] = await atualizar('pedidos_material', { id: pedidoId, obra_id: obraId, status: pedido.status }, campos)
   if (!salvo) return falha('Este pedido já tinha mudado de coluna (outro toque ou outro aparelho).')
   // Recebido de novo (depois de voltar a coluna): a nota antiga deu lugar à nova, ou a nenhuma.
-  if ('foto_nf' in campos && pedido.foto_nf !== campos.foto_nf) await apagarArquivos([pedido.foto_nf])
+  if ('foto_nf' in campos && pedido.foto_nf !== campos.foto_nf) await apagarArquivos([pedido.foto_nf], obraId, 'nota-fiscal')
   if (estoque) await aplicarNoEstoque(obraId, salvo, estoque)
   return ok(comMaterial(salvo, [material]))
 })
@@ -974,7 +977,7 @@ export const apagarPedido = (pedidoId) => executar(async () => {
   const pedido = await um('pedidos_material', filtro)
   if (!pedido) return falha('Pedido não encontrado nesta obra.')
   await apagar('pedidos_material', filtro)
-  await apagarArquivos([pedido.foto_nf])
+  await apagarArquivos([pedido.foto_nf], filtro.obra_id, 'nota-fiscal')
   return ok(true)
 })
 
@@ -1329,12 +1332,15 @@ export const excluirMedicao = (id) => executar(async () => {
 })
 
 // ---------------------------------------------------------------------------
-// Fotos (Storage, pasta privada "fotos"). A tela encolhe a foto e manda aqui; a tabela guarda
-// só o caminho que volta. Falhou o envio: a tela avisa e salva o resto sem a foto.
+// Fotos (Storage, pasta privada "fotos"). A tela entrega o arquivo escolhido; aqui ele encolhe e
+// sobe, e a tabela guarda só o caminho que volta. Falhou o envio: a tela avisa e salva o resto.
 // ---------------------------------------------------------------------------
 
-export const uploadFoto = (foto, modulo) => executar(async () => {
+export const uploadFoto = (arquivo, modulo) => executar(async () => {
+  // A obra é a do toque: trocar de obra enquanto a foto encolhe não manda para a pasta da outra.
   const caminho = caminhoDaFoto(obraAtual(), modulo, crypto.randomUUID())
+  let foto
+  try { foto = await encolherFoto(arquivo) } catch (_) { return falha('Não foi possível ler essa foto. Tente outra.') }
   if (!authReal()) return ok({ caminho })
   const { error } = await supabase.storage.from(PASTA_DE_FOTOS).upload(caminho, foto, { contentType: 'image/jpeg', upsert: false })
   if (error) return falha(mensagemDoEnvio(error))
@@ -1347,16 +1353,17 @@ async function comEndereco(linhas, campo, destino) {
   const doStorage = [...new Set(linhas.map((l) => l[campo]).filter(estaNoStorage))]
   let assinados = new Map()
   if (doStorage.length && authReal()) {
-    const { data } = await supabase.storage.from(PASTA_DE_FOTOS).createSignedUrls(doStorage, VALIDADE_DO_ENDERECO)
+    const { data, error } = await supabase.storage.from(PASTA_DE_FOTOS).createSignedUrls(doStorage, VALIDADE_DO_ENDERECO)
+    if (error) console.error('[dados] endereço das fotos não saiu', error)
     assinados = new Map((data ?? []).filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]))
   }
   return linhas.map((l) => ({ ...l, [destino]: estaNoStorage(l[campo]) ? assinados.get(l[campo]) ?? null : l[campo] ?? null }))
 }
 
-// Apaga do Storage os arquivos que saíram da tabela. Se falhar, sobra só um arquivo solto
-// (ocupa espaço, não aparece em lugar nenhum): não desfaz a gravação que já deu certo.
-async function apagarArquivos(caminhos) {
-  const doStorage = caminhos.filter(estaNoStorage)
+// Apaga do Storage os arquivos que saíram da tabela, só os desta obra e deste módulo. Se falhar,
+// sobra só um arquivo solto (ocupa espaço, não aparece): não desfaz a gravação que já deu certo.
+async function apagarArquivos(caminhos, obraId, modulo) {
+  const doStorage = caminhos.filter((c) => caminhoEhDe(c, obraId, modulo))
   if (!doStorage.length || !authReal()) return
   const { error } = await supabase.storage.from(PASTA_DE_FOTOS).remove(doStorage)
   if (error) console.error('[dados] arquivo de foto não apagado', error)
