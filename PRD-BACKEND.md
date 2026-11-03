@@ -497,6 +497,8 @@ O app reconhece o modelo pelos títulos das linhas 10 e 11 ("BOLETIM DE MEDIÇÃ
 
 ## Permissões
 
+> **Substituída em 02/11/2026 por `docs/permissoes/QUEM-PODE-O-QUE.md` e `docs/permissoes/quadro.json`.** Os perfis passam a ser `admin_master`, `gerente` e `cliente`, e "Pendente" vira situação (`pendente`, `ativo`, `bloqueado`). Onde discordarem, vale o quadro.
+
 Escrito em português. Vira RLS na hora de construir. "Obras dele" = obras onde a pessoa está em `membros`. Quem está com `role = Pendente` ou `ativo = falso` não vê nada.
 
 ### `profiles`

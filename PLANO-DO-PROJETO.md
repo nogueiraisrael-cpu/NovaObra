@@ -192,6 +192,8 @@ O app é só para a sua gestão: não será vendido nem distribuído, e o RDO n�
 
 ### Matriz de permissões
 
+> **Substituída em 02/11/2026 por `docs/permissoes/QUEM-PODE-O-QUE.md`** (perfis `admin_master`, `gerente`, `cliente`). Onde discordarem, vale o quadro. A tabela abaixo fica como histórico.
+
 | Ação | Engenheiro (os dois) | Cliente (v1.1) |
 |---|---|---|
 | Ver obras | todas | só a dele |

@@ -3,7 +3,7 @@
 // O estoque (sub-aba Estoque) recebe o lote que chega no almoxarifado e dá baixa no que é entregue.
 // Tudo otimista: o cartão (ou o saldo) muda na hora e volta ao que era se o banco recusar.
 import { useState } from 'react'
-import { listarQuadroMateriais, salvarPedido, moverPedido, apagarPedido, registrarBaixa, desfazerBaixa, salvarMinimo } from '../lib/dados.js'
+import { listarQuadroMateriais, salvarPedido, moverPedido, apagarPedido, registrarBaixa, desfazerBaixa, salvarMinimo, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import {
   proximoStatus, statusAnterior, diasNaColuna, leadTime, estaAtrasado, recebidoComProblema, foiRecebido, contadores, montarQuadro,
@@ -162,6 +162,7 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
           <label className="label" htmlFor="mv-avarias">Avarias (opcional)</label>
           <textarea id="mv-avarias" className="field" style={{ minHeight: 76 }} placeholder="Ex.: 3 sacos rasgados"
             value={form.avarias} onChange={(e) => setForm({ ...form, avarias: e.target.value })} />
+          {posso('pedidos.ver_nota_fiscal') && <>
           <div className="label">Foto da nota fiscal (opcional)</div>
           <div className="photo-row">
             <label className="btn btn-ghost" style={{ cursor: 'pointer' }}>
@@ -179,6 +180,7 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
             </div>
           )}
           <ErroCampo erro={erroFoto} />
+          </>}
           {(form.qtd_bate_nf === false || form.estado_ok === false) && <div className="banner warn">O pedido vai ficar marcado com alerta de recebimento.</div>}
         </>
       )}

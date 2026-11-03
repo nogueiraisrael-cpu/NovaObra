@@ -2,7 +2,7 @@
 // histórico de um insumo. O saldo vem calculado das movimentações (src/lib/estoque.js);
 // quem grava é a tela de Materiais, que junta pedidos e estoque.
 import { useState } from 'react'
-import { obterHistoricoInsumo } from '../lib/dados.js'
+import { obterHistoricoInsumo, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { filtrarEstoque, validarBaixa, lerMinimo, validarMinimo, podeDesfazer } from '../lib/estoque.js'
 import { filtrarQuantidade, formatarQuantidade, quantidadeComUnidade } from '../lib/materiais.js'
@@ -143,7 +143,7 @@ export function HistoricoInsumo({ linha, fechar, salvarMinimo, desfazerBaixa }) 
                   <span>
                     {formatarData(m.data)} · {m.tipo}{m.origem === 'Pedido' ? ' do pedido' : ' manual'}
                     {m.frente && <span className="t-muted"> · {m.frente}</span>}
-                    {podeDesfazer(m) && confirmar !== m.id && (
+                    {podeDesfazer(m) && posso('estoque.apagar_movimento') && confirmar !== m.id && (
                       <button className="link-insumo" style={{ marginLeft: 8 }} onClick={() => setConfirmar(m.id)}>Desfazer</button>
                     )}
                   </span>

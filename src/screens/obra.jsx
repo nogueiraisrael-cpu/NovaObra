@@ -1,5 +1,6 @@
 // Dentro da obra escolhida: abas Hoje · Diários · Fotos · Comentários · Pranchas · Medições · Materiais · Planejamento.
 import { useObra } from '../lib/ObraContext.jsx'
+import { podeAbrir } from '../lib/permissoes.js'
 import { hojeISO, formatarDataLonga } from '../lib/datas.js'
 import { Cabecalho, Vazio } from '../components/index.jsx'
 import RdoHoje from './rdoHoje.jsx'
@@ -13,9 +14,11 @@ import Planejamento from './planejamento.jsx'
 
 const ABAS = ['Hoje', 'Diários', 'Fotos', 'Comentários', 'Pranchas', 'Medições', 'Materiais', 'Planejamento']
 
-export default function Obra({ goto, params }) {
+export default function Obra({ goto, params, perfil }) {
   const { obra } = useObra()
-  const aba = params.aba ?? 'Hoje'
+  // Só as abas que o perfil pode ver (o gerente não tem Medições). Aba sem permissão volta para Hoje.
+  const abas = ABAS.filter((a) => podeAbrir(a, perfil))
+  const aba = abas.includes(params.aba) ? params.aba : abas[0]
   const irPara = (novos) => goto('obra', { ...params, ...novos })
 
   let corpo
@@ -40,7 +43,7 @@ export default function Obra({ goto, params }) {
         eyebrow={formatarDataLonga(hojeISO())} titulo={obra.nome}
         sub={`${obra.codigo} · ${obra.tipo} · ${obra.cidade}${obra.situacao !== 'Em andamento' ? ` · ${obra.situacao}` : ''}`} />
       <div className="obra-tabs" role="tablist">
-        {ABAS.map((a) => (
+        {abas.map((a) => (
           <button key={a} role="tab" aria-selected={aba === a} className={aba === a ? 'on' : ''} onClick={() => goto('obra', { aba: a })}>{a}</button>
         ))}
       </div>

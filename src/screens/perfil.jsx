@@ -1,18 +1,60 @@
-// Perfil e Usuários. Usuários não depende de obra: é quem entra no sistema.
+// Perfil e Usuários. Usuários não depende de obra: é quem entra no sistema, e só o admin vê.
 import { useState } from 'react'
-import { listarUsuarios, salvarUsuario } from '../lib/dados.js'
+import { NOME_PERFIL } from '../lib/listas.js'
+import { listarUsuarios, salvarUsuario, listarObrasDoUsuario, salvarObrasDoUsuario, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { Cabecalho, Carregando, ErroCarga, Gaveta, Pill, useToast } from '../components/index.jsx'
 
-const COR_ROLE = { Pendente: 'warn', Engenheiro: 'info', Cliente: 'idle' }
+const COR_SITUACAO = { pendente: 'warn', ativo: 'info', bloqueado: 'idle' }
+const rotulo = (u) => (u.status === 'pendente' ? 'Pendente' : u.status === 'bloqueado' ? 'Bloqueado' : NOME_PERFIL[u.role])
+
+// O gerente vê só as obras liberadas para ele. O Engenheiro (admin) vê todas e não tem lista.
+function ObrasLiberadas({ obras, marcadas, mudar }) {
+  if (obras.carregando) return <Carregando />
+  if (obras.erro) return <ErroCarga erro={obras.erro} tentar={obras.recarregar} />
+  if (!obras.data.length) return <div className="hint">Nenhuma obra cadastrada.</div>
+  return (
+    <div className="lines">
+      {obras.data.map((o) => (
+        <label key={o.id} className="toggle-row">
+          <span>{o.nome} <span className="t-muted">· {o.codigo}</span></span>
+          <input type="checkbox" checked={marcadas.has(o.id)} onChange={() => mudar(o.id)} style={{ width: 22, height: 22 }} />
+        </label>
+      ))}
+    </div>
+  )
+}
 
 function EditarUsuario({ u, fechar, salvo }) {
   const [role, setRole] = useState(u.role)
-  const [ativo, setAtivo] = useState(u.ativo)
+  const [status, setStatus] = useState(u.status)
+  const [erro, setErro] = useState(null)
+  const [salvando, setSalvando] = useState(false)
+  const obras = useDados(() => listarObrasDoUsuario(u.id), [u.id])
+  const [marcadas, setMarcadas] = useState(null)
+  const atuais = marcadas ?? new Set((obras.data ?? []).filter((o) => o.liberada).map((o) => o.id))
+
+  function mudarObra(id) {
+    const novo = new Set(atuais)
+    if (novo.has(id)) novo.delete(id)
+    else novo.add(id)
+    setMarcadas(novo)
+  }
+
   async function salvar() {
-    await salvarUsuario({ id: u.id, role, ativo })
+    if (salvando) return
+    setSalvando(true)
+    setErro(null)
+    const r = await salvarUsuario({ id: u.id, role, status })
+    if (!r.erro && role === 'gerente' && marcadas) {
+      const o = await salvarObrasDoUsuario(u.id, [...marcadas])
+      if (o.erro) r.erro = `Perfil salvo, mas as obras não: ${o.erro}`
+    }
+    setSalvando(false)
+    if (r.erro) return setErro(r.erro)
     salvo()
   }
+
   return (
     <>
       <div className="eyebrow">Usuário</div>
@@ -20,31 +62,39 @@ function EditarUsuario({ u, fechar, salvo }) {
       <div className="sub">{u.email}</div>
       <div className="label">Perfil</div>
       <div className="seg three">
-        <button className={role === 'Engenheiro' ? 'info' : ''} onClick={() => setRole('Engenheiro')}>Engenheiro</button>
+        <button className={role === 'admin_master' ? 'info' : ''} onClick={() => setRole('admin_master')}>Engenheiro</button>
+        <button className={role === 'gerente' ? 'info' : ''} onClick={() => setRole('gerente')}>Gerente</button>
         <button disabled title="Chega na v1.1">Cliente (v1.1)</button>
-        <button className={role === 'Pendente' ? 'warn' : ''} onClick={() => setRole('Pendente')}>Pendente</button>
       </div>
-      <div className="toggle-row" style={{ marginTop: 16 }}>
-        Ativo
-        <button className={`switch${ativo ? ' on' : ''}`} role="switch" aria-checked={ativo} aria-label="Ativo" onClick={() => setAtivo(!ativo)} />
+      {role === 'admin_master' && <div className="hint">O Engenheiro vê e faz tudo em todas as obras, inclusive Medições e Usuários.</div>}
+      {role === 'gerente' && (
+        <>
+          <div className="hint">O Gerente toca só as obras marcadas abaixo, sem Medições, sem a foto da nota fiscal e sem Usuários.</div>
+          <div className="label">Obras liberadas</div>
+          <ObrasLiberadas obras={obras} marcadas={atuais} mudar={mudarObra} />
+        </>
+      )}
+      <div className="label">Situação</div>
+      <div className="seg three">
+        <button className={status === 'pendente' ? 'warn' : ''} onClick={() => setStatus('pendente')}>Pendente</button>
+        <button className={status === 'ativo' ? 'info' : ''} onClick={() => setStatus('ativo')}>Ativo</button>
+        <button className={status === 'bloqueado' ? 'warn' : ''} onClick={() => setStatus('bloqueado')}>Bloqueado</button>
       </div>
+      {erro && <div className="err">{erro}</div>}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={salvar}>Salvar</button>
+        <button className="btn btn-primary" disabled={salvando} onClick={salvar}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </>
   )
 }
 
-export default function Perfil({ perfil, aoSair }) {
+function Usuarios({ perfil }) {
   const toast = useToast()
   const usuarios = useDados(listarUsuarios)
   const [editando, setEditando] = useState(null)
-
   return (
     <>
-      <Cabecalho eyebrow="Meu perfil" titulo={perfil.nome} sub={perfil.email}
-        acao={<button className="btn btn-ghost" onClick={aoSair}>Sair</button>} />
       <div className="sec"><h2>Usuários</h2></div>
       {usuarios.carregando && <Carregando />}
       {usuarios.erro && <ErroCarga erro={usuarios.erro} tentar={usuarios.recarregar} />}
@@ -54,7 +104,7 @@ export default function Perfil({ perfil, aoSair }) {
             <button key={u.id} className="item" onClick={() => u.id !== perfil.id && setEditando(u)} disabled={u.id === perfil.id}>
               <div className="item-top">
                 <div><h3>{u.nome}{u.id === perfil.id ? ' (você)' : ''}</h3><div className="meta">{u.email}</div></div>
-                <Pill cor={COR_ROLE[u.role]}>{u.ativo ? u.role : 'Inativo'}</Pill>
+                <Pill cor={COR_SITUACAO[u.status]}>{rotulo(u)}</Pill>
               </div>
             </button>
           ))}
@@ -63,6 +113,16 @@ export default function Perfil({ perfil, aoSair }) {
       <Gaveta aberta={Boolean(editando)} fechar={() => setEditando(null)} rotulo="Editar usuário">
         {editando && <EditarUsuario u={editando} fechar={() => setEditando(null)} salvo={() => { setEditando(null); toast('Usuário atualizado'); usuarios.recarregar() }} />}
       </Gaveta>
+    </>
+  )
+}
+
+export default function Perfil({ perfil, aoSair }) {
+  return (
+    <>
+      <Cabecalho eyebrow={`Meu perfil · ${NOME_PERFIL[perfil.role]}`} titulo={perfil.nome} sub={perfil.email}
+        acao={<button className="btn btn-ghost" onClick={aoSair}>Sair</button>} />
+      {posso('usuarios.ver') && <Usuarios perfil={perfil} />}
     </>
   )
 }

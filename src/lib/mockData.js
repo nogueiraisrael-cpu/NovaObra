@@ -27,10 +27,10 @@ export function criarMock(hoje = hojeISO()) {
   const d = (n) => somarDias(hoje, n)
 
   const profiles = [
-    { id: P.israel, nome: 'Eng. Israel', email: 'eng@novaobra.test', role: 'Engenheiro', ativo: true },
-    { id: P.ricardo, nome: 'Eng. Ricardo', email: 'ricardo@novaobra.test', role: 'Engenheiro', ativo: true },
-    { id: P.fulano, nome: 'Fulano Silva', email: 'fulano@novaobra.test', role: 'Pendente', ativo: true },
-    { id: P.helena, nome: 'Dra. Helena Duarte', email: 'helena@novaobra.test', role: 'Cliente', ativo: true },
+    { id: P.israel, nome: 'Eng. Israel', email: 'eng@novaobra.test', role: 'admin_master', status: 'ativo' },
+    { id: P.ricardo, nome: 'Eng. Ricardo', email: 'ricardo@novaobra.test', role: 'admin_master', status: 'ativo' },
+    { id: P.fulano, nome: 'Fulano Silva', email: 'fulano@novaobra.test', role: null, status: 'pendente' },
+    { id: P.helena, nome: 'Dra. Helena Duarte', email: 'helena@novaobra.test', role: 'cliente', status: 'ativo' },
   ]
 
   const obras = [
@@ -53,7 +53,7 @@ export function criarMock(hoje = hojeISO()) {
   ]
 
   const membros = [
-    { id: 'm1', obra_id: 'obra-serra', profile_id: P.helena, papel: 'Cliente' },
+    { id: 'm1', obra_id: 'obra-serra', profile_id: P.helena },
   ]
 
   const f = (id, nome, funcao, obra_id) => ({ id, nome, funcao, obra_id, ativo: true })

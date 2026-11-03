@@ -2,7 +2,7 @@
 // semanas ou dos meses, com o avanço real contra o previsto (o que devia estar pronto até ontem).
 // No computador, barras (CSS puro); no celular, uma lista. O avanço se lança tocando na linha.
 import { useState } from 'react'
-import { salvarProgresso, salvarCalendario } from '../lib/dados.js'
+import { salvarProgresso, salvarCalendario, posso } from '../lib/dados.js'
 import {
   montarEap, andamento, escalaDoCronograma, posicaoNaEscala, posicaoDeHoje, diasUteis, previstoAte,
   filtrarInteiro, lerProgresso, validarCalendario, descreverCalendario, NOMES_DIAS, segundaDaSemana,
@@ -160,9 +160,10 @@ export default function LongoPrazo({ lista, calendario, gravar, ocupado, irParaE
     </>
   )
 
-  const linkCalendario = (
-    <button className="link" disabled={ocupado} onClick={() => setGaveta({ tipo: 'calendario' })}>Calendário: {descreverCalendario(calendario)}</button>
-  )
+  // O calendário é dado da obra: só quem edita a obra muda (quadro, obra.editar).
+  const linkCalendario = posso('obra.editar')
+    ? <button className="link" disabled={ocupado} onClick={() => setGaveta({ tipo: 'calendario' })}>Calendário: {descreverCalendario(calendario)}</button>
+    : <span className="t-muted">Calendário: {descreverCalendario(calendario)}</span>
 
   if (!eap.length) {
     return (

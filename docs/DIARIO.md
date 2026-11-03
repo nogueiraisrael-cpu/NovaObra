@@ -128,3 +128,16 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 02/11/2026 · Painel do empreiteiro · Drywall e Gesso com previsto, executado, pago e %; 33 medições reais do topógrafo com barras e tabela por medição.
 - 02/11/2026 · Painel do empreiteiro · "Todos os empreiteiros" soma tudo, as barras levam o nome e a escolha por nº fica para um empreiteiro só.
 - 02/11/2026 · Painel · no celular, cartões com medido, saldo e %; tocar mostra o resto; nada passa da largura.
+
+## Rodada 8 · Login e perfis — conferida pelo Claude (registro do Supabase e modo de teste do app)
+
+- 03/11/2026 · Login · a primeira conta (Israel) nasceu Engenheiro administrador, ativa, com e-mail confirmado (banco e registro do Supabase).
+- 03/11/2026 · Login · F5 e reiniciar o app não deslogam: a sessão volta sozinha.
+- 03/11/2026 · Login · sair e entrar de novo com a senha certa (registro: logout 204, token 200).
+- 03/11/2026 · Login · esqueci minha senha: o link abre e a senha nova grava (registro: recover 200, verify 303, user 200).
+- 03/11/2026 · Login · conta nova fica em "Aguardando aprovação do administrador" (modo de teste).
+- 03/11/2026 · Perfis · liberar sem perfil é recusado com "Escolha o perfil antes de liberar." (modo de teste).
+- 03/11/2026 · Perfis · Gerente liberado só na UBS: seletor, comparativo e Efetivo só com a UBS; sem Medições, sem Usuários, sem "+ Nova obra" e "Editar obra" (modo de teste).
+- 03/11/2026 · Perfis · Gerente não vê a foto da nota fiscal nem o "Desfazer" do estoque; o Engenheiro vê os dois (modo de teste).
+- 03/11/2026 · Perfis · Gerente sem obra liberada vê "Nenhuma obra liberada para você" (texto do seletor corrigido na rodada).
+- 03/11/2026 · Perfis · conta bloqueada recebe "Conta bloqueada. Contate o administrador." (modo de teste).

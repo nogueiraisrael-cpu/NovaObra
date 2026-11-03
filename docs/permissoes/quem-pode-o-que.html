@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quem pode o quê · Nova Obra</title>
+<style>
+  :root {
+    --bg: #f2f4f5; --card: #ffffff; --ink: #1d262b; --muted: #5b6970; --line: #d5dbde;
+    --accent: #00838f; --accent-soft: #e0f4f6; --warn: #b5470b; --warn-soft: #fdeee4; --ok: #1f7a3a; --ok-soft: #e3f4e8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a2328; --card: #26333a; --ink: #f2f4f5; --muted: #a8b4ba; --line: #3d4d55;
+      --accent: #00a3b4; --accent-soft: #123c42; --warn: #ff9a5c; --warn-soft: #4a2a17; --ok: #5fd07f; --ok-soft: #1c3d26;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px 16px 120px; }
+  h1 { font-size: 24px; margin: 8px 0 4px; }
+  h2 { font-size: 19px; margin: 32px 0 8px; }
+  h3 { font-size: 16px; margin: 0; padding: 12px 14px; background: var(--accent-soft); border-bottom: 1px solid var(--line); }
+  p.nota { color: var(--muted); margin: 4px 0 12px; }
+  .caixa { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 12px 0; }
+  .legenda { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 14px; }
+  .legenda b { font-family: ui-monospace, monospace; }
+  .grupo { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin: 14px 0; overflow: hidden; }
+  .cab, .linha { display: grid; grid-template-columns: 1fr 130px 130px 130px 88px; gap: 8px; align-items: center; padding: 10px 14px; }
+  .cab { font-size: 13px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .linha { border-bottom: 1px solid var(--line); }
+  .linha:last-child { border-bottom: 0; }
+  .linha.confirmada { background: var(--ok-soft); }
+  .acao { font-size: 15px; }
+  .acao small { display: block; color: var(--muted); font-size: 13px; }
+  .cel { display: flex; flex-direction: column; gap: 2px; }
+  .cel .rot { display: none; font-size: 12px; color: var(--muted); }
+  .cel .tranca { font-size: 12px; color: var(--warn); font-weight: 600; }
+  select { width: 100%; font: inherit; font-size: 15px; padding: 8px 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); min-height: 40px; }
+  select.mudou { border: 2px solid var(--warn); background: var(--warn-soft); font-weight: 600; }
+  .era { font-size: 12px; color: var(--warn); }
+  label.conf { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+  label.conf input { width: 22px; height: 22px; }
+  .obs { grid-column: 1 / -1; }
+  .obs input { width: 100%; font: inherit; font-size: 14px; padding: 6px 8px; border-radius: 8px; border: 1px dashed var(--line); background: transparent; color: var(--ink); }
+  .perg { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 10px 0; }
+  .perg .q { font-weight: 600; }
+  .perg .sua { color: var(--warn); font-weight: 700; font-size: 13px; }
+  .perg .rec { margin: 6px 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 4px; font-size: 15px; }
+  .perg textarea { width: 100%; min-height: 56px; font: inherit; font-size: 15px; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .perg .conf { margin: 6px 0; }
+  .barra { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 16px; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .barra .prog { font-size: 14px; color: var(--muted); }
+  button { font: inherit; font-weight: 600; border-radius: 10px; padding: 10px 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; min-height: 44px; }
+  button.prim { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #saida { width: 100%; min-height: 200px; font: 13px/1.4 ui-monospace, monospace; display: none; margin-top: 12px; }
+  table.perfis { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.perfis td, table.perfis th { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: left; vertical-align: top; }
+  @media (max-width: 720px) {
+    .cab { display: none; }
+    .linha { grid-template-columns: 1fr 1fr 1fr; }
+    .acao { grid-column: 1 / -1; }
+    .cel .rot { display: block; }
+    label.conf { grid-column: 1 / -1; }
+    .perfis-wrap { overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Quem pode o quê · Nova Obra</h1>
+  <p class="nota">Proposta de 02/11/2026. Confira linha por linha. Mude a célula que estiver errada (ela fica laranja), marque <b>confirmado</b> quando a linha estiver certa, responda as perguntas e, no fim, toque em <b>Copiar o resultado</b> e cole no chat. O que você marca fica guardado neste navegador.</p>
+
+  <div class="caixa">
+    <b>Os valores de uma célula</b>
+    <div class="legenda" style="margin-top:6px">
+      <b>pode</b><span>pode, em toda linha das obras dele</span>
+      <b>só os dele</b><span>só no que ele mesmo criou</span>
+      <b>só da equipe dele</b><span>só no que é das pessoas abaixo dele</span>
+      <b>só ver</b><span>lê, não mexe</span>
+      <b>·</b><span>não pode, e não vê o botão</span>
+      <b>ninguém</b><span>nem o administrador: o banco escreve sozinho</span>
+    </div>
+    <p class="nota" style="margin-top:8px">🔒 = só você decide (dinheiro, dado de terceiro ou perfil sem ninguém). Essas células vieram <b>fechadas</b> até a sua resposta.</p>
+  </div>
+
+  <h2>Os perfis</h2>
+  <div class="caixa perfis-wrap">
+    <table class="perfis">
+      <tr><th>Perfil</th><th>Quem é</th><th>Hoje</th><th>Vê quais obras</th></tr>
+      <tr><td><b>admin_master</b><br><small>na tela: Engenheiro</small></td><td>você e o Ricardo</td><td>2</td><td>todas (os dois tocam as 10)</td></tr>
+      <tr><td><b>gerente</b> 🔒</td><td>engenheiro contratado que toca só algumas obras</td><td>0</td><td>só as liberadas</td></tr>
+      <tr><td><b>cliente</b></td><td>dono da casa de alto padrão (v1.1)</td><td>0</td><td>só a dele</td></tr>
+    </table>
+    <p class="nota">Situações, para qualquer perfil: <b>pendente</b> (não vê nada), <b>ativo</b>, <b>bloqueado</b> (perde o acesso; o que lançou continua com o nome dele). O <b>usuario</b> do curso ficou de fora: o seu plano tirou o Mestre.</p>
+  </div>
+
+  <h2>O quadro</h2>
+  <div id="quadro"></div>
+
+  <h2>As perguntas</h2>
+  <p class="nota">Marque "concordo" se a recomendação serve. Se não, escreva a sua resposta.</p>
+  <div id="perguntas"></div>
+
+  <textarea id="saida" readonly></textarea>
+</main>
+
+<div class="barra">
+  <span class="prog" id="prog"></span>
+  <button type="button" id="limpar">Recomeçar</button>
+  <button type="button" class="prim" id="copiar">Copiar o resultado</button>
+</div>
+
+<script>
+const PERFIS = [['admin', 'admin_master'], ['ger', 'gerente'], ['cli', 'cliente']]
+const VALORES = ['pode', 'só os dele', 'só da equipe dele', 'só ver', '·', 'ninguém']
+
+// [ação, admin, gerente, cliente, células 🔒 (ex.: 'g' = gerente)]
+const QUADRO = [
+  ['Obra', [
+    ['Ver · admin todas, os outros só as liberadas', 'pode', 'pode', 'pode'],
+    ['Ver o comparativo (tela Obras e Efetivo geral) · só das obras dele', 'pode', 'pode', '·'],
+    ['Criar · abrir obra nova', 'pode', '·', '·'],
+    ['Editar · dados e calendário (dias de trabalho, feriados)', 'pode', '·', '·'],
+    ['Apagar · só obra sem nada lançado', 'pode', '·', '·'],
+    ['Encerrar · marcar Concluída', 'pode', 'pode', '·'],
+  ]],
+  ['Usuários (contas)', [
+    ['Ver a lista', 'pode', '·', '·'],
+    ['Liberar conta, escolher perfil e obras', 'pode', '·', '·'],
+    ['Bloquear', 'pode', '·', '·'],
+    ['Editar o próprio nome', 'pode', 'pode', 'pode'],
+    ['Apagar conta · bloqueia, nunca apaga', '·', '·', '·'],
+  ]],
+  ['Funcionários (Pessoas)', [
+    ['Ver nome e função', 'pode', 'pode', '·'],
+    ['Criar', 'pode', 'pode', '·'],
+    ['Editar · inclusive mudar a obra de lotação', 'pode', 'pode', '·'],
+    ['Desativar', 'pode', 'pode', '·'],
+    ['Apagar · só sem nenhum diário', 'pode', '·', '·'],
+  ]],
+  ['Equipamentos', [
+    ['Ver', 'pode', 'pode', '·'],
+    ['Criar', 'pode', 'pode', '·'],
+    ['Editar e mover (obra, conserto, depósito)', 'pode', 'pode', '·'],
+    ['Apagar · só sem nenhum diário', 'pode', '·', '·'],
+  ]],
+  ['Diário (RDO)', [
+    ['Ver', 'pode', 'pode', '·'],
+    ['Criar · um por obra por dia', 'pode', 'pode', '·'],
+    ['Editar · inclusive o dia fechado', 'pode', 'pode', '·'],
+    ['Apagar · só o dia não fechado', 'pode', '·', '·'],
+    ['Fechar o dia', 'pode', 'pode', '·'],
+    ['Trazer funcionário de outra obra · o gerente só das obras dele', 'pode', 'pode', '·'],
+  ]],
+  ['Frentes de serviço', [
+    ['Ver nome, etapa e situação', 'pode', 'pode', 'pode'],
+    ['Ver o motivo da parada e há quantos dias', 'pode', 'pode', '·', 'c'],
+    ['Criar', 'pode', 'pode', '·'],
+    ['Editar', 'pode', 'pode', '·'],
+    ['Apagar · só sem nada lançado', 'pode', '·', '·'],
+  ]],
+  ['Fotos', [
+    ['Ver · o cliente só as "Visível ao cliente"', 'pode', 'pode', 'pode'],
+    ['Criar', 'pode', 'pode', '·'],
+    ['Editar legenda e "Visível ao cliente"', 'pode', 'pode', '·'],
+    ['Apagar', 'pode', 'pode', '·'],
+  ]],
+  ['Presença do mês', [
+    ['Ver faltas e atestados · o gerente só os dias nas obras dele', 'pode', 'pode', '·', 'g'],
+    ['Imprimir', 'pode', 'pode', '·', 'g'],
+  ]],
+  ['Ocorrências (v1.1)', [
+    ['Ver', 'pode', 'pode', '·'],
+    ['Criar', 'pode', 'pode', '·'],
+    ['Editar', 'pode', 'pode', '·'],
+    ['Apagar', 'pode', '·', '·'],
+    ['Resolver · exige escrever o que foi feito', 'pode', 'pode', '·'],
+  ]],
+  ['Comentários', [
+    ['Interno: ver e escrever', 'pode', 'pode', '·'],
+    ['Com o cliente: ver · o cliente só na obra dele', 'pode', 'pode', 'pode'],
+    ['Com o cliente: escrever', 'pode', 'pode', '·'],
+    ['Editar mensagem · apaga e escreve de novo', '·', '·', '·'],
+    ['Apagar mensagem', 'só os dele', 'só os dele', '·'],
+    ['Marcar como lido', 'só os dele', 'só os dele', 'só os dele'],
+  ]],
+  ['Pranchas (v1.2)', [
+    ['Ver com o que foi executado', 'pode', 'pode', 'pode'],
+    ['Anexar PDF e desenhar', 'pode', 'pode', '·'],
+    ['Editar o desenho', 'pode', 'pode', '·'],
+    ['Apagar prancha', 'pode', '·', '·'],
+    ['Pintar executado e desfazer', 'pode', 'pode', '·'],
+  ]],
+  ['Medições (dinheiro)', [
+    ['Ver o painel e os valores', 'pode', '·', '·', 'g'],
+    ['Subir medição', 'pode', '·', '·', 'g'],
+    ['Trocar a planilha', 'pode', '·', '·', 'g'],
+    ['Baixar a planilha original · a de empreiteiro tem dado bancário', 'pode', '·', '·', 'g'],
+    ['Apagar medição', 'pode', '·', '·'],
+  ]],
+  ['Materiais: catálogo (o mesmo para todas as obras)', [
+    ['Ver', 'pode', 'pode', '·'],
+    ['Criar', 'pode', 'pode', '·'],
+    ['Editar · muda em todas as obras', 'pode', '·', '·'],
+    ['Apagar · só sem pedido; senão, desativar', 'pode', '·', '·'],
+  ]],
+  ['Materiais: pedidos', [
+    ['Ver', 'pode', 'pode', '·'],
+    ['Criar (solicitar)', 'pode', 'pode', '·'],
+    ['Editar e mover de coluna', 'pode', 'pode', '·'],
+    ['Apagar · só em "Solicitar"', 'pode', 'pode', '·'],
+    ['Ver a foto da nota fiscal · mostra preço', 'pode', '·', '·', 'g'],
+  ]],
+  ['Estoque', [
+    ['Ver saldo', 'pode', 'pode', '·'],
+    ['Cadastrar insumo e mínimo', 'pode', 'pode', '·'],
+    ['Baixa manual · o banco recusa saldo negativo', 'pode', 'pode', '·'],
+    ['Apagar movimento · só baixa manual', 'pode', '·', '·'],
+  ]],
+  ['Planejamento (EAP, Longo, Médio e Curto prazo)', [
+    ['Ver · inclusive o PPC', 'pode', 'pode', '·'],
+    ['Criar atividade e restrição', 'pode', 'pode', '·'],
+    ['Editar datas, ordem e avanço; resolver restrição', 'pode', 'pode', '·'],
+    ['Mover no kanban; marcar "não realizada"', 'pode', 'pode', '·'],
+    ['Arquivar atividade · não se apaga', 'pode', 'pode', '·'],
+    ['Importar e exportar planilha', 'pode', 'pode', '·'],
+  ]],
+  ['Histórico de mudanças (não existe hoje)', [
+    ['Ver', 'pode', '·', '·'],
+    ['Criar, editar, apagar', 'ninguém', 'ninguém', 'ninguém'],
+  ]],
+]
+
+// [tema, pergunta, recomendação, só você decide?]
+const PERGUNTAS = [
+  ['Perfis', 'O perfil gerente fica no quadro (vazio até alguém ser contratado)?', 'Fica. Não custa nada até alguém ser criado nele e é a contratação mais provável. O usuario continua de fora.', true],
+  ['Perfis', '"Pendente" deixa de ser perfil e vira situação (pendente, ativo, bloqueado), igual para todos?', 'Sim. Assim "bloqueado" (saiu da equipe) existe sem apagar o nome de ninguém do que lançou.', false],
+  ['Dinheiro', 'Medições: o gerente vê?', 'Não, até você precisar. Hoje só os dois engenheiros (admin_master).', true],
+  ['Dinheiro', 'A foto da nota fiscal do pedido (mostra preço): o gerente vê?', 'Não, até você decidir. O resto do pedido (quantidade, coluna, fornecedor) ele vê.', true],
+  ['Dado de terceiro', 'Faltas e atestados (Presença do mês): o gerente vê? Atestado é dado de saúde do funcionário.', 'Sim, só os dias nas obras dele: ele precisa saber quem faltou na obra que toca.', true],
+  ['Dado de terceiro', 'Existe rascunho que só o autor vê?', 'Não. O diário em andamento já é visível aos engenheiros, e é assim que vocês dois trabalham.', false],
+  ['Apagar', 'Apagar é apagar de vez ou desativar?', 'Apagar de vez só o que não tem nada ligado: o banco recusa e a tela diz o que está ligado. Nada sai em cascata. Exceção: apagar uma medição leva as linhas dela junto, como já é hoje.', false],
+  ['Apagar', 'O que outro módulo lê (obra, funcionário, equipamento, material do catálogo) pode sumir?', 'Não: desativa. Quem decide é o admin.', false],
+  ['Apagar', 'Fotos saem junto com o diário?', 'Não: apagar o diário fica travado enquanto ele tiver fotos. Apaga-se a foto primeiro.', false],
+  ['Fechar o dia', 'O dia fechado trava o quê?', 'Continua corrigível pelos engenheiros, como o plano diz. Trava só o apagar.', false],
+  ['Fechar o dia', 'Quem reabre o dia fechado?', 'Não precisa reabrir, porque corrigir já é permitido. O risco (correção sem rastro) se resolve com o histórico (pergunta do Histórico).', false],
+  ['Fechar o dia', 'O que nasce depois de fechado (ex.: uma frente nova)?', 'Entra normal: os diários seguintes são outros dias.', false],
+  ['Quem dá poder', 'Quem cria login, muda perfil, escolhe obras e bloqueia? O cadastro público fecha?', 'Só o admin. E, quando o painel de Usuários funcionar, o cadastro público fecha: quem cria o login é o admin (são 2 engenheiros e alguns clientes). Muda o plano, que previa cadastro aberto nascendo Pendente.', false],
+  ['Quem dá poder', '"Só os dele": a tabela guarda quem criou?', 'Hoje só diário, foto e pedido guardam. Comentários vão nascer com autor. Os dados de exemplo ficam sem dono real até o login.', false],
+  ['Obra', 'Quem vê todas as obras, e por quê?', 'Só o admin_master, porque os dois tocam as 10.', false],
+  ['Obra', 'Obra Concluída: fica só para leitura?', 'Sim, só leitura para todos, e o admin pode reabrir. Hoje ela só some da lista.', true],
+  ['Obra', 'Quem abre obra nova sem ninguém mexer no banco?', 'O admin, sozinho, pelo app. Já funciona assim.', false],
+  ['Histórico', 'Criar um histórico de mudanças (quem mudou o quê, quando), gravado pelo próprio banco?', 'Sim, ao menos para o diário fechado e as medições, no passo 10. Sem ele, o diário fechado pode ser mudado sem prova.', true],
+  ['Telas', 'Botão que a pessoa não pode usar aparece? O menu bate com o "Ver"?', 'Não aparece, e o menu segue o "Ver". A barreira de verdade é o banco, nunca só a tela.', false],
+  ['Do plano', 'O cliente vê a frente parada e o motivo?', 'Não vê (o chute do plano). Para ele, frente parada aparece como "Em execução".', true],
+]
+
+const CHAVE = 'novaobra.permissoes.v1'
+let estado = { cel: {}, conf: {}, obs: {}, resp: {}, conc: {} }
+try { const s = JSON.parse(localStorage.getItem(CHAVE)); if (s) estado = { ...estado, ...s } } catch { /* sem armazenamento: segue sem guardar */ }
+function guardar() { try { localStorage.setItem(CHAVE, JSON.stringify(estado)) } catch { /* idem */ } }
+
+const LETRA = { admin: 'a', ger: 'g', cli: 'c' }
+const el = (tag, attrs = {}, ...filhos) => {
+  const e = document.createElement(tag)
+  Object.entries(attrs).forEach(([k, v]) => { if (k.includes('-')) e.setAttribute(k, v); else e[k] = v })
+  filhos.forEach((f) => e.append(f))
+  return e
+}
+
+function montarQuadro() {
+  const raiz = document.getElementById('quadro')
+  QUADRO.forEach(([assunto, linhas], gi) => {
+    const g = el('div', { className: 'grupo' })
+    g.append(el('h3', { textContent: assunto }))
+    const cab = el('div', { className: 'cab' }, el('span', { textContent: 'Ação' }))
+    PERFIS.forEach(([, nome]) => cab.append(el('span', { textContent: nome })))
+    cab.append(el('span', { textContent: 'Confirmado' }))
+    g.append(cab)
+    linhas.forEach((l, li) => {
+      const id = `${gi}.${li}`
+      const [acao, , , , trancas = ''] = l
+      const [titulo, ...cond] = acao.split(' · ')
+      const linha = el('div', { className: 'linha' })
+      linha.append(el('div', { className: 'acao' }, titulo, cond.length ? el('small', { textContent: cond.join(' · ') }) : ''))
+      PERFIS.forEach(([k, nome], pi) => {
+        const rec = l[pi + 1]
+        const cel = el('div', { className: 'cel' })
+        cel.append(el('span', { className: 'rot', textContent: nome }))
+        const sel = el('select', { 'aria-label': `${assunto}, ${titulo}, ${nome}` })
+        VALORES.forEach((v) => sel.append(el('option', { value: v, textContent: v })))
+        sel.value = estado.cel[`${id}.${k}`] ?? rec
+        const era = el('span', { className: 'era' })
+        const pintar = () => { const m = sel.value !== rec; sel.classList.toggle('mudou', m); era.textContent = m ? `proposta: ${rec}` : '' }
+        sel.addEventListener('change', () => {
+          if (sel.value === rec) delete estado.cel[`${id}.${k}`]; else estado.cel[`${id}.${k}`] = sel.value
+          pintar(); guardar(); progresso()
+        })
+        pintar()
+        cel.append(sel)
+        if (trancas.includes(LETRA[k])) cel.append(el('span', { className: 'tranca', textContent: '🔒 você decide' }))
+        cel.append(era)
+        linha.append(cel)
+      })
+      const chk = el('input', { type: 'checkbox', checked: !!estado.conf[id] })
+      const pintarConf = () => linha.classList.toggle('confirmada', chk.checked)
+      chk.addEventListener('change', () => { if (chk.checked) estado.conf[id] = true; else delete estado.conf[id]; pintarConf(); guardar(); progresso() })
+      pintarConf()
+      linha.append(el('label', { className: 'conf' }, chk, 'confirmado'))
+      const obs = el('input', { type: 'text', placeholder: 'Observação (opcional)', value: estado.obs[id] ?? '' })
+      obs.addEventListener('input', () => { if (obs.value.trim()) estado.obs[id] = obs.value; else delete estado.obs[id]; guardar() })
+      linha.append(el('div', { className: 'obs' }, obs))
+      g.append(linha)
+    })
+    raiz.append(g)
+  })
+}
+
+function montarPerguntas() {
+  const raiz = document.getElementById('perguntas')
+  PERGUNTAS.forEach(([tema, q, rec, sua], i) => {
+    const p = el('div', { className: 'perg' })
+    p.append(el('div', { className: 'q', textContent: `${i + 1}. [${tema}] ${q}` }))
+    if (sua) p.append(el('div', { className: 'sua', textContent: '🔒 só você decide' }))
+    p.append(el('div', { className: 'rec', textContent: `Recomendação: ${rec}` }))
+    const chk = el('input', { type: 'checkbox', checked: !!estado.conc[i] })
+    chk.addEventListener('change', () => { if (chk.checked) estado.conc[i] = true; else delete estado.conc[i]; guardar(); progresso() })
+    p.append(el('label', { className: 'conf' }, chk, 'concordo com a recomendação'))
+    const t = el('textarea', { placeholder: 'Sua resposta (se for diferente)', value: estado.resp[i] ?? '' })
+    t.addEventListener('input', () => { if (t.value.trim()) estado.resp[i] = t.value; else delete estado.resp[i]; guardar(); progresso() })
+    p.append(t)
+    raiz.append(p)
+  })
+}
+
+function progresso() {
+  const total = QUADRO.reduce((n, [, l]) => n + l.length, 0)
+  const conf = Object.keys(estado.conf).length
+  const resp = PERGUNTAS.filter((_, i) => estado.conc[i] || estado.resp[i]).length
+  const mud = Object.keys(estado.cel).length
+  document.getElementById('prog').textContent = `${conf}/${total} linhas confirmadas · ${resp}/${PERGUNTAS.length} perguntas · ${mud} mudança(s)`
+}
+
+function texto() {
+  const linhas = ['QUEM PODE O QUÊ · NOVA OBRA · resultado de ' + new Date().toLocaleDateString('pt-BR'), '']
+  linhas.push('QUADRO (admin_master | gerente | cliente)')
+  const mudancas = []
+  const naoConf = []
+  QUADRO.forEach(([assunto, ls], gi) => {
+    linhas.push('', '## ' + assunto)
+    ls.forEach((l, li) => {
+      const id = `${gi}.${li}`
+      const vals = PERFIS.map(([k], pi) => {
+        const v = estado.cel[`${id}.${k}`] ?? l[pi + 1]
+        if (v !== l[pi + 1]) mudancas.push(`${assunto} · ${l[0]} · ${PERFIS[pi][1]}: ${l[pi + 1]} → ${v}`)
+        return v
+      })
+      if (!estado.conf[id]) naoConf.push(`${assunto} · ${l[0]}`)
+      linhas.push(`- ${l[0]} | ${vals.join(' | ')}${estado.conf[id] ? ' [confirmado]' : ''}${estado.obs[id] ? ' — obs: ' + estado.obs[id] : ''}`)
+    })
+  })
+  linhas.push('', 'O QUE EU MUDEI')
+  linhas.push(...(mudancas.length ? mudancas.map((m) => '- ' + m) : ['- nada']))
+  linhas.push('', 'LINHAS NÃO CONFIRMADAS')
+  linhas.push(...(naoConf.length ? naoConf.map((m) => '- ' + m) : ['- nenhuma']))
+  linhas.push('', 'PERGUNTAS')
+  PERGUNTAS.forEach(([tema, q, rec], i) => {
+    const r = estado.resp[i]?.trim()
+    const status = r ? `MINHA RESPOSTA: ${r}${estado.conc[i] ? ' (marquei também "concordo")' : ''}` : estado.conc[i] ? 'concordo com a recomendação' : 'SEM RESPOSTA'
+    linhas.push(`${i + 1}. [${tema}] ${q}`, `   Recomendação: ${rec}`, `   → ${status}`)
+  })
+  return linhas.join('\n')
+}
+
+document.getElementById('copiar').addEventListener('click', async () => {
+  const t = texto()
+  const saida = document.getElementById('saida')
+  saida.value = t
+  const botao = document.getElementById('copiar')
+  try {
+    await navigator.clipboard.writeText(t)
+    botao.textContent = 'Copiado! Cole no chat'
+  } catch {
+    saida.style.display = 'block'; saida.focus(); saida.select()
+    let ok = false
+    try { ok = document.execCommand('copy') } catch { /* sem cópia automática */ }
+    botao.textContent = ok ? 'Copiado! Cole no chat' : 'Selecione o texto abaixo e copie'
+    if (!ok) saida.scrollIntoView({ behavior: 'smooth' })
+  }
+  setTimeout(() => { botao.textContent = 'Copiar o resultado' }, 4000)
+})
+
+document.getElementById('limpar').addEventListener('click', () => {
+  if (!confirm('Apagar todas as suas marcas e voltar à proposta?')) return
+  estado = { cel: {}, conf: {}, obs: {}, resp: {}, conc: {} }
+  guardar(); location.reload()
+})
+
+montarQuadro()
+montarPerguntas()
+progresso()
+</script>
+</body>
+</html>

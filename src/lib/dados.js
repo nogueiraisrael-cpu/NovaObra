@@ -9,8 +9,7 @@
 // atualizar, apagar). Quem atende é o Supabase (USAR_MOCK = false) ou o banco
 // em memória de bancoMemoria.js (USAR_MOCK = true, e sempre nos testes).
 //
-// O LOGIN ainda é de mentira (passo 10): as pessoas vêm do mockData, em memória,
-// nos dois modos.
+// O LOGIN é o Supabase Auth; no banco em memória, as pessoas vêm do mockData.
 import { supabase } from './supabase.js'
 import { criarMock } from './mockData.js'
 import { criarBancoMemoria } from './bancoMemoria.js'
@@ -32,6 +31,10 @@ import { validarRestricao, novoPrazo, podeMover } from './restricoes.js'
 import { validarCausa, REGISTRO_VAZIO, mudancaDeColuna, efeitoDoAvanco, camposDaSubtarefa } from './curtoPrazo.js'
 import { nomesDeEmpreiteiros, nomeDoEmpreiteiro, conferirParaGravar } from './medicoes.js'
 import { STATUS_SEMANA } from './listas.js'
+import {
+  validarEntrada, validarCadastro, validarEmail, validarSenha, mensagemDoLogin, mensagemDoPerfil, AVISO_BLOQUEADO,
+} from './login.js'
+import { pode, obrasVisiveis } from './permissoes.js'
 
 export const USAR_MOCK = false
 
@@ -116,8 +119,12 @@ const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR')
 
 // Erro do banco em frase de gente. A trava de duas obras e o "um RDO por dia" têm frase própria.
 function traduzirErro(e) {
-  if (!e.doBanco) return e.message
+  if (!e.doBanco) {
+    if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
+    return e.message
+  }
   if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
+  if (mensagemDoPerfil(e.message)) return mensagemDoPerfil(e.message)
   if (e.code === '23505' && /uma_presenca_por_dia/.test(e.message)) return 'Esse funcionário já está presente hoje em outra obra.'
   if (/saldo_negativo/.test(e.message)) return 'O estoque ficaria negativo: alguém mexeu neste insumo ao mesmo tempo. Confira o saldo e tente de novo.'
   if (e.code === '23505' && /medicoes_um_numero/.test(e.message)) return 'Já existe medição com esse número. Use outro número.'
@@ -171,31 +178,112 @@ async function nomesDasObras() {
 }
 
 // ---------------------------------------------------------------------------
-// Login (ainda de mentira, até o passo 10: qualquer senha serve; o e-mail escolhe a pessoa)
+// Login: Supabase Auth. Com o banco em memória (testes, USAR_MOCK) as pessoas vêm dos
+// dados de exemplo e qualquer senha serve.
 // ---------------------------------------------------------------------------
 
-export async function entrar(email, _senha) {
-  const p = perfis.find((x) => x.email.toLowerCase() === (email ?? '').trim().toLowerCase())
-  if (!p) return falha('E-mail ou senha incorretos.')
-  if (!p.ativo) return falha('Conta desativada. Fale com o engenheiro.')
-  usuario = p
-  return ok(copia(p))
+const authReal = () => banco === bancoSupabase
+// Para onde os links de e-mail (confirmar conta, nova senha) trazem a pessoa de volta.
+const enderecoDoApp = () => globalThis.location?.origin
+
+// Depois de entrar (ou ao reabrir o app): o próprio perfil decide a porta. Bloqueado não
+// fica com sessão aberta. Os nomes da equipe vêm junto (a regra do banco só entrega o que pode).
+async function abrirSessao(id) {
+  const meu = await um('profiles', { id })
+  if (!meu) {
+    await supabase.auth.signOut()
+    return falha('Conta sem perfil. Fale com o administrador.')
+  }
+  if (meu.status === 'bloqueado') {
+    await supabase.auth.signOut()
+    return falha(AVISO_BLOQUEADO)
+  }
+  usuario = meu
+  perfis = await ler('profiles')
+  return ok(copia(meu))
 }
 
-export async function criarConta({ nome, email, senha }) {
-  if (!nome?.trim() || !email?.trim() || !senha) return falha('Preencha nome, e-mail e senha.')
-  if (perfis.some((x) => x.email.toLowerCase() === email.trim().toLowerCase())) return falha('Já existe conta com este e-mail.')
-  const p = { id: crypto.randomUUID(), nome: nome.trim(), email: email.trim(), role: 'Pendente', ativo: true }
-  perfis.push(p)
-  usuario = p
-  return ok(copia(p))
+// Ao abrir o app: a sessão fica guardada no aparelho (F5 não desloga).
+export const sessaoAtual = () => executar(async () => {
+  if (!authReal()) return ok(usuario ? copia(usuario) : null)
+  const { data } = await supabase.auth.getSession()
+  if (!data.session) return ok(null)
+  return abrirSessao(data.session.user.id)
+})
+
+export const entrar = (email, senha) => executar(async () => {
+  if (!authReal()) {
+    const p = perfis.find((x) => x.email.toLowerCase() === (email ?? '').trim().toLowerCase())
+    if (!p) return falha('E-mail ou senha incorretos.')
+    if (p.status === 'bloqueado') return falha(AVISO_BLOQUEADO)
+    usuario = p
+    return ok(copia(p))
+  }
+  const invalido = validarEntrada({ email, senha })
+  if (invalido) return falha(invalido)
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha })
+  if (error) return falha(mensagemDoLogin(error))
+  return abrirSessao(data.user.id)
+})
+
+// Conta nova nasce pendente (o banco decide; o primeiro cadastro do app vira o admin).
+// Com a confirmação de e-mail ligada, volta { confirmar: true } e a pessoa entra pelo link.
+export const criarConta = ({ nome, email, senha }) => executar(async () => {
+  const invalido = validarCadastro({ nome, email, senha })
+  if (invalido) return falha(invalido)
+  if (!authReal()) {
+    if (perfis.some((x) => x.email.toLowerCase() === email.trim().toLowerCase())) return falha('Já existe conta com este e-mail.')
+    const p = { id: crypto.randomUUID(), nome: nome.trim(), email: email.trim(), role: null, status: 'pendente' }
+    perfis.push(p)
+    usuario = p
+    return ok(copia(p))
+  }
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim(), password: senha, options: { data: { nome: nome.trim() }, emailRedirectTo: enderecoDoApp() },
+  })
+  if (error) return falha(mensagemDoLogin(error))
+  if (!data.session) return ok({ confirmar: true })
+  return abrirSessao(data.user.id)
+})
+
+// Manda o link de nova senha. Responde igual exista ou não a conta (não revela quem tem login).
+export const esqueciSenha = (email) => executar(async () => {
+  const invalido = validarEmail(email)
+  if (invalido) return falha(invalido)
+  if (!authReal()) return ok(true)
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: enderecoDoApp() })
+  if (error) return falha(mensagemDoLogin(error))
+  return ok(true)
+})
+
+// Depois do link de nova senha, a pessoa já está com sessão: só grava a senha e entra.
+export const trocarSenha = (senha) => executar(async () => {
+  const invalido = validarSenha(senha)
+  if (invalido) return falha(invalido)
+  if (!authReal()) return ok(true)
+  const { data, error } = await supabase.auth.updateUser({ password: senha })
+  if (error) return falha(mensagemDoLogin(error))
+  return abrirSessao(data.user.id)
+})
+
+// O link de nova senha chega com "type=recovery" no endereço. Lido já ao carregar: o Supabase
+// limpa o endereço sozinho e o aviso dele pode sair antes de a tela começar a ouvir.
+const veioPeloLinkDeSenha = /type=recovery/.test(globalThis.location?.hash ?? '')
+
+// Avisa quando a pessoa chegou pelo link de nova senha. Devolve a função de parar de ouvir.
+export function aoChegarPeloLinkDeSenha(fazer) {
+  if (!authReal()) return () => {}
+  if (veioPeloLinkDeSenha) fazer()
+  const { data } = supabase.auth.onAuthStateChange((evento) => { if (evento === 'PASSWORD_RECOVERY') fazer() })
+  return () => data.subscription.unsubscribe()
 }
 
-export async function sair() {
+export const sair = () => executar(async () => {
+  if (authReal()) await supabase.auth.signOut()
   usuario = null
   obraAtualId = null
   return ok(true)
-}
+})
 
 const nomeDoPerfil = (id) => perfis.find((p) => p.id === id)?.nome ?? null
 
@@ -203,14 +291,22 @@ const nomeDoPerfil = (id) => perfis.find((p) => p.id === id)?.nome ?? null
 // Obras (cadastro e comparativos — as únicas leituras de várias obras juntas)
 // ---------------------------------------------------------------------------
 
-export const listarObras = () => executar(async () => ok((await ler('obras')).sort(porNome)))
+// As obras que quem está logado enxerga (quadro: o admin todas; os outros, as liberadas em membros).
+// Toda lista de obras passa por aqui. A barreira de verdade é a regra do banco.
+async function minhasObras(filtros) {
+  const obras = await ler('obras', filtros)
+  if (usuario?.role === 'admin_master') return obras
+  return obrasVisiveis(obras, usuario, usuario ? await ler('membros', { profile_id: usuario.id }) : [])
+}
+
+export const listarObras = () => executar(async () => ok((await minhasObras()).sort(porNome)))
 
 // COMPARATIVO ENTRE OBRAS: uma linha por obra, numa chamada só (nunca um laço na tela).
 export const listarResumoObras = () => executar(async () => {
   const h = hoje()
   const ontem = somarDias(h, -1)
   const [obras, rdos, paradas] = await Promise.all([
-    ler('obras'), ler('rdos', { data: [h, ontem] }), ler('frentes_servico', { situacao: 'Parada' }),
+    minhasObras(), ler('rdos', { data: [h, ontem] }), ler('frentes_servico', { situacao: 'Parada' }),
   ])
   const rdosHoje = rdos.filter((r) => r.data === h)
   const quebrados = rdosHoje.length ? await ler('rdo_equipamentos', { rdo_id: rdosHoje.map((r) => r.id), situacao: 'Quebrado' }) : []
@@ -229,7 +325,7 @@ export const listarResumoObras = () => executar(async () => {
 
 // COMPARATIVO ENTRE OBRAS: o efetivo lotado por função, de todas as obras, numa chamada só.
 export const listarQuadroEfetivo = () => executar(async () => {
-  const [funcionarios, obras] = await Promise.all([ler('funcionarios'), ler('obras')])
+  const [funcionarios, obras] = await Promise.all([ler('funcionarios'), minhasObras()])
   return ok(montarQuadro(funcionarios, obras))
 })
 
@@ -361,10 +457,12 @@ export const marcarEfetivo = (funcionarioId, situacao, obraDestinoId = null) => 
 // Para "+ Trazer funcionário de outra obra": a única lista com gente de outras obras.
 export const listarFuncionariosParaTrazer = () => executar(async () => {
   const obraId = obraAtual()
-  const [{ funcionarios, linhas, efetivo }, nomes] = await Promise.all([efetivoDaObraHoje(obraId), nomesDasObras()])
+  const [{ funcionarios, linhas, efetivo }, nomes, minhas] = await Promise.all([efetivoDaObraHoje(obraId), nomesDasObras(), minhasObras()])
   const jaAqui = new Set(efetivo.map((i) => i.funcionario.id))
+  // O gerente traz só de obras dele (ou quem está sem obra).
+  const deObraMinha = new Set(minhas.map((o) => o.id))
   return ok(funcionarios
-    .filter((f) => f.ativo && !jaAqui.has(f.id))
+    .filter((f) => f.ativo && !jaAqui.has(f.id) && (!f.obra_id || deObraMinha.has(f.obra_id)))
     .map((f) => {
       const trava = podeMarcarPresenca(f.id, obraId, linhas)
       return {
@@ -409,7 +507,7 @@ export const devolverFuncionario = (funcionarioId) => executar(async () => {
 // Obras para onde dá para deslocar alguém (só nome: é escolha, não é dado da outra obra).
 export const listarDestinosDeslocamento = () => executar(async () => {
   const obraId = obraAtual()
-  const obras = await ler('obras', { situacao: 'Em andamento' })
+  const obras = await minhasObras({ situacao: 'Em andamento' })
   return ok(obras.filter((o) => o.id !== obraId).sort(porNome).map((o) => ({ id: o.id, nome: o.nome })))
 })
 
@@ -703,7 +801,8 @@ export const listarQuadroMateriais = () => executar(async () => {
     ler('insumos', { obra_id: obraId }), ler('movimentos_estoque', { obra_id: obraId }),
   ])
   return ok({
-    pedidos: pedidos.map((p) => comMaterial(p, catalogo)),
+    // A foto da nota mostra preço: só sai do banco para quem pode ver (quadro, pedidos.ver_nota_fiscal).
+    pedidos: pedidos.map((p) => comMaterial(posso('pedidos.ver_nota_fiscal') ? p : { ...p, foto_nf: null }, catalogo)),
     catalogo: catalogo.filter((m) => m.ativo).sort(porNome),
     // Sugestões para o campo "frente" (o pedido aceita texto livre, ex.: "Banheiro suíte").
     frentes: frentes.filter((f) => f.situacao !== 'Concluída').sort(porNome).map((f) => f.nome),
@@ -1190,19 +1289,41 @@ export const excluirMedicao = (id) => executar(async () => {
   return ok(true)
 })
 
+// O que quem está logado pode fazer (src/lib/permissoes.js). As telas perguntam aqui.
+export const posso = (acao, dono = null) => pode(acao, usuario, dono)
+
 // ---------------------------------------------------------------------------
-// Usuários (só Engenheiro). Ainda de mentira, como o login, até o passo 10.
+// Usuários (só o admin). Quem barra os outros é o banco (regra e gatilho de profiles).
 // ---------------------------------------------------------------------------
 
-export async function listarUsuarios() {
-  const ordem = { Pendente: 0, Engenheiro: 1, Cliente: 2 }
-  return ok(copia([...perfis].sort((a, b) => (ordem[a.role] - ordem[b.role]) || a.nome.localeCompare(b.nome, 'pt-BR'))))
-}
+export const listarUsuarios = () => executar(async () => {
+  perfis = await ler('profiles')
+  // Pendentes primeiro: são os que esperam o admin.
+  const ordem = { pendente: 0, ativo: 1, bloqueado: 2 }
+  return ok(copia([...perfis].sort((a, b) => (ordem[a.status] - ordem[b.status]) || a.nome.localeCompare(b.nome, 'pt-BR'))))
+})
 
-export async function salvarUsuario({ id, role, ativo }) {
-  const p = perfis.find((x) => x.id === id)
-  if (!p) return falha('Usuário não encontrado.')
-  if (role) p.role = role
-  if (ativo !== undefined) p.ativo = ativo
-  return ok(copia(p))
-}
+export const salvarUsuario = ({ id, role, status }) => executar(async () => {
+  if (status === 'ativo' && !role) return falha('Escolha o perfil antes de liberar.')
+  const [salvo] = await atualizar('profiles', { id }, { role, status })
+  if (!salvo) return falha('Sem permissão para mudar este usuário.')
+  return ok(copia(salvo))
+})
+
+// As obras liberadas para uma pessoa (o admin vê todas e não precisa de lista).
+export const listarObrasDoUsuario = (profileId) => executar(async () => {
+  const [obras, membros] = await Promise.all([ler('obras'), ler('membros', { profile_id: profileId })])
+  const liberadas = new Set(membros.map((m) => m.obra_id))
+  return ok(obras.sort(porNome).map((o) => ({ id: o.id, nome: o.nome, codigo: o.codigo, liberada: liberadas.has(o.id) })))
+})
+
+// Libera ou tira obras de uma pessoa: grava só a diferença.
+export const salvarObrasDoUsuario = (profileId, obraIds) => executar(async () => {
+  const atuais = await ler('membros', { profile_id: profileId })
+  const querer = new Set(obraIds)
+  const tirar = atuais.filter((m) => !querer.has(m.obra_id))
+  const novas = [...querer].filter((id) => !atuais.some((m) => m.obra_id === id))
+  if (tirar.length) await apagar('membros', { id: tirar.map((m) => m.id) })
+  if (novas.length) await inserirVarios('membros', novas.map((obra_id) => ({ obra_id, profile_id: profileId })))
+  return ok(true)
+})

@@ -1,7 +1,7 @@
 // COMPARATIVO ENTRE OBRAS — a única tela que mostra várias obras juntas.
 // Tocar num cartão escolhe a obra e abre o RDO de hoje dela.
 import { useState } from 'react'
-import { listarResumoObras, salvarObra } from '../lib/dados.js'
+import { listarResumoObras, salvarObra, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
 import { ordenarResumo, separarPorSituacao } from '../lib/obras.js'
@@ -41,7 +41,7 @@ function CartaoObra({ r, atual, abrir, editar }) {
         <span className="t-muted" style={{ fontSize: 14 }}>
           {atual ? 'Obra atual' : obra.data_meta_entrega ? `Entrega: ${formatarData(obra.data_meta_entrega)}` : ''}
         </span>
-        <button className="link t-info" style={{ fontSize: 15, fontWeight: 700, minHeight: 44 }} onClick={() => editar(obra)}>Editar obra</button>
+        {posso('obra.editar') && <button className="link t-info" style={{ fontSize: 15, fontWeight: 700, minHeight: 44 }} onClick={() => editar(obra)}>Editar obra</button>}
       </div>
     </div>
   )
@@ -129,8 +129,8 @@ export default function Obras({ abrirObra }) {
   }
 
   const cabecalho = (
-    <Cabecalho eyebrow={formatarDataLonga(hojeISO())} titulo="Obras" sub="Comparativo de todas as obras"
-      acao={<button className="btn btn-ghost" onClick={() => setForm({})}>+ Nova obra</button>} />
+    <Cabecalho eyebrow={formatarDataLonga(hojeISO())} titulo="Obras" sub={posso('obra.criar') ? 'Comparativo de todas as obras' : 'Comparativo das suas obras'}
+      acao={posso('obra.criar') && <button className="btn btn-ghost" onClick={() => setForm({})}>+ Nova obra</button>} />
   )
   const gaveta = (
     <Gaveta aberta={form !== null} fechar={() => setForm(null)} rotulo="Cadastro de obra">
@@ -141,8 +141,10 @@ export default function Obras({ abrirObra }) {
   if (carregando) return <>{cabecalho}<Carregando /></>
   if (erro) return <>{cabecalho}<ErroCarga erro={erro} tentar={recarregar} /></>
   if (!data.length) {
-    return <>{cabecalho}<Vazio icone="obras" titulo="Nenhuma obra cadastrada" texto="Toque em + Nova obra para começar."
-      acao={<button className="btn btn-primary" onClick={() => setForm({})}>+ Cadastrar a primeira obra</button>} />{gaveta}</>
+    return <>{cabecalho}{posso('obra.criar')
+      ? <Vazio icone="obras" titulo="Nenhuma obra cadastrada" texto="Toque em + Nova obra para começar."
+        acao={<button className="btn btn-primary" onClick={() => setForm({})}>+ Cadastrar a primeira obra</button>} />
+      : <Vazio icone="obras" titulo="Nenhuma obra liberada para você" texto="Peça ao Engenheiro administrador para liberar as suas obras." />}{gaveta}</>
   }
 
   const { andamento, paradas, concluidas } = separarPorSituacao(ordenarResumo(data))

@@ -4,7 +4,11 @@
 export const SITUACOES_OBRA = ['Em andamento', 'Parada', 'Concluída']
 export const TIPOS_OBRA = ['Licitação', 'Alto padrão']
 
-export const ROLES = ['Engenheiro', 'Cliente', 'Pendente']
+// Perfil e situação da conta (docs/permissoes/QUEM-PODE-O-QUE.md). CHECK em profiles (migration -14).
+export const ROLES = ['admin_master', 'gerente', 'cliente']
+export const SITUACOES_CONTA = ['pendente', 'ativo', 'bloqueado']
+// Como cada perfil aparece na tela: o admin_master é "Engenheiro" para quem usa.
+export const NOME_PERFIL = { admin_master: 'Engenheiro', gerente: 'Gerente', cliente: 'Cliente' }
 
 export const CLIMAS = ['Bom', 'Nublado', 'Chuva leve', 'Chuva forte']
 

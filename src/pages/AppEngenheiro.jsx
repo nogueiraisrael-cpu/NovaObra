@@ -1,7 +1,9 @@
-// Shell do Engenheiro: menu (barra inferior no celular, lateral no computador),
+// Shell da equipe (Engenheiro e Gerente): menu (barra inferior no celular, lateral no computador),
 // seletor de obra fixo no topo e o roteamento por estado.
 import { useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
+import { pode, podeAbrir } from '../lib/permissoes.js'
+import { NOME_PERFIL } from '../lib/listas.js'
 import { Icon, SeletorObra, Vazio } from '../components/index.jsx'
 import Obras from '../screens/obras.jsx'
 import Obra from '../screens/obra.jsx'
@@ -41,13 +43,19 @@ export default function AppEngenheiro({ perfil, aoSair }) {
     goto('obra')
   }
 
+  // O menu e as telas seguem o "Ver" do quadro. Tela sem permissão volta para Obras.
+  const menu = MENU.filter((m) => podeAbrir(m.id, perfil))
+  const tela = podeAbrir(route.screen, perfil) ? route.screen : 'obras'
+
   let corpo
-  if (!obraId && PRECISAM_DE_OBRA.includes(route.screen)) {
-    corpo = <Vazio icone="obras" titulo="Nenhuma obra cadastrada" texto="Toque em + Nova obra para começar."
+  if (!obraId && PRECISAM_DE_OBRA.includes(tela)) {
+    corpo = <Vazio icone="obras" {...(pode('obra.criar', perfil)
+      ? { titulo: 'Nenhuma obra cadastrada', texto: 'Toque em + Nova obra para começar.' }
+      : { titulo: 'Nenhuma obra liberada para você', texto: 'Peça ao Engenheiro administrador para liberar as suas obras.' })}
       acao={<button className="btn btn-primary" onClick={() => goto('obras')}>Ir para Obras</button>} />
   } else {
-    switch (route.screen) {
-      case 'obra': corpo = <Obra goto={goto} params={route.params} />; break
+    switch (tela) {
+      case 'obra': corpo = <Obra goto={goto} params={route.params} perfil={perfil} />; break
       case 'ocorrencias': corpo = <Ocorrencias />; break
       case 'equipamentos': corpo = <Equipamentos />; break
       case 'pessoas': corpo = <Pessoas goto={goto} />; break
@@ -58,7 +66,7 @@ export default function AppEngenheiro({ perfil, aoSair }) {
     }
   }
 
-  const ativo = MENU.find((m) => m.telas.includes(route.screen))?.id
+  const ativo = MENU.find((m) => m.telas.includes(tela))?.id
   const icone = (m) => <Icon nome={m.icone ?? m.id} />
 
   return (
@@ -69,11 +77,11 @@ export default function AppEngenheiro({ perfil, aoSair }) {
           <b>Nova Obra</b>
         </div>
         <nav>
-          {MENU.map((m) => (
+          {menu.map((m) => (
             <button key={m.id} className={ativo === m.id ? 'on' : ''} onClick={() => goto(m.id)}>{icone(m)}{m.rotulo}</button>
           ))}
         </nav>
-        <div className="who">{perfil.nome}<small>Engenheiro · todas as obras</small></div>
+        <div className="who">{perfil.nome}<small>{NOME_PERFIL[perfil.role]} · {perfil.role === 'admin_master' ? 'todas as obras' : 'obras liberadas'}</small></div>
       </aside>
 
       <main className="main">
@@ -84,7 +92,7 @@ export default function AppEngenheiro({ perfil, aoSair }) {
       </main>
 
       <nav className="bottom">
-        {MENU.map((m) => (
+        {menu.map((m) => (
           <button key={m.id} className={ativo === m.id ? 'on' : ''} onClick={() => goto(m.id)}>
             {icone(m)}<span className="long">{m.rotulo}</span><span className="short">{m.curto}</span>
           </button>

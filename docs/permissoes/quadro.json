@@ -1,0 +1,614 @@
+{
+  "app": "Nova Obra",
+  "atualizado": "2026-11-02",
+  "decidido_por": "Israel Nogueira",
+  "fonte": "docs/permissoes/QUEM-PODE-O-QUE.md",
+  "perfis": [
+    "admin_master",
+    "gerente",
+    "cliente"
+  ],
+  "situacoes": [
+    "pendente",
+    "ativo",
+    "bloqueado"
+  ],
+  "valores": [
+    "pode",
+    "só os dele",
+    "só da equipe dele",
+    "só ver",
+    "·",
+    "ninguém"
+  ],
+  "acoes": {
+    "obra.ver": {
+      "assunto": "Obra",
+      "acao": "Ver",
+      "condicao": "admin todas, os outros só as liberadas",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "pode"
+    },
+    "obra.ver_comparativo": {
+      "assunto": "Obra",
+      "acao": "Ver o comparativo (tela Obras e Efetivo geral)",
+      "condicao": "só das obras dele",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "obra.criar": {
+      "assunto": "Obra",
+      "acao": "Criar",
+      "condicao": "abrir obra nova",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "obra.editar": {
+      "assunto": "Obra",
+      "acao": "Editar",
+      "condicao": "dados e calendário (dias de trabalho, feriados)",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "obra.apagar": {
+      "assunto": "Obra",
+      "acao": "Apagar",
+      "condicao": "só obra sem nada lançado",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "obra.encerrar": {
+      "assunto": "Obra",
+      "acao": "Encerrar",
+      "condicao": "marcar Concluída; fica só leitura, o admin reabre",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "usuarios.ver": {
+      "assunto": "Usuários (contas)",
+      "acao": "Ver a lista",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "usuarios.liberar": {
+      "assunto": "Usuários (contas)",
+      "acao": "Criar login, liberar conta, escolher perfil e obras",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "usuarios.bloquear": {
+      "assunto": "Usuários (contas)",
+      "acao": "Bloquear",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "usuarios.editar_proprio_nome": {
+      "assunto": "Usuários (contas)",
+      "acao": "Editar o próprio nome",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "pode"
+    },
+    "usuarios.apagar": {
+      "assunto": "Usuários (contas)",
+      "acao": "Apagar conta",
+      "condicao": "bloqueia, nunca apaga",
+      "admin_master": "·",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "funcionarios.ver": {
+      "assunto": "Funcionários (Pessoas)",
+      "acao": "Ver nome e função",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "funcionarios.criar": {
+      "assunto": "Funcionários (Pessoas)",
+      "acao": "Criar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "funcionarios.editar": {
+      "assunto": "Funcionários (Pessoas)",
+      "acao": "Editar",
+      "condicao": "inclusive mudar a obra de lotação",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "funcionarios.desativar": {
+      "assunto": "Funcionários (Pessoas)",
+      "acao": "Desativar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "funcionarios.apagar": {
+      "assunto": "Funcionários (Pessoas)",
+      "acao": "Apagar",
+      "condicao": "só sem nenhum diário",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "equipamentos.ver": {
+      "assunto": "Equipamentos",
+      "acao": "Ver",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "equipamentos.criar": {
+      "assunto": "Equipamentos",
+      "acao": "Criar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "equipamentos.editar": {
+      "assunto": "Equipamentos",
+      "acao": "Editar e mover (obra, conserto, depósito)",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "equipamentos.apagar": {
+      "assunto": "Equipamentos",
+      "acao": "Apagar",
+      "condicao": "só sem nenhum diário",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "diario.ver": {
+      "assunto": "Diário (RDO)",
+      "acao": "Ver",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "diario.criar": {
+      "assunto": "Diário (RDO)",
+      "acao": "Criar",
+      "condicao": "um por obra por dia",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "diario.editar": {
+      "assunto": "Diário (RDO)",
+      "acao": "Editar",
+      "condicao": "inclusive o dia fechado",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "diario.apagar": {
+      "assunto": "Diário (RDO)",
+      "acao": "Apagar",
+      "condicao": "só o dia não fechado e sem fotos",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "diario.fechar": {
+      "assunto": "Diário (RDO)",
+      "acao": "Fechar o dia",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "diario.trazer_de_outra_obra": {
+      "assunto": "Diário (RDO)",
+      "acao": "Trazer funcionário de outra obra",
+      "condicao": "o gerente só das obras dele",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "frentes.ver": {
+      "assunto": "Frentes de serviço",
+      "acao": "Ver nome, etapa e situação",
+      "condicao": "para o cliente, Parada aparece como Em execução",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "pode"
+    },
+    "frentes.ver_parada": {
+      "assunto": "Frentes de serviço",
+      "acao": "Ver o motivo da parada e há quantos dias",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "frentes.criar": {
+      "assunto": "Frentes de serviço",
+      "acao": "Criar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "frentes.editar": {
+      "assunto": "Frentes de serviço",
+      "acao": "Editar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "frentes.apagar": {
+      "assunto": "Frentes de serviço",
+      "acao": "Apagar",
+      "condicao": "só sem nada lançado",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "fotos.ver": {
+      "assunto": "Fotos",
+      "acao": "Ver",
+      "condicao": "o cliente só as \"Visível ao cliente\"",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "pode"
+    },
+    "fotos.criar": {
+      "assunto": "Fotos",
+      "acao": "Criar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "fotos.editar": {
+      "assunto": "Fotos",
+      "acao": "Editar legenda e \"Visível ao cliente\"",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "fotos.apagar": {
+      "assunto": "Fotos",
+      "acao": "Apagar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "presenca.ver": {
+      "assunto": "Presença do mês",
+      "acao": "Ver faltas e atestados",
+      "condicao": "o gerente só os dias nas obras dele",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "presenca.imprimir": {
+      "assunto": "Presença do mês",
+      "acao": "Imprimir",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "ocorrencias.ver": {
+      "assunto": "Ocorrências (v1.1)",
+      "acao": "Ver",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "ocorrencias.criar": {
+      "assunto": "Ocorrências (v1.1)",
+      "acao": "Criar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "ocorrencias.editar": {
+      "assunto": "Ocorrências (v1.1)",
+      "acao": "Editar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "ocorrencias.apagar": {
+      "assunto": "Ocorrências (v1.1)",
+      "acao": "Apagar",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "ocorrencias.resolver": {
+      "assunto": "Ocorrências (v1.1)",
+      "acao": "Resolver",
+      "condicao": "exige escrever o que foi feito",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "comentarios.interno": {
+      "assunto": "Comentários",
+      "acao": "Interno: ver e escrever",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "comentarios.cliente_ver": {
+      "assunto": "Comentários",
+      "acao": "Com o cliente: ver",
+      "condicao": "o cliente só na obra dele",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "pode"
+    },
+    "comentarios.cliente_escrever": {
+      "assunto": "Comentários",
+      "acao": "Com o cliente: escrever",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "comentarios.editar": {
+      "assunto": "Comentários",
+      "acao": "Editar mensagem",
+      "condicao": "o gerente apaga e escreve de novo",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "comentarios.apagar": {
+      "assunto": "Comentários",
+      "acao": "Apagar mensagem",
+      "admin_master": "pode",
+      "gerente": "só os dele",
+      "cliente": "·"
+    },
+    "comentarios.marcar_lido": {
+      "assunto": "Comentários",
+      "acao": "Marcar como lido",
+      "admin_master": "pode",
+      "gerente": "só os dele",
+      "cliente": "só os dele"
+    },
+    "pranchas.ver": {
+      "assunto": "Pranchas (v1.2)",
+      "acao": "Ver com o que foi executado",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "pode"
+    },
+    "pranchas.criar": {
+      "assunto": "Pranchas (v1.2)",
+      "acao": "Anexar PDF e desenhar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "pranchas.editar": {
+      "assunto": "Pranchas (v1.2)",
+      "acao": "Editar o desenho",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "pranchas.apagar": {
+      "assunto": "Pranchas (v1.2)",
+      "acao": "Apagar prancha",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "pranchas.pintar": {
+      "assunto": "Pranchas (v1.2)",
+      "acao": "Pintar executado e desfazer",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "medicoes.ver": {
+      "assunto": "Medições (dinheiro)",
+      "acao": "Ver o painel e os valores",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "medicoes.criar": {
+      "assunto": "Medições (dinheiro)",
+      "acao": "Subir medição",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "medicoes.trocar_planilha": {
+      "assunto": "Medições (dinheiro)",
+      "acao": "Trocar a planilha",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "medicoes.baixar_original": {
+      "assunto": "Medições (dinheiro)",
+      "acao": "Baixar a planilha original",
+      "condicao": "a de empreiteiro tem dado bancário",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "medicoes.apagar": {
+      "assunto": "Medições (dinheiro)",
+      "acao": "Apagar medição",
+      "condicao": "leva as linhas dela junto",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "catalogo.ver": {
+      "assunto": "Materiais: catálogo",
+      "acao": "Ver",
+      "condicao": "o mesmo para todas as obras",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "catalogo.criar": {
+      "assunto": "Materiais: catálogo",
+      "acao": "Criar",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "catalogo.editar": {
+      "assunto": "Materiais: catálogo",
+      "acao": "Editar",
+      "condicao": "muda em todas as obras",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "catalogo.apagar": {
+      "assunto": "Materiais: catálogo",
+      "acao": "Apagar",
+      "condicao": "só sem pedido; senão, desativar",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "pedidos.ver": {
+      "assunto": "Materiais: pedidos",
+      "acao": "Ver",
+      "condicao": "sem a foto da nota fiscal, para quem não pode",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "pedidos.criar": {
+      "assunto": "Materiais: pedidos",
+      "acao": "Criar (solicitar)",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "pedidos.editar": {
+      "assunto": "Materiais: pedidos",
+      "acao": "Editar e mover de coluna",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "pedidos.apagar": {
+      "assunto": "Materiais: pedidos",
+      "acao": "Apagar",
+      "condicao": "só em \"Solicitar\"",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "pedidos.ver_nota_fiscal": {
+      "assunto": "Materiais: pedidos",
+      "acao": "Ver a foto da nota fiscal",
+      "condicao": "mostra preço",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "estoque.ver": {
+      "assunto": "Estoque",
+      "acao": "Ver saldo",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "estoque.cadastrar_insumo": {
+      "assunto": "Estoque",
+      "acao": "Cadastrar insumo e mínimo",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "estoque.baixa_manual": {
+      "assunto": "Estoque",
+      "acao": "Baixa manual",
+      "condicao": "o banco recusa saldo negativo",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "estoque.apagar_movimento": {
+      "assunto": "Estoque",
+      "acao": "Apagar movimento",
+      "condicao": "só baixa manual",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "planejamento.ver": {
+      "assunto": "Planejamento",
+      "acao": "Ver",
+      "condicao": "EAP, Longo, Médio e Curto prazo, inclusive o PPC",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "planejamento.criar": {
+      "assunto": "Planejamento",
+      "acao": "Criar atividade e restrição",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "planejamento.editar": {
+      "assunto": "Planejamento",
+      "acao": "Editar datas, ordem e avanço; resolver restrição",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "planejamento.mover_kanban": {
+      "assunto": "Planejamento",
+      "acao": "Mover no kanban; marcar \"não realizada\"",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "planejamento.arquivar": {
+      "assunto": "Planejamento",
+      "acao": "Arquivar atividade",
+      "condicao": "não se apaga",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "planejamento.planilha": {
+      "assunto": "Planejamento",
+      "acao": "Importar e exportar planilha",
+      "admin_master": "pode",
+      "gerente": "pode",
+      "cliente": "·"
+    },
+    "historico.ver": {
+      "assunto": "Histórico de mudanças",
+      "acao": "Ver",
+      "condicao": "ainda não existe; entra no passo 10",
+      "admin_master": "pode",
+      "gerente": "·",
+      "cliente": "·"
+    },
+    "historico.escrever": {
+      "assunto": "Histórico de mudanças",
+      "acao": "Criar, editar, apagar",
+      "condicao": "o banco grava sozinho",
+      "admin_master": "ninguém",
+      "gerente": "ninguém",
+      "cliente": "ninguém"
+    }
+  }
+}

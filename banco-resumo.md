@@ -16,24 +16,31 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
    gravar (`grant ... to authenticated`) também moram só nesse arquivo provisório. O passo 10 precisa
    escrevê-las de novo numa migration própria (só `authenticated` e `service_role`), senão o app
    inteiro passa a receber "permission denied (42501)".
-2. **Ainda não existem as tabelas `profiles` (quem é quem) e `membros` (qual cliente vê qual obra).**
-   Chegam com o login. Até lá, as pessoas vêm dos dados de exemplo do app.
-3. **"Quem abriu / fechou / mandou a foto"** (`criado_por`, `fechado_por`, `enviada_por`) guarda um
-   código de pessoa que ainda não está ligado a ninguém no banco. No passo 10 vira ligação com
-   `profiles`, e os códigos das pessoas de exemplo precisam ser trocados pelos do login real.
+2. **`profiles` e `membros` já existem (migration -14, 03/11/2026)**, com as regras definitivas, mas o app
+   ainda entra pelo login de mentira: as pessoas vêm dos dados de exemplo até a fase 2 do passo 10.
+3. **"Quem criou" (`criado_por`) existe em toda tabela** e o banco preenche sozinho com quem está logado
+   (sem login, fica vazio). A ligação com `profiles` é `not valid`: as linhas de exemplo antigas guardam os
+   códigos do Eng. Israel e do Eng. Ricardo de mentira. **Quando os dois tiverem login, trocar esses códigos
+   pelos reais** (em `criado_por`, `fechado_por`, `enviada_por` e `importada_por`) e validar as ligações.
 4. **Medições (`medicoes`, `medicao_itens`) são só do Engenheiro.** Hoje estão abertas como o resto; a regra
    do passo 10 não pode deixar o Cliente ler nenhuma linha delas (é custo). O arquivo original da planilha ainda
    não é guardado (`caminho_planilha` vazio): entra com o Storage.
 5. **Fotos** ficam dentro do próprio registro, encolhidas. O lugar certo é o Storage (arquivos);
    entra antes do uso real.
 
-## As tabelas (20)
+## As tabelas (22)
+
+Em **todas** as tabelas existem `criado_por` (quem criou, ligado a `profiles`) e `updated_at` (a última
+alteração). O próprio banco preenche as duas (gatilho `privado.carimbar`): o app nunca grava essas colunas, e
+ninguém troca o dono de um registro depois.
 
 Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `movimentos_estoque`) existe
 `updated_at`: a hora da última alteração, que o próprio banco atualiza. O app nunca grava essa coluna.
 
 | Tabela | O que guarda | Uma linha é… |
 |---|---|---|
+| `profiles` | Cada login: nome, e-mail, perfil (`admin_master`, `gerente`, `cliente`; vazio enquanto pendente) e situação (`pendente`, `ativo`, `bloqueado`). Nasce sozinha no cadastro: **o primeiro cadastro vira admin_master ativo**; os outros, pendentes. Ninguém muda o próprio perfil ou situação, e só o admin ativo muda os dos outros (gatilho no banco) | uma pessoa com login |
+| `membros` | Quais obras o gerente e o cliente veem (o admin vê todas). Só o admin mexe | uma pessoa liberada numa obra |
 | `obras` | Cada obra: nome, código curto (único), tipo, cidade, cliente, contrato, datas, situação, e o calendário do Planejamento (`dias_trabalho`: 0 = domingo … 6 = sábado; `feriados`) | uma obra |
 | `funcionarios` | O efetivo. Nome, função e a obra onde está lotado (pode ficar sem obra) | uma pessoa da equipe (não tem login) |
 | `equipamentos` | Betoneira, andaime etc.: onde está (na obra, no conserto, no depósito) e desde quando | um equipamento |
@@ -105,3 +112,4 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | `20261102-11-planejamento-restricoes.sql` | Cria `restricoes` (Médio prazo). A atividade é sempre da mesma obra; resolvida sempre tem data. ⚠️ Também aberta sem login, provisório até o passo 10 |
 | `20261102-12-planejamento-curto-prazo.sql` | Cria `semana_atividades` e `subtarefas` (Curto prazo). Semana sempre é segunda-feira; uma linha por atividade por semana; não realizada sempre tem causa. ⚠️ Também abertas sem login, provisório até o passo 10 |
 | `20261102-13-medicoes.sql` | Cria `medicoes` e `medicao_itens` (v1.3, etapa 1). Um nº por contrato/empreiteiro por obra; a linha é da mesma obra da medição. ⚠️ Também abertas sem login, provisório até o passo 10 (e lá, só Engenheiro) |
+| `20261102-14-login-perfis-e-carimbos.sql` | Cria `profiles` e `membros` com as regras definitivas, o gatilho do cadastro (primeiro = admin), a trava de perfil, as funções das regras (schema `privado`) e o carimbo `criado_por`/`updated_at` em toda tabela (substitui `tocar_updated_at`). Testado em 03/11/2026: 14 provas, nada sobrou |

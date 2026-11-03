@@ -15,7 +15,8 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    índice começando por `obra_id`. Tabela nova de módulo novo entra também em
    `TABELAS_DA_OBRA` (`src/lib/dados.js`). Exceção consciente: `funcionarios` e `equipamentos`
    são cadastros que circulam entre obras — neles `obra_id` é a lotação atual e pode ser vazio;
-   `materiais` é o catálogo, igual para todas as obras, e não tem `obra_id`.
+   `materiais` é o catálogo, igual para todas as obras, e não tem `obra_id`. `membros` tem `obra_id`
+   mas não entra em `TABELAS_DA_OBRA`: é a lista de acesso, que o admin vê de todas as obras.
 2. **Todo módulo novo filtra por `obra_id`.** Quem filtra é a camada de dados: as funções de
    `src/lib/dados.js` pegam a obra atual por dentro (`obraAtual()`); **as telas nunca passam
    `obra_id`**. Função de lançamento que não usa `obraAtual()` é bug.
@@ -42,6 +43,18 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —
    módulo novo ganha a sua linha nesse teste.
 
+## Quem pode o quê
+
+1. **O quadro manda nas permissões do app:** `docs/permissoes/QUEM-PODE-O-QUE.md` (decidido pelo Israel
+   em 02/11/2026), com a cópia em dados `docs/permissoes/quadro.json` (chave `assunto.acao`, ex.:
+   `diario.fechar`). Perfis: `admin_master` (na tela, "Engenheiro"), `gerente`, `cliente`; situações
+   `pendente`, `ativo`, `bloqueado`. Onde o plano ou os PRDs discordarem, vale o quadro.
+2. **Pedido com papéis ou permissões diferentes do quadro:** siga o quadro e avise o Israel da diferença
+   **antes** de construir. Ele decide se o quadro muda.
+3. **Mudar uma permissão é mudar junto**, no mesmo lote: o quadro, o JSON, o código
+   (`src/lib/permissoes.js`, conferido contra o JSON por `tests/permissoes.mjs`; as telas perguntam `posso(acao)` em `dados.js`), a regra do banco (RLS) e o teste de permissões. E
+   anotar a data, quem decidiu e o porquê na seção 8 do quadro.
+
 ## Onde o código novo vai
 
 Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
@@ -55,7 +68,9 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
   (o `check-schema` reprova outro). As regras falam com o banco por quatro verbos (ler, inserir,
   atualizar, apagar); quem atende é o Supabase (`USAR_MOCK = false`, desde 01/11/2026) ou o
   banco em memória de `src/lib/bancoMemoria.js` (nos testes, e se `USAR_MOCK = true`). O login
-  ainda é de mentira até o passo 10: as pessoas vêm do `mockData`.
+  é o Supabase Auth desde 03/11/2026 (regras puras em `src/lib/login.js`); no banco em memória,
+  as pessoas vêm do `mockData` e qualquer senha serve. O agente nunca cria conta nem digita senha:
+  quem testa login é o Israel.
 - `src/lib/supabase.js` — a conexão. URL e chave publicável (`sb_publishable_...`) no `.env.local`,
   que não vai para o Git. Nunca a chave secreta nem a `service_role` no app.
 - `banco-resumo.md` — o que cada tabela guarda, em linguagem simples. Atualize junto com a migration.

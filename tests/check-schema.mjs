@@ -143,7 +143,7 @@ for (const tc of usadas) {
 // 2) Os dados de exemplo têm só colunas que existem (o supabase-seed.sql sai deles).
 const mock = criarMock()
 for (const [tabela, linhas] of Object.entries(mock)) {
-  if (!schema[tabela]) continue // profiles e membros: chegam com o login (passo 10)
+  if (!schema[tabela]) continue // tabela do mock que o banco não tem
   for (const c of new Set(linhas.flatMap((l) => Object.keys(l)))) {
     if (!schema[tabela].includes(c)) problemas.push(`[MOCK] mockData.${tabela} tem a coluna ${c}, que não existe no banco`)
   }
