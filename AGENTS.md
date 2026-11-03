@@ -32,13 +32,14 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
 5. **Trocar de obra remonta a tela inteira** (`key={obraId}` na shell). Qualquer estado guardado
    fora do React (`useRef`, variável de módulo, `localStorage`) precisa ter o `obra_id` na chave.
 6. **RLS por obra desde a primeira migration.** `using (true)` em tabela de lançamento é uma obra
-   (ou um cliente) lendo a outra. Engenheiro vê todas; Cliente só as obras dele em `membros`.
-   **⚠️ Exceção provisória em vigor:** `supabase/migrations/20261101-02-acesso-provisorio-dev.sql`
-   abre as 10 tabelas para quem não fez login (`anon`, `using (true)`), por decisão do dono em
-   01/11/2026, enquanto o app roda só no computador dele e sem login. A `-05-materiais.sql` e a
-   `-06-estoque.sql` fazem o mesmo com `materiais`, `pedidos_material`, `insumos` e
-   `movimentos_estoque`; a `-09-`, a `-11-` e a `-12-` (Planejamento), com `atividades`, `restricoes`, `semana_atividades` e `subtarefas`; a `-13-` (Medições), com `medicoes` e `medicao_itens`, que no passo 10 ficam **só para Engenheiro** (o Cliente não vê custo). **O passo 10 (login) desfaz isso antes de qualquer coisa ir para o ar.**
-   O `check-grants` avisa em toda rodada.
+   (ou um cliente) lendo a outra. Desde 03/11/2026 (migration -18) as regras são as do quadro: quem não fez
+   login não lê nada; conta pendente ou bloqueada não lê nada; o Engenheiro (admin_master) vê todas as obras;
+   o Gerente só as liberadas em `membros`, sem Medições; o Cliente (v1.1) só vê as obras dele, nenhum
+   lançamento ainda. As funções das regras moram no schema `privado` (`meu_perfil`, `sou_admin`,
+   `sou_equipe`, `vejo_obra`, `pode_foto`). Tabela nova de lançamento ganha as quatro regras
+   (ler, criar, editar, apagar) com `privado.vejo_obra(obra_id)` no mesmo lote. **Depois de qualquer mudança
+   de RLS, grant ou gatilho de perfil, rode `supabase/testes/permissoes.sql`** (execute_sql): tem que dar
+   "RESULTADO: N de N".
 7. **Dados de exemplo e seed sempre com DUAS obras diferentes** (`tests/apoio/mockData.js`, só dos
    testes: o app não tem mais dado de mentira desde 03/11/2026): a UBS não tem
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —
@@ -103,6 +104,8 @@ Dentro dos testes rodam também:
   retrato velho passa verde mentindo.
 - `tests/check-grants.mjs` — lê `supabase/migrations/` e reprova tabela sem RLS, sem `grant ... to
   authenticated`, com `grant all` ou aberta para `anon` sem marca.
+- `supabase/testes/permissoes.sql` — não roda no `npm run check` (precisa do banco): o agente roda pelo
+  `execute_sql`. Cada perfil tenta ler e gravar no que é seu e no do vizinho, e tudo se desfaz no fim.
 
 Nada disso prova que a tela funciona. Verde com a tela em branco é rotina: abra a tela, e troque
 de obra com ela aberta.

@@ -7,26 +7,24 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 - **Como o app entra:** endereço e chave publicável no `.env.local` (não vai para o Git).
 - **Atualizado em:** 02/11/2026 (módulo Diário de Obra, v1.0, Materiais — quadro de pedidos e estoque —, Planejamento e Medições, etapa 1).
 
-## ⚠️ O que é provisório e o passo 10 precisa fechar
+## Quem pode o quê no banco (desde 03/11/2026, migration -18)
 
-1. **O banco está aberto.** Hoje qualquer pessoa com a chave publicável lê e grava tudo, de todas as
-   obras, sem login (arquivo `20261101-02-acesso-provisorio-dev.sql`). Decisão do dono: o app só
-   roda no computador dele até lá. O passo 10 apaga essas regras e põe as de verdade: Engenheiro vê
-   todas as obras; Cliente só as dele, pela tabela `membros`. **Atenção:** hoje as permissões de
-   gravar (`grant ... to authenticated`) também moram só nesse arquivo provisório. O passo 10 precisa
-   escrevê-las de novo numa migration própria (só `authenticated` e `service_role`), senão o app
-   inteiro passa a receber "permission denied (42501)".
-2. **`profiles` e `membros` já existem (migration -14, 03/11/2026)**, com as regras definitivas, mas o app
-   ainda entra pelo login de mentira: as pessoas vêm dos dados de exemplo até a fase 2 do passo 10.
-3. **"Quem criou" (`criado_por`) existe em toda tabela** e o banco preenche sozinho com quem está logado
-   (sem login, fica vazio). A ligação com `profiles` é `not valid`: as linhas de exemplo antigas guardam os
-   códigos do Eng. Israel e do Eng. Ricardo de mentira. **Quando os dois tiverem login, trocar esses códigos
-   pelos reais** (em `criado_por`, `fechado_por`, `enviada_por` e `importada_por`) e validar as ligações.
-4. **Medições (`medicoes`, `medicao_itens`) são só do Engenheiro.** Hoje estão abertas como o resto; a regra
-   do passo 10 não pode deixar o Cliente ler nenhuma linha delas (é custo). O arquivo original da planilha ainda
-   não é guardado (`caminho_planilha` vazio): entra com o Storage.
-5. **Fotos estão no Storage desde 03/11/2026** (pasta privada `fotos`): a tabela guarda só o caminho. As 10
+As regras seguem `docs/permissoes/QUEM-PODE-O-QUE.md`. Quem não fez login não lê nada. Conta pendente ou
+bloqueada não lê nada. O **Engenheiro** (admin_master) vê e faz tudo, em todas as obras. O **Gerente** lê e
+grava só nas obras liberadas para ele em `membros`; não vê Medições; não apaga diário, frente, obra,
+funcionário, equipamento, material do catálogo nem baixa manual de estoque; apaga pedido só em "Solicitar".
+Funcionários e equipamentos ele vê todos (só nome e função), porque o efetivo do dia mostra quem veio de outra
+obra. O **Cliente** (v1.1) só vê as obras dele, nenhum lançamento ainda. O teste
+`supabase/testes/permissoes.sql` confere 40 casos (último resultado: 40 de 40, 03/11/2026).
+
+## O que ainda falta
+
+1. **"Quem criou" do Eng. Ricardo de exemplo:** 3 diários antigos guardam o código dele de mentira. Quando ele
+   tiver login, trocar pelo real e validar as ligações de `criado_por` (hoje `not valid`).
+2. **O arquivo original da planilha de medição** ainda não é guardado (`caminho_planilha` vazio).
+3. **Fotos estão no Storage desde 03/11/2026** (pasta privada `fotos`): a tabela guarda só o caminho. As 10
    fotos de exemplo antigas continuam dentro do registro (`data:`) e aparecem iguais.
+4. **Histórico de mudanças** (quem mudou o quê) ainda não existe.
 
 ## As tabelas (22)
 
@@ -100,7 +98,7 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | Arquivo | O que fez |
 |---|---|
 | `20261101-01-diario-de-obra.sql` | Cria as 10 tabelas, as travas acima e liga a RLS em todas |
-| `20261101-02-acesso-provisorio-dev.sql` | ⚠️ Abre tudo, provisório até o passo 10 |
+| `20261101-02-acesso-provisorio-dev.sql` | Abria tudo, provisório; fechado pela -18 |
 | `20261101-03-indices-das-ligacoes.sql` | Índices para as buscas por diário (aviso de desempenho do Supabase) |
 | `20261101-04-foto-na-frente-da-mesma-obra.sql` | A foto presa a uma frente tem que ser da mesma obra dessa frente (achado da revisão de código) |
 | `20261101-05-materiais.sql` | Cria `materiais` e `pedidos_material` (antecipado da v2). ⚠️ Também abertas sem login, provisório até o passo 10 |
@@ -116,3 +114,4 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | `20261103-15-gerente-so-le-nomes.sql` | Achado da revisão: o gerente lia e-mail, perfil e situação de todos. Agora cada um lê o próprio perfil, só o admin lê os outros, e os nomes da equipe saem pela função `nomes_da_equipe()` (só id e nome, para admin e gerente ativos) |
 | `20261103-16-fotos-no-storage.sql` | Cria a pasta privada `fotos` no Storage (só JPEG, até 2 MB) e as regras de ler, mandar e apagar: conta ativa, nas obras que vê; o diário para Engenheiro e Gerente, a nota fiscal só para o Engenheiro. Testado em 03/11/2026 |
 | `20261103-17-fotos-nome-do-arquivo.sql` | Achado da revisão: a regra das fotos passa a exigir o nome que o app gera (`<id>.jpg`); vazio, `..` ou nome livre são recusados |
+| `20261103-18-rls-por-perfil-e-obra.sql` | **Fecha o banco.** Apaga as 20 regras provisórias abertas, tira tudo de quem não fez login e põe as regras do quadro por perfil e por obra (função `privado.sou_equipe`). Testado em 03/11/2026: 40 de 40 |

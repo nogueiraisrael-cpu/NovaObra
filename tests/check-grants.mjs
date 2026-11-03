@@ -64,8 +64,18 @@ for (const { f, sql } of textos) {
     }
   }
 }
-for (const f of provisorios) {
-  console.log(`⚠ check-grants: ${f} deixa o banco ABERTO para quem não fez login (provisório até o passo 10).`)
+// A fase 5 do passo 10 (marca "fecha-provisorio-passo-10") apaga as regras abertas e tira tudo de anon.
+const fechou = textos.find(({ sql }) => sql.includes('fecha-provisorio-passo-10'))
+if (fechou) {
+  if (!/revoke\s+all\s+on\s+public\.%i\s+from\s+anon/i.test(fechou.sql) || !/drop\s+policy\s+if\s+exists\s+"dev_provisorio_aberto"/i.test(fechou.sql)) {
+    problemas.push(`[PROVISÓRIO] ${fechou.f} diz que fecha o provisório, mas não apaga as regras abertas nem tira o anon`)
+  } else if (provisorios.length) {
+    console.log(`✓ check-grants: o provisório aberto de ${provisorios.length} migration(s) foi fechado em ${fechou.f}`)
+  }
+} else {
+  for (const f of provisorios) {
+    console.log(`⚠ check-grants: ${f} deixa o banco ABERTO para quem não fez login (provisório até o passo 10).`)
+  }
 }
 
 if (problemas.length) {
