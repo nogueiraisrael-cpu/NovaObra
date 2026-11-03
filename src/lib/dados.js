@@ -876,6 +876,8 @@ export const moverPedido = (pedidoId, novoStatus, extras = {}) => executar(async
   // O filtro pelo status lido protege do toque duplo e do outro aparelho: se o pedido já andou, nada muda.
   const [salvo] = await atualizar('pedidos_material', { id: pedidoId, obra_id: obraId, status: pedido.status }, campos)
   if (!salvo) return falha('Este pedido já tinha mudado de coluna (outro toque ou outro aparelho).')
+  // Recebido de novo (depois de voltar a coluna): a nota antiga deu lugar à nova, ou a nenhuma.
+  if ('foto_nf' in campos && pedido.foto_nf !== campos.foto_nf) await apagarArquivos([pedido.foto_nf])
   if (estoque) await aplicarNoEstoque(obraId, salvo, estoque)
   return ok(comMaterial(salvo, [material]))
 })

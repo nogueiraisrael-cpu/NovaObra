@@ -141,3 +141,12 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 03/11/2026 · Perfis · Gerente não vê a foto da nota fiscal nem o "Desfazer" do estoque; o Engenheiro vê os dois (modo de teste).
 - 03/11/2026 · Perfis · Gerente sem obra liberada vê "Nenhuma obra liberada para você" (texto do seletor corrigido na rodada).
 - 03/11/2026 · Perfis · conta bloqueada recebe "Conta bloqueada. Contate o administrador." (modo de teste).
+
+## Rodada 8 · Fotos no Storage — testada pelo Claude no app, com a sessão do Israel e o banco de verdade
+
+- 03/11/2026 · Fotos · foto do diário (1.294 KB) sobe encolhida para 207 KB, 1200×900, na pasta `fotos/<obra>/diario/`; "Subindo foto…" enquanto sobe.
+- 03/11/2026 · Fotos · depois do F5 a foto continua na frente e aparece em Diários, por endereço assinado.
+- 03/11/2026 · Fotos · foto da nota fiscal (1.045 KB) sobe com 169 KB e aparece no Recebimento depois do F5.
+- 03/11/2026 · Fotos · sem internet para o envio, a foto sai da lista com "A foto não subiu: sem internet…" e o Salvar continua liberado.
+- 03/11/2026 · Fotos · tirar a foto da frente e salvar apaga o arquivo da pasta.
+- 03/11/2026 · Fotos · receber de novo um pedido que voltou de coluna agora apaga a nota antiga (corrigido na rodada).
