@@ -1,7 +1,7 @@
 // Peças reutilizáveis da interface. Nada de regra de negócio aqui.
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
-import { posso } from '../lib/dados.js'
+import { textosDasObras } from '../lib/dados.js'
 
 // ---------- ícones (SVG do preview.html) ----------
 const ICONES = {
@@ -198,7 +198,7 @@ export function SeletorObra({ aoTrocar, aoComparar }) {
       <button className="obra-pick" onClick={() => setAberto(true)} aria-label="Trocar de obra">
         <div className="grow">
           <div className="lbl">Você está na obra</div>
-          <div className="nm">{obra ? obra.nome : posso('obra.criar') ? 'Nenhuma obra cadastrada' : 'Nenhuma obra liberada'}</div>
+          <div className="nm">{obra ? obra.nome : textosDasObras().semObra}</div>
         </div>
         {obra && <span className="cod">{obra.codigo}</span>}
         <Icon nome="down" />
@@ -222,7 +222,7 @@ export function SeletorObra({ aoTrocar, aoComparar }) {
           </div>
         ))}
         <div className="cta">
-          <button className="btn btn-ghost btn-full" onClick={() => { setAberto(false); aoComparar() }}>{posso('obra.criar') ? 'Comparar todas as obras' : 'Comparar as suas obras'}</button>
+          <button className="btn btn-ghost btn-full" onClick={() => { setAberto(false); aoComparar() }}>{textosDasObras().comparar}</button>
         </div>
       </Gaveta>
     </div>

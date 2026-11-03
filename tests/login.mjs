@@ -1,6 +1,6 @@
 // Login: validação, frases de erro do Supabase Auth e a porta de cada perfil.
 import {
-  validarEntrada, validarCadastro, validarSenha, mensagemDoLogin, portaDoPerfil, mensagemDoPerfil,
+  validarEntrada, validarCadastro, validarSenha, mensagemDoLogin, portaDoPerfil, mensagemDoPerfil, rotuloDaConta,
 } from '../src/lib/login.js'
 
 let ok = 0
@@ -37,6 +37,10 @@ conferir('cliente → cliente', portaDoPerfil({ role: 'cliente', status: 'ativo'
 
 conferir('trava do próprio perfil', mensagemDoPerfil('nao_muda_o_proprio_perfil'), 'Você não pode mudar o seu próprio perfil nem a sua situação.')
 conferir('outro erro não é do perfil', mensagemDoPerfil('duplicate key'), null)
+
+conferir('conta pendente aparece como Pendente', rotuloDaConta({ role: null, status: 'pendente' }), 'Pendente')
+conferir('admin bloqueado aparece como Bloqueado', rotuloDaConta({ role: 'admin_master', status: 'bloqueado' }), 'Bloqueado')
+conferir('admin ativo aparece como Engenheiro', rotuloDaConta({ role: 'admin_master', status: 'ativo' }), 'Engenheiro')
 
 console.log(`${ok}/${tot} — login`)
 if (ok !== tot) process.exit(1)

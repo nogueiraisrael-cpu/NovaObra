@@ -34,7 +34,7 @@ import { STATUS_SEMANA } from './listas.js'
 import {
   validarEntrada, validarCadastro, validarEmail, validarSenha, mensagemDoLogin, mensagemDoPerfil, AVISO_BLOQUEADO,
 } from './login.js'
-import { pode, obrasVisiveis } from './permissoes.js'
+import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras } from './permissoes.js'
 
 export const USAR_MOCK = false
 
@@ -119,12 +119,11 @@ const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR')
 
 // Erro do banco em frase de gente. A trava de duas obras e o "um RDO por dia" têm frase própria.
 function traduzirErro(e) {
-  if (!e.doBanco) {
-    if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
-    return e.message
-  }
   if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
-  if (mensagemDoPerfil(e.message)) return mensagemDoPerfil(e.message)
+  // Erro de programação (em inglês) nunca vai para a tela; as frases das regras daqui, sim.
+  if (!e.doBanco) return e instanceof TypeError || e instanceof ReferenceError ? 'Algo deu errado nesta tela. Recarregue a página e tente de novo.' : e.message
+  const doPerfil = mensagemDoPerfil(e.message)
+  if (doPerfil) return doPerfil
   if (e.code === '23505' && /uma_presenca_por_dia/.test(e.message)) return 'Esse funcionário já está presente hoje em outra obra.'
   if (/saldo_negativo/.test(e.message)) return 'O estoque ficaria negativo: alguém mexeu neste insumo ao mesmo tempo. Confira o saldo e tente de novo.'
   if (e.code === '23505' && /medicoes_um_numero/.test(e.message)) return 'Já existe medição com esse número. Use outro número.'
@@ -195,12 +194,21 @@ async function abrirSessao(id) {
     return falha('Conta sem perfil. Fale com o administrador.')
   }
   if (meu.status === 'bloqueado') {
+    usuario = null // o aviso é o de bloqueado, não o de "sessão acabou"
     await supabase.auth.signOut()
     return falha(AVISO_BLOQUEADO)
   }
   usuario = meu
-  perfis = await ler('profiles')
+  perfis = await nomesDaEquipe()
   return ok(copia(meu))
+}
+
+// Nomes de quem lançou ("fechado por Eng. Ricardo"). O admin lê os perfis inteiros; o gerente,
+// só id e nome (função nomes_da_equipe, migration -15); o cliente, só o dele.
+async function nomesDaEquipe() {
+  if (pode('usuarios.ver', usuario)) return ler('profiles')
+  if (!pode('obra.ver_comparativo', usuario)) return [usuario]
+  return resposta(await supabase.rpc('nomes_da_equipe'))
 }
 
 // Ao abrir o app: a sessão fica guardada no aparelho (F5 não desloga).
@@ -270,16 +278,29 @@ export const trocarSenha = (senha) => executar(async () => {
 // limpa o endereço sozinho e o aviso dele pode sair antes de a tela começar a ouvir.
 const veioPeloLinkDeSenha = /type=recovery/.test(globalThis.location?.hash ?? '')
 
-// Avisa quando a pessoa chegou pelo link de nova senha. Devolve a função de parar de ouvir.
-export function aoChegarPeloLinkDeSenha(fazer) {
+// Ouve a sessão: o link de nova senha e a sessão que acaba sozinha (expirou, saiu em outra aba).
+// Devolve a função de parar de ouvir.
+export function ouvirSessao({ aoChegarPeloLinkDeSenha, aoAcabarASessao }) {
   if (!authReal()) return () => {}
-  if (veioPeloLinkDeSenha) fazer()
-  const { data } = supabase.auth.onAuthStateChange((evento) => { if (evento === 'PASSWORD_RECOVERY') fazer() })
+  if (veioPeloLinkDeSenha) aoChegarPeloLinkDeSenha()
+  const { data } = supabase.auth.onAuthStateChange((evento) => {
+    if (evento === 'PASSWORD_RECOVERY') aoChegarPeloLinkDeSenha()
+    if (evento === 'SIGNED_OUT' && usuario) {
+      usuario = null
+      perfis = []
+      obraAtualId = null
+      aoAcabarASessao()
+    }
+  })
   return () => data.subscription.unsubscribe()
 }
 
 export const sair = () => executar(async () => {
-  if (authReal()) await supabase.auth.signOut()
+  if (authReal()) {
+    usuario = null // antes do signOut: o aviso de "sessão acabou" é só para quando acaba sozinha
+    await supabase.auth.signOut()
+    perfis = []
+  }
   usuario = null
   obraAtualId = null
   return ok(true)
@@ -295,7 +316,7 @@ const nomeDoPerfil = (id) => perfis.find((p) => p.id === id)?.nome ?? null
 // Toda lista de obras passa por aqui. A barreira de verdade é a regra do banco.
 async function minhasObras(filtros) {
   const obras = await ler('obras', filtros)
-  if (usuario?.role === 'admin_master') return obras
+  if (veTodasAsObras(usuario)) return obras
   return obrasVisiveis(obras, usuario, usuario ? await ler('membros', { profile_id: usuario.id }) : [])
 }
 
@@ -801,7 +822,8 @@ export const listarQuadroMateriais = () => executar(async () => {
     ler('insumos', { obra_id: obraId }), ler('movimentos_estoque', { obra_id: obraId }),
   ])
   return ok({
-    // A foto da nota mostra preço: só sai do banco para quem pode ver (quadro, pedidos.ver_nota_fiscal).
+    // A foto da nota mostra preço (quadro, pedidos.ver_nota_fiscal). Hoje ela ainda chega ao navegador
+    // e é tirada aqui; a tranca de verdade vem com o Storage (fase 4b), num caminho que só o admin lê.
     pedidos: pedidos.map((p) => comMaterial(posso('pedidos.ver_nota_fiscal') ? p : { ...p, foto_nf: null }, catalogo)),
     catalogo: catalogo.filter((m) => m.ativo).sort(porNome),
     // Sugestões para o campo "frente" (o pedido aceita texto livre, ex.: "Banheiro suíte").
@@ -1291,6 +1313,8 @@ export const excluirMedicao = (id) => executar(async () => {
 
 // O que quem está logado pode fazer (src/lib/permissoes.js). As telas perguntam aqui.
 export const posso = (acao, dono = null) => pode(acao, usuario, dono)
+export const possoAbrir = (tela) => podeAbrir(tela, usuario)
+export const textosDasObras = () => textosDeObras(usuario)
 
 // ---------------------------------------------------------------------------
 // Usuários (só o admin). Quem barra os outros é o banco (regra e gatilho de profiles).
@@ -1307,6 +1331,8 @@ export const salvarUsuario = ({ id, role, status }) => executar(async () => {
   if (status === 'ativo' && !role) return falha('Escolha o perfil antes de liberar.')
   const [salvo] = await atualizar('profiles', { id }, { role, status })
   if (!salvo) return falha('Sem permissão para mudar este usuário.')
+  // Virou admin: vê todas, e a lista antiga de obras não pode voltar se um dia for rebaixado.
+  if (role === 'admin_master') await apagar('membros', { profile_id: id })
   return ok(copia(salvo))
 })
 

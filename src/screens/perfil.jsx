@@ -1,12 +1,14 @@
 // Perfil e Usuários. Usuários não depende de obra: é quem entra no sistema, e só o admin vê.
 import { useState } from 'react'
-import { NOME_PERFIL } from '../lib/listas.js'
+import { NOME_PERFIL, SITUACOES_CONTA } from '../lib/listas.js'
+import { rotuloDaConta } from '../lib/login.js'
+import { precisaEscolherObras } from '../lib/permissoes.js'
 import { listarUsuarios, salvarUsuario, listarObrasDoUsuario, salvarObrasDoUsuario, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { Cabecalho, Carregando, ErroCarga, Gaveta, Pill, useToast } from '../components/index.jsx'
 
 const COR_SITUACAO = { pendente: 'warn', ativo: 'info', bloqueado: 'idle' }
-const rotulo = (u) => (u.status === 'pendente' ? 'Pendente' : u.status === 'bloqueado' ? 'Bloqueado' : NOME_PERFIL[u.role])
+const NOME_SITUACAO = { pendente: 'Pendente', ativo: 'Ativo', bloqueado: 'Bloqueado' }
 
 // O gerente vê só as obras liberadas para ele. O Engenheiro (admin) vê todas e não tem lista.
 function ObrasLiberadas({ obras, marcadas, mudar }) {
@@ -46,7 +48,7 @@ function EditarUsuario({ u, fechar, salvo }) {
     setSalvando(true)
     setErro(null)
     const r = await salvarUsuario({ id: u.id, role, status })
-    if (!r.erro && role === 'gerente' && marcadas) {
+    if (!r.erro && precisaEscolherObras(role) && marcadas) {
       const o = await salvarObrasDoUsuario(u.id, [...marcadas])
       if (o.erro) r.erro = `Perfil salvo, mas as obras não: ${o.erro}`
     }
@@ -67,7 +69,7 @@ function EditarUsuario({ u, fechar, salvo }) {
         <button disabled title="Chega na v1.1">Cliente (v1.1)</button>
       </div>
       {role === 'admin_master' && <div className="hint">O Engenheiro vê e faz tudo em todas as obras, inclusive Medições e Usuários.</div>}
-      {role === 'gerente' && (
+      {precisaEscolherObras(role) && (
         <>
           <div className="hint">O Gerente toca só as obras marcadas abaixo, sem Medições, sem a foto da nota fiscal e sem Usuários.</div>
           <div className="label">Obras liberadas</div>
@@ -76,9 +78,9 @@ function EditarUsuario({ u, fechar, salvo }) {
       )}
       <div className="label">Situação</div>
       <div className="seg three">
-        <button className={status === 'pendente' ? 'warn' : ''} onClick={() => setStatus('pendente')}>Pendente</button>
-        <button className={status === 'ativo' ? 'info' : ''} onClick={() => setStatus('ativo')}>Ativo</button>
-        <button className={status === 'bloqueado' ? 'warn' : ''} onClick={() => setStatus('bloqueado')}>Bloqueado</button>
+        {SITUACOES_CONTA.map((s) => (
+          <button key={s} className={status === s ? (s === 'ativo' ? 'info' : 'warn') : ''} onClick={() => setStatus(s)}>{NOME_SITUACAO[s]}</button>
+        ))}
       </div>
       {erro && <div className="err">{erro}</div>}
       <div className="sheet-actions">
@@ -104,7 +106,7 @@ function Usuarios({ perfil }) {
             <button key={u.id} className="item" onClick={() => u.id !== perfil.id && setEditando(u)} disabled={u.id === perfil.id}>
               <div className="item-top">
                 <div><h3>{u.nome}{u.id === perfil.id ? ' (você)' : ''}</h3><div className="meta">{u.email}</div></div>
-                <Pill cor={COR_SITUACAO[u.status]}>{rotulo(u)}</Pill>
+                <Pill cor={COR_SITUACAO[u.status]}>{rotuloDaConta(u)}</Pill>
               </div>
             </button>
           ))}

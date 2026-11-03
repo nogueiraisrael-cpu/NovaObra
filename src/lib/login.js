@@ -1,6 +1,8 @@
 // Regras do login: o que se confere antes de mandar ao Supabase Auth, a frase de cada
 // erro e qual porta a pessoa encontra depois de entrar. Sem React e sem banco.
 
+import { NOME_PERFIL } from './listas.js'
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export const SENHA_MINIMA = 6
 
@@ -57,4 +59,11 @@ export function mensagemDoPerfil(texto) {
   if (/so_admin_muda_perfil/.test(texto)) return 'Só o Engenheiro administrador libera contas e muda perfis.'
   if (/ativo_tem_perfil/.test(texto)) return 'Escolha o perfil antes de liberar.'
   return null
+}
+
+// Como a conta aparece na lista de Usuários: a situação, se não está ativa; senão, o perfil.
+export function rotuloDaConta(conta) {
+  if (conta.status === 'pendente') return 'Pendente'
+  if (conta.status === 'bloqueado') return 'Bloqueado'
+  return NOME_PERFIL[conta.role] ?? 'Sem perfil'
 }

@@ -1,7 +1,7 @@
 // COMPARATIVO ENTRE OBRAS — a única tela que mostra várias obras juntas.
 // Tocar num cartão escolhe a obra e abre o RDO de hoje dela.
 import { useState } from 'react'
-import { listarResumoObras, salvarObra, posso } from '../lib/dados.js'
+import { listarResumoObras, salvarObra, posso, textosDasObras } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
 import { ordenarResumo, separarPorSituacao } from '../lib/obras.js'
@@ -129,7 +129,7 @@ export default function Obras({ abrirObra }) {
   }
 
   const cabecalho = (
-    <Cabecalho eyebrow={formatarDataLonga(hojeISO())} titulo="Obras" sub={posso('obra.criar') ? 'Comparativo de todas as obras' : 'Comparativo das suas obras'}
+    <Cabecalho eyebrow={formatarDataLonga(hojeISO())} titulo="Obras" sub={textosDasObras().comparativo}
       acao={posso('obra.criar') && <button className="btn btn-ghost" onClick={() => setForm({})}>+ Nova obra</button>} />
   )
   const gaveta = (

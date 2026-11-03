@@ -8,7 +8,9 @@ const D = 'só os dele'
 const X = '·'
 const N = 'ninguém'
 
-export const PERFIS = ['admin_master', 'gerente', 'cliente']
+import { ROLES } from './listas.js'
+
+export const PERFIS = ROLES
 
 // Ação → [admin_master, gerente, cliente]
 export const QUADRO = {
@@ -105,10 +107,27 @@ export function pode(acao, usuario, dono = null) {
   return false
 }
 
+// Quem vê todas as obras: só o admin ativo (quadro, seção 2). Os outros, só as liberadas.
+export const veTodasAsObras = (usuario) => usuario?.status === 'ativo' && usuario.role === 'admin_master'
+
+// O gerente (e, na v1.1, o cliente) precisa de obras liberadas; o admin não tem lista.
+export const precisaEscolherObras = (role) => Boolean(role) && role !== 'admin_master'
+
+// Os textos que mudam conforme a pessoa vê todas as obras ou só as dela.
+export function textosDeObras(usuario) {
+  const todas = veTodasAsObras(usuario)
+  return {
+    acesso: todas ? 'todas as obras' : 'obras liberadas',
+    comparativo: todas ? 'Comparativo de todas as obras' : 'Comparativo das suas obras',
+    comparar: todas ? 'Comparar todas as obras' : 'Comparar as suas obras',
+    semObra: todas ? 'Nenhuma obra cadastrada' : 'Nenhuma obra liberada',
+  }
+}
+
 // As obras que a pessoa enxerga: o admin, todas; os outros, só as liberadas em `membros`.
 export function obrasVisiveis(obras, usuario, membros) {
   if (!usuario || usuario.status !== 'ativo') return []
-  if (usuario.role === 'admin_master') return obras
+  if (veTodasAsObras(usuario)) return obras
   const liberadas = new Set(membros.filter((m) => m.profile_id === usuario.id).map((m) => m.obra_id))
   return obras.filter((o) => liberadas.has(o.id))
 }

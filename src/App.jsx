@@ -1,8 +1,8 @@
 // Login de verdade (Supabase Auth): ao abrir, retoma a sessão guardada no aparelho; o
 // perfil + a situação decidem a porta (src/lib/login.js). Nenhuma tela do app abre sem login.
 import { useEffect, useState } from 'react'
-import { sair, sessaoAtual, aoChegarPeloLinkDeSenha } from './lib/dados.js'
-import { portaDoPerfil } from './lib/login.js'
+import { sair, sessaoAtual, ouvirSessao } from './lib/dados.js'
+import { portaDoPerfil, AVISO_BLOQUEADO } from './lib/login.js'
 import { ObraProvider } from './lib/ObraContext.jsx'
 import { Carregando, ToastProvider } from './components/index.jsx'
 import Login from './pages/Login.jsx'
@@ -25,8 +25,22 @@ export default function App() {
       setAviso(erro)
       setAbrindo(false)
     })
-    const parar = aoChegarPeloLinkDeSenha(() => setNovaSenha(true))
-    return () => { vivo = false; parar() }
+    const parar = ouvirSessao({
+      aoChegarPeloLinkDeSenha: () => setNovaSenha(true),
+      aoAcabarASessao: () => { setPerfil(null); setAviso('A sua sessão acabou. Entre de novo.') },
+    })
+    // Voltou para o app (outra aba, celular desbloqueado): confere de novo o perfil. Quem foi
+    // bloqueado ou voltou a pendente no meio do uso cai na porta certa sem esperar o próximo login.
+    function conferir() {
+      sessaoAtual().then(({ data, erro }) => {
+        if (!vivo) return
+        if (data) setPerfil(data)
+        // Sem internet na volta não desloga ninguém; conta bloqueada, sim.
+        else if (erro === AVISO_BLOQUEADO) { setPerfil(null); setAviso(erro) }
+      })
+    }
+    window.addEventListener('focus', conferir)
+    return () => { vivo = false; parar(); window.removeEventListener('focus', conferir) }
   }, [])
 
   async function aoSair() {

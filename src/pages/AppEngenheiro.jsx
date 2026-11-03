@@ -2,7 +2,7 @@
 // seletor de obra fixo no topo e o roteamento por estado.
 import { useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
-import { pode, podeAbrir } from '../lib/permissoes.js'
+import { posso, possoAbrir, textosDasObras } from '../lib/dados.js'
 import { NOME_PERFIL } from '../lib/listas.js'
 import { Icon, SeletorObra, Vazio } from '../components/index.jsx'
 import Obras from '../screens/obras.jsx'
@@ -44,18 +44,18 @@ export default function AppEngenheiro({ perfil, aoSair }) {
   }
 
   // O menu e as telas seguem o "Ver" do quadro. Tela sem permissão volta para Obras.
-  const menu = MENU.filter((m) => podeAbrir(m.id, perfil))
-  const tela = podeAbrir(route.screen, perfil) ? route.screen : 'obras'
+  const menu = MENU.filter((m) => possoAbrir(m.id))
+  const tela = possoAbrir(route.screen) ? route.screen : 'obras'
 
   let corpo
   if (!obraId && PRECISAM_DE_OBRA.includes(tela)) {
-    corpo = <Vazio icone="obras" {...(pode('obra.criar', perfil)
+    corpo = <Vazio icone="obras" {...(posso('obra.criar')
       ? { titulo: 'Nenhuma obra cadastrada', texto: 'Toque em + Nova obra para começar.' }
       : { titulo: 'Nenhuma obra liberada para você', texto: 'Peça ao Engenheiro administrador para liberar as suas obras.' })}
       acao={<button className="btn btn-primary" onClick={() => goto('obras')}>Ir para Obras</button>} />
   } else {
     switch (tela) {
-      case 'obra': corpo = <Obra goto={goto} params={route.params} perfil={perfil} />; break
+      case 'obra': corpo = <Obra goto={goto} params={route.params} />; break
       case 'ocorrencias': corpo = <Ocorrencias />; break
       case 'equipamentos': corpo = <Equipamentos />; break
       case 'pessoas': corpo = <Pessoas goto={goto} />; break
@@ -81,7 +81,7 @@ export default function AppEngenheiro({ perfil, aoSair }) {
             <button key={m.id} className={ativo === m.id ? 'on' : ''} onClick={() => goto(m.id)}>{icone(m)}{m.rotulo}</button>
           ))}
         </nav>
-        <div className="who">{perfil.nome}<small>{NOME_PERFIL[perfil.role]} · {perfil.role === 'admin_master' ? 'todas as obras' : 'obras liberadas'}</small></div>
+        <div className="who">{perfil.nome}<small>{NOME_PERFIL[perfil.role]} · {textosDasObras().acesso}</small></div>
       </aside>
 
       <main className="main">

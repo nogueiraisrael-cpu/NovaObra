@@ -1,6 +1,6 @@
 // Dentro da obra escolhida: abas Hoje · Diários · Fotos · Comentários · Pranchas · Medições · Materiais · Planejamento.
 import { useObra } from '../lib/ObraContext.jsx'
-import { podeAbrir } from '../lib/permissoes.js'
+import { possoAbrir } from '../lib/dados.js'
 import { hojeISO, formatarDataLonga } from '../lib/datas.js'
 import { Cabecalho, Vazio } from '../components/index.jsx'
 import RdoHoje from './rdoHoje.jsx'
@@ -14,10 +14,10 @@ import Planejamento from './planejamento.jsx'
 
 const ABAS = ['Hoje', 'Diários', 'Fotos', 'Comentários', 'Pranchas', 'Medições', 'Materiais', 'Planejamento']
 
-export default function Obra({ goto, params, perfil }) {
+export default function Obra({ goto, params }) {
   const { obra } = useObra()
   // Só as abas que o perfil pode ver (o gerente não tem Medições). Aba sem permissão volta para Hoje.
-  const abas = ABAS.filter((a) => podeAbrir(a, perfil))
+  const abas = ABAS.filter((a) => possoAbrir(a))
   const aba = abas.includes(params.aba) ? params.aba : abas[0]
   const irPara = (novos) => goto('obra', { ...params, ...novos })
 

@@ -122,6 +122,9 @@ e a Vercel publica sozinha. A pessoa não digita comando.
 
 ## Armadilhas desta base
 
+- **O primeiro cadastro do banco vira o admin_master** (gatilho da migration -14). Hoje é o Israel. Se o banco
+  for recriado do zero, ele cadastra primeiro, antes de o app ir para o ar com cadastro aberto.
+
 - **Tabela nova nasce fechada para o app.** Toda tabela precisa de `grant` escrito na migration,
   só para `authenticated` (e `service_role`). Erro "permission denied for table (42501)" é GRANT
   faltando, não RLS. Nunca `grant all`, nunca `to anon`.
@@ -145,7 +148,8 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   repetir o mesmo toque completa (mover para a mesma coluna, lançar o mesmo avanço); na importação
   "substituir", as novas entram antes de as antigas serem arquivadas: se cair no meio, arquive as antigas na EAP. "Trocar planilha" apaga as linhas da medição e grava as novas: se cair
   no meio, a medição fica sem linhas, e trocar de novo completa. Importar medição grava o cabeçalho e as linhas; se as
-  linhas falharem, o próprio `dados.js` desfaz o cabeçalho.
+  linhas falharem, o próprio `dados.js` desfaz o cabeçalho. Em Usuários, salvar grava o perfil e depois as obras
+  liberadas (apaga as que saíram, grava as novas): se cair no meio, salvar de novo completa.
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

@@ -1,7 +1,7 @@
 // Permissões: o código (src/lib/permissoes.js) é cópia fiel do quadro decidido pelo Israel
 // (docs/permissoes/quadro.json). Mudou um sem o outro, este teste reprova.
 import fs from 'node:fs'
-import { QUADRO, PERFIS, pode, obrasVisiveis, podeAbrir } from '../src/lib/permissoes.js'
+import { QUADRO, PERFIS, pode, obrasVisiveis, podeAbrir, veTodasAsObras, precisaEscolherObras, textosDeObras } from '../src/lib/permissoes.js'
 
 const quadro = JSON.parse(fs.readFileSync(new URL('../docs/permissoes/quadro.json', import.meta.url), 'utf8'))
 
@@ -51,6 +51,11 @@ conferir('aba Medições some para o gerente', podeAbrir('Medições', gerente),
 conferir('aba Medições aparece para o admin', podeAbrir('Medições', admin), true)
 conferir('gerente abre o comparativo de obras', podeAbrir('obras', gerente), true)
 conferir('todo ativo abre o Perfil', podeAbrir('perfil', cliente), true)
+
+conferir('só o admin ativo vê todas as obras', [veTodasAsObras(admin), veTodasAsObras(gerente), veTodasAsObras({ ...admin, status: 'bloqueado' })], [true, false, false])
+conferir('gerente precisa de obras liberadas; admin não', [precisaEscolherObras('gerente'), precisaEscolherObras('admin_master'), precisaEscolherObras(null)], [true, false, false])
+conferir('textos do gerente falam das obras dele', textosDeObras(gerente).semObra, 'Nenhuma obra liberada')
+conferir('textos do admin falam de todas', textosDeObras(admin).comparar, 'Comparar todas as obras')
 
 console.log(`${ok}/${tot} — permissoes`)
 if (ok !== tot) process.exit(1)

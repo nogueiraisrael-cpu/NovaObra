@@ -1,5 +1,6 @@
 // GERENTE: o admin libera um gerente só na UBS, e a camada de dados entrega a ele só a UBS,
-// sem a foto da nota fiscal. Roda no banco em memória (o banco real tem a RLS por cima).
+// sem a foto da nota fiscal. Roda no banco em memória. No banco real, a tranca por obra (RLS)
+// das tabelas de lançamento só chega na fase 5 do passo 10: até lá, isto é só o que a tela mostra.
 import * as dados from '../src/lib/dados.js'
 
 let ok = 0
