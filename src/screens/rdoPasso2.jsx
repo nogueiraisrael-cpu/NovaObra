@@ -1,6 +1,6 @@
 // RDO passo 2 — frentes de serviço, gaveta "Preencher frente" e Fechar RDO (v1.0).
 import { useState } from 'react'
-import { listarFrentes, salvarFrente, obterPreenchimento, salvarPreenchimento, resumoFechamento, fecharRdo } from '../lib/dados.js'
+import { listarFrentes, salvarFrente, obterPreenchimento, salvarPreenchimento, resumoFechamento, fecharRdo, uploadFoto } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { diasParada, separarFrentes, rotuloExecutor } from '../lib/frentes.js'
 import { ETAPAS, EXECUTORES, SITUACOES_FRENTE_DIA, MOTIVOS_PARADA } from '../lib/listas.js'
@@ -80,20 +80,31 @@ function PreencherFrente({ inicial, fechar, salvo }) {
     setP({ ...p, equipe })
   }
 
-  // Provisório até o Storage: a foto é encolhida (lado maior 1280 px, JPEG) e vai
-  // dentro do próprio endereço gravado no banco, para sobreviver ao F5.
-  async function anexar(e) {
+  // A prévia aparece na hora; a foto encolhe e sobe para o Storage logo depois. Se não subir,
+  // ela sai da lista com o aviso, e o resto do que foi preenchido continua para salvar.
+  const enviando = p.fotos.some((ft) => !ft.caminho)
+  function anexar(e) {
     const arquivos = [...e.target.files].slice(0, 5 - p.fotos.length)
     e.target.value = ''
-    try {
-      const novas = await Promise.all(arquivos.map(async (a) => ({ caminho: await encolherFoto(a), legenda: '' })))
-      setP((atual) => ({ ...atual, fotos: [...atual.fotos, ...novas] }))
-    } catch (_) {
-      setErro('Não foi possível ler essa foto. Tente outra.')
+    for (const arquivo of arquivos) {
+      const chave = crypto.randomUUID()
+      const previa = URL.createObjectURL(arquivo)
+      setP((atual) => ({ ...atual, fotos: [...atual.fotos, { chave, url: previa, caminho: null, legenda: '' }] }))
+      encolherFoto(arquivo)
+        .then((foto) => uploadFoto(foto, 'diario'))
+        .catch((falhou) => ({ erro: falhou.message }))
+        .then(({ data, erro: falhou }) => {
+          setP((atual) => ({
+            ...atual,
+            fotos: falhou ? atual.fotos.filter((ft) => ft.chave !== chave) : atual.fotos.map((ft) => (ft.chave === chave ? { ...ft, caminho: data.caminho } : ft)),
+          }))
+          if (falhou) setErro(falhou)
+        })
     }
   }
 
   async function salvar() {
+    if (enviando) return
     if (p.situacao === 'Concluída' && !confirmarConclusao) return setConfirmarConclusao(true)
     setSalvando(true)
     const { erro: falhou } = await salvarPreenchimento(frente.id, { ...p, equipe: [...p.equipe] })
@@ -150,8 +161,8 @@ function PreencherFrente({ inicial, fechar, salvo }) {
       {p.fotos.length > 0 && (
         <div className="thumbs">
           {p.fotos.map((ft, i) => (
-            <div className="thumb" key={ft.caminho}>
-              <img src={ft.caminho} alt={`Foto ${i + 1}`} />
+            <div className={`thumb${ft.caminho ? '' : ' subindo'}`} key={ft.chave ?? ft.id ?? ft.caminho}>
+              <img src={ft.url ?? ft.caminho} alt={`Foto ${i + 1}${ft.caminho ? '' : ' (subindo)'}`} />
               <button aria-label={`Tirar foto ${i + 1}`} onClick={() => setP({ ...p, fotos: p.fotos.filter((_, j) => j !== i) })}>×</button>
             </div>
           ))}
@@ -161,7 +172,7 @@ function PreencherFrente({ inicial, fechar, salvo }) {
       {erro && <div className="err">{erro}</div>}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
+        <button className="btn btn-primary" onClick={salvar} disabled={salvando || enviando}>{enviando ? 'Subindo foto…' : salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </>
   )

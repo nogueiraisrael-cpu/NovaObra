@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
 import { textosDasObras } from '../lib/dados.js'
+import { LADO_MAIOR, QUALIDADE } from '../lib/fotos.js'
 
 // ---------- ícones (SVG do preview.html) ----------
 const ICONES = {
@@ -126,16 +127,19 @@ export function EmBreve({ titulo, fase, texto }) {
 }
 
 // ---------- foto ----------
-// Encolhe a foto (lado maior 1280 px, JPEG) antes de gravar: provisório até o Storage.
-export async function encolherFoto(arquivo, ladoMaior = 1280) {
+// Encolhe a foto no aparelho antes de mandar (lado maior 1200 px, JPEG 0,8): foto de celular
+// tem uns 4 MB e vira perto de 200 KB. Quem manda para o Storage é a camada de dados (uploadFoto).
+export async function encolherFoto(arquivo) {
   const imagem = await createImageBitmap(arquivo)
-  const escala = Math.min(1, ladoMaior / Math.max(imagem.width, imagem.height))
+  const escala = Math.min(1, LADO_MAIOR / Math.max(imagem.width, imagem.height))
   const tela = document.createElement('canvas')
   tela.width = Math.round(imagem.width * escala)
   tela.height = Math.round(imagem.height * escala)
   tela.getContext('2d').drawImage(imagem, 0, 0, tela.width, tela.height)
   imagem.close()
-  return tela.toDataURL('image/jpeg', 0.7)
+  const foto = await new Promise((pronto) => tela.toBlob(pronto, 'image/jpeg', QUALIDADE))
+  if (!foto) throw new Error('Não foi possível ler essa foto. Tente outra.')
+  return foto
 }
 
 // ---------- gaveta ----------

@@ -140,8 +140,12 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   e à noite já seria amanhã. O seed usa o fuso de Natal (`America/Fortaleza`).
 - **O Supabase devolve no máximo 1.000 linhas por pedido**, sem avisar. O `ler` do `dados.js` já
   pede em páginas; não troque por um `select` solto.
-- **Fotos, provisório até o Storage:** a foto é encolhida (1280 px, JPEG) e gravada dentro do
-  próprio endereço em `fotos.caminho`. Funciona, mas pesa no banco: o Storage entra antes do uso real.
+- **Fotos moram no Storage** (pasta privada `fotos`, migration -16) desde 03/11/2026: a tela encolhe
+  (`encolherFoto`, 1200 px, JPEG 0,8), `uploadFoto` manda e a tabela guarda só o caminho
+  `<obra_id>/<modulo>/<id>.jpg`. O endereço para mostrar é assinado na leitura (1 hora) e **nunca se grava**.
+  Quem pode abrir é o próprio caminho que diz (`privado.pode_foto`): nota fiscal só o admin. As fotos de exemplo
+  antigas continuam dentro da tabela (`data:`) e aparecem iguais. Foto tirada e descartada antes de salvar
+  fica solta no Storage (não aparece, só ocupa espaço).
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
   concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava

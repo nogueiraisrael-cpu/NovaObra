@@ -25,8 +25,8 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 4. **Medições (`medicoes`, `medicao_itens`) são só do Engenheiro.** Hoje estão abertas como o resto; a regra
    do passo 10 não pode deixar o Cliente ler nenhuma linha delas (é custo). O arquivo original da planilha ainda
    não é guardado (`caminho_planilha` vazio): entra com o Storage.
-5. **Fotos** ficam dentro do próprio registro, encolhidas. O lugar certo é o Storage (arquivos);
-   entra antes do uso real.
+5. **Fotos estão no Storage desde 03/11/2026** (pasta privada `fotos`): a tabela guarda só o caminho. As 10
+   fotos de exemplo antigas continuam dentro do registro (`data:`) e aparecem iguais.
 
 ## As tabelas (22)
 
@@ -114,3 +114,4 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | `20261102-13-medicoes.sql` | Cria `medicoes` e `medicao_itens` (v1.3, etapa 1). Um nº por contrato/empreiteiro por obra; a linha é da mesma obra da medição. ⚠️ Também abertas sem login, provisório até o passo 10 (e lá, só Engenheiro) |
 | `20261102-14-login-perfis-e-carimbos.sql` | Cria `profiles` e `membros` com as regras definitivas, o gatilho do cadastro (primeiro = admin), a trava de perfil, as funções das regras (schema `privado`) e o carimbo `criado_por`/`updated_at` em toda tabela (substitui `tocar_updated_at`). Testado em 03/11/2026: 14 provas, nada sobrou |
 | `20261103-15-gerente-so-le-nomes.sql` | Achado da revisão: o gerente lia e-mail, perfil e situação de todos. Agora cada um lê o próprio perfil, só o admin lê os outros, e os nomes da equipe saem pela função `nomes_da_equipe()` (só id e nome, para admin e gerente ativos) |
+| `20261103-16-fotos-no-storage.sql` | Cria a pasta privada `fotos` no Storage (só JPEG, até 2 MB) e as regras de ler, mandar e apagar: conta ativa, nas obras que vê; o diário para Engenheiro e Gerente, a nota fiscal só para o Engenheiro. Testado em 03/11/2026 |

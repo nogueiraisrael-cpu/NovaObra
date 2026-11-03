@@ -33,6 +33,7 @@ import {
   validarEntrada, validarCadastro, validarEmail, validarSenha, mensagemDoLogin, mensagemDoPerfil, AVISO_BLOQUEADO,
 } from './login.js'
 import { fraseDoErroInterno } from './erros.js'
+import { PASTA_DE_FOTOS, VALIDADE_DO_ENDERECO, caminhoDaFoto, estaNoStorage, mensagemDoEnvio } from './fotos.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
 
 // Tabelas de lançamento: obra_id obrigatório. Toda tabela nova de módulo novo entra aqui.
@@ -620,7 +621,7 @@ export const obterPreenchimento = (frenteId) => executar(async () => {
     motivo_parada: rf?.motivo_parada ?? frente.motivo_parada ?? null,
     descricao: rf?.descricao ?? '',
     equipe: rf ? equipe.filter((q) => q.rdo_frente_id === rf.id).map((q) => q.funcionario_id) : [],
-    fotos: rf ? fotos.filter((ft) => ft.rdo_frente_id === rf.id) : [],
+    fotos: rf ? await comEndereco(fotos.filter((ft) => ft.rdo_frente_id === rf.id), 'caminho', 'url') : [],
     presentes,
   })
 })
@@ -643,10 +644,13 @@ export const salvarPreenchimento = (frenteId, { situacao, motivo_parada, descric
     : await inserir('rdo_frentes', { rdo_id: rdo.id, obra_id: obraId, frente_id: frenteId, ...campos })
   await apagar('rdo_frente_equipe', { rdo_frente_id: rf.id })
   await inserirVarios('rdo_frente_equipe', equipe.map((id) => ({ rdo_frente_id: rf.id, obra_id: obraId, funcionario_id: id })))
+  const antes = await ler('fotos', { rdo_frente_id: rf.id })
   await apagar('fotos', { rdo_frente_id: rf.id })
   await inserirVarios('fotos', fotos.map((ft) => ({
     obra_id: obraId, rdo_id: rdo.id, rdo_frente_id: rf.id, caminho: ft.caminho, legenda: ft.legenda ?? '', visivel_cliente: true, enviada_por: usuario?.id ?? null,
   })))
+  const ficaram = new Set(fotos.map((ft) => ft.caminho))
+  await apagarArquivos(antes.map((ft) => ft.caminho).filter((c) => !ficaram.has(c)))
   return ok(rf)
 })
 
@@ -698,7 +702,7 @@ async function linhasDosRdos(ids) {
   const [efetivo, frentes, fotos] = await Promise.all([
     ler('rdo_efetivo', { rdo_id: ids }), ler('rdo_frentes', { rdo_id: ids }), ler('fotos', { rdo_id: ids }),
   ])
-  return { efetivo, frentes, fotos }
+  return { efetivo, frentes, fotos: await comEndereco(fotos, 'caminho', 'url') }
 }
 const doRdo = (linhas, rdoId) => ({
   efetivo: linhas.efetivo.filter((l) => l.rdo_id === rdoId),
@@ -830,9 +834,10 @@ export const listarQuadroMateriais = () => executar(async () => {
     ler('insumos', { obra_id: obraId }), ler('movimentos_estoque', { obra_id: obraId }),
   ])
   return ok({
-    // A foto da nota mostra preço (quadro, pedidos.ver_nota_fiscal). Hoje ela ainda chega ao navegador
-    // e é tirada aqui; a tranca de verdade vem com o Storage (fase 4b), num caminho que só o admin lê.
-    pedidos: pedidos.map((p) => comMaterial(posso('pedidos.ver_nota_fiscal') ? p : { ...p, foto_nf: null }, catalogo)),
+    // A foto da nota mostra preço (quadro, pedidos.ver_nota_fiscal). O arquivo está no Storage, numa
+    // pasta que só o admin abre (migration -16); para os outros, nem o caminho sai daqui.
+    pedidos: (posso('pedidos.ver_nota_fiscal') ? await comEndereco(pedidos, 'foto_nf', 'foto_nf_url') : pedidos.map((p) => ({ ...p, foto_nf: null })))
+      .map((p) => comMaterial(p, catalogo)),
     catalogo: catalogo.filter((m) => m.ativo).sort(porNome),
     // Sugestões para o campo "frente" (o pedido aceita texto livre, ex.: "Banheiro suíte").
     frentes: frentes.filter((f) => f.situacao !== 'Concluída').sort(porNome).map((f) => f.nome),
@@ -964,8 +969,10 @@ export const salvarMinimo = (insumoId, texto) => executar(async () => {
 
 export const apagarPedido = (pedidoId) => executar(async () => {
   const filtro = { id: pedidoId, obra_id: obraAtual() }
-  if (!(await um('pedidos_material', filtro))) return falha('Pedido não encontrado nesta obra.')
+  const pedido = await um('pedidos_material', filtro)
+  if (!pedido) return falha('Pedido não encontrado nesta obra.')
   await apagar('pedidos_material', filtro)
+  await apagarArquivos([pedido.foto_nf])
   return ok(true)
 })
 
@@ -1318,6 +1325,40 @@ export const excluirMedicao = (id) => executar(async () => {
   await apagar('medicao_itens', { medicao_id: id, obra_id: filtro.obra_id })
   return ok(true)
 })
+
+// ---------------------------------------------------------------------------
+// Fotos (Storage, pasta privada "fotos"). A tela encolhe a foto e manda aqui; a tabela guarda
+// só o caminho que volta. Falhou o envio: a tela avisa e salva o resto sem a foto.
+// ---------------------------------------------------------------------------
+
+export const uploadFoto = (foto, modulo) => executar(async () => {
+  const caminho = caminhoDaFoto(obraAtual(), modulo, crypto.randomUUID())
+  if (!authReal()) return ok({ caminho })
+  const { error } = await supabase.storage.from(PASTA_DE_FOTOS).upload(caminho, foto, { contentType: 'image/jpeg', upsert: false })
+  if (error) return falha(mensagemDoEnvio(error))
+  return ok({ caminho })
+})
+
+// Põe em `destino` o endereço para mostrar a foto de `campo`: assinado (1 hora) para as do Storage,
+// o próprio valor para as antigas. Sem endereço (arquivo sumiu), fica null e a tela não quebra.
+async function comEndereco(linhas, campo, destino) {
+  const doStorage = [...new Set(linhas.map((l) => l[campo]).filter(estaNoStorage))]
+  let assinados = new Map()
+  if (doStorage.length && authReal()) {
+    const { data } = await supabase.storage.from(PASTA_DE_FOTOS).createSignedUrls(doStorage, VALIDADE_DO_ENDERECO)
+    assinados = new Map((data ?? []).filter((x) => x.signedUrl).map((x) => [x.path, x.signedUrl]))
+  }
+  return linhas.map((l) => ({ ...l, [destino]: estaNoStorage(l[campo]) ? assinados.get(l[campo]) ?? null : l[campo] ?? null }))
+}
+
+// Apaga do Storage os arquivos que saíram da tabela. Se falhar, sobra só um arquivo solto
+// (ocupa espaço, não aparece em lugar nenhum): não desfaz a gravação que já deu certo.
+async function apagarArquivos(caminhos) {
+  const doStorage = caminhos.filter(estaNoStorage)
+  if (!doStorage.length || !authReal()) return
+  const { error } = await supabase.storage.from(PASTA_DE_FOTOS).remove(doStorage)
+  if (error) console.error('[dados] arquivo de foto não apagado', error)
+}
 
 // O que quem está logado pode fazer (src/lib/permissoes.js). As telas perguntam aqui.
 export const posso = (acao, dono = null) => pode(acao, usuario, dono)

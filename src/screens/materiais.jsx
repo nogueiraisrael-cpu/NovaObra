@@ -3,7 +3,7 @@
 // O estoque (sub-aba Estoque) recebe o lote que chega no almoxarifado e dá baixa no que é entregue.
 // Tudo otimista: o cartão (ou o saldo) muda na hora e volta ao que era se o banco recusar.
 import { useState } from 'react'
-import { listarQuadroMateriais, salvarPedido, moverPedido, apagarPedido, registrarBaixa, desfazerBaixa, salvarMinimo, posso } from '../lib/dados.js'
+import { listarQuadroMateriais, salvarPedido, moverPedido, apagarPedido, registrarBaixa, desfazerBaixa, salvarMinimo, posso, uploadFoto } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import {
   proximoStatus, statusAnterior, diasNaColuna, leadTime, estaAtrasado, recebidoComProblema, foiRecebido, contadores, montarQuadro,
@@ -105,22 +105,30 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
   const mudar = (campo, valor) => { setForm((atual) => ({ ...atual, [campo]: valor })); tocar(campo) }
   const nome = `${pedido.material.nome} · ${quantidadeComUnidade(pedido.quantidade, pedido.material.unidade)}`
 
+  // Prévia na hora; a foto sobe para o Storage logo depois. Não subiu: aviso, e o recebimento
+  // continua podendo ser confirmado sem a foto.
+  const [previaNF, setPreviaNF] = useState(null)
+  const [enviandoNF, setEnviandoNF] = useState(false)
   async function anexarNF(e) {
     const arquivo = e.target.files[0]
     e.target.value = ''
     if (!arquivo) return
-    try {
-      const foto_nf = await encolherFoto(arquivo)
-      setForm((atual) => ({ ...atual, foto_nf }))
-      setErroFoto(null)
-    } catch (_) {
-      setErroFoto('Não foi possível ler essa foto. Tente outra.')
+    setPreviaNF(URL.createObjectURL(arquivo))
+    setEnviandoNF(true)
+    setErroFoto(null)
+    const { data, erro: falhou } = await encolherFoto(arquivo).then((foto) => uploadFoto(foto, 'nota-fiscal')).catch((x) => ({ erro: x.message }))
+    setEnviandoNF(false)
+    if (falhou) {
+      setPreviaNF(null)
+      setForm((atual) => ({ ...atual, foto_nf: '' }))
+      return setErroFoto(falhou)
     }
+    setForm((atual) => ({ ...atual, foto_nf: data.caminho }))
   }
 
   function enviar() {
     setTentou(true)
-    if (Object.keys(erros).length) return
+    if (enviandoNF || Object.keys(erros).length) return
     confirmar(form)
   }
 
@@ -174,9 +182,9 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
               <input type="file" accept="image/*" hidden onChange={anexarNF} />
             </label>
           </div>
-          {form.foto_nf && (
+          {previaNF && (
             <div className="thumbs">
-              <div className="thumb"><img src={form.foto_nf} alt="Foto da nota fiscal" /><button aria-label="Tirar a foto da nota" onClick={() => setForm({ ...form, foto_nf: '' })}>×</button></div>
+              <div className={`thumb${enviandoNF ? ' subindo' : ''}`}><img src={previaNF} alt={enviandoNF ? 'Foto da nota fiscal (subindo)' : 'Foto da nota fiscal'} /><button aria-label="Tirar a foto da nota" onClick={() => { setPreviaNF(null); setForm({ ...form, foto_nf: '' }) }}>×</button></div>
             </div>
           )}
           <ErroCampo erro={erroFoto} />
@@ -198,7 +206,7 @@ function FormMover({ pedido, novo, frentes, hoje, fechar, confirmar }) {
 
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={enviar}>Confirmar</button>
+        <button className="btn btn-primary" onClick={enviar} disabled={enviandoNF}>{enviandoNF ? 'Subindo foto…' : 'Confirmar'}</button>
       </div>
     </>
   )
@@ -227,7 +235,7 @@ function Detalhes({ pedido, hoje, fechar, voltar, excluir }) {
           {pedido.qtd_recebida != null && <div className="linha-dia"><span>Chegou (entrou no estoque)</span><b>{quantidadeComUnidade(pedido.qtd_recebida, pedido.material.unidade)}</b></div>}
           <div className="linha-dia"><span>Material em perfeito estado</span>{resposta(pedido.estado_ok)}</div>
           {pedido.avarias && <div className="linha-dia"><span>Avarias: {pedido.avarias}</span></div>}
-          {pedido.foto_nf && <div className="fotos-dia"><figure><img src={pedido.foto_nf} alt="Foto da nota fiscal" /><figcaption>Nota fiscal</figcaption></figure></div>}
+          {pedido.foto_nf_url && <div className="fotos-dia"><figure><img src={pedido.foto_nf_url} alt="Foto da nota fiscal" /><figcaption>Nota fiscal</figcaption></figure></div>}
         </>
       )}
       <div className="label">Histórico</div>

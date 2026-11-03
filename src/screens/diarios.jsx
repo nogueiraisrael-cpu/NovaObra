@@ -19,7 +19,7 @@ function Miniaturas({ fotos }) {
   if (!fotos.length) return null
   return (
     <div className="thumbs">
-      {fotos.map((ft) => <div className="thumb" key={ft.id}><img src={ft.caminho} alt={ft.legenda || 'Foto do dia'} /></div>)}
+      {fotos.map((ft) => <div className="thumb" key={ft.id}><img src={ft.url ?? ft.caminho} alt={ft.legenda || 'Foto do dia'} /></div>)}
     </div>
   )
 }
@@ -144,7 +144,7 @@ function DiaDoDiario({ id, voltar }) {
             {f.fotos.length > 0 && (
               <div className="fotos-dia">
                 {f.fotos.map((ft) => (
-                  <figure key={ft.id}><img src={ft.caminho} alt={ft.legenda || 'Foto da frente'} />{ft.legenda && <figcaption>{ft.legenda}</figcaption>}</figure>
+                  <figure key={ft.id}><img src={ft.url ?? ft.caminho} alt={ft.legenda || 'Foto da frente'} />{ft.legenda && <figcaption>{ft.legenda}</figcaption>}</figure>
                 ))}
               </div>
             )}
@@ -157,7 +157,7 @@ function DiaDoDiario({ id, voltar }) {
           <div className="block-h"><h3>Outras fotos do dia</h3><span className="count">{d.fotos_soltas.length}</span></div>
           <div className="fotos-dia">
             {d.fotos_soltas.map((ft) => (
-              <figure key={ft.id}><img src={ft.caminho} alt={ft.legenda || 'Foto do dia'} />{ft.legenda && <figcaption>{ft.legenda}</figcaption>}</figure>
+              <figure key={ft.id}><img src={ft.url ?? ft.caminho} alt={ft.legenda || 'Foto do dia'} />{ft.legenda && <figcaption>{ft.legenda}</figcaption>}</figure>
             ))}
           </div>
         </section>
