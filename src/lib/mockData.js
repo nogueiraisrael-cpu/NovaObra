@@ -7,6 +7,7 @@
 // Nos materiais, a UBS tem só 2 pedidos (aço e bloco); a Serra, 10. No estoque, a Serra tem
 // 2 insumos críticos; a UBS, só o cimento e nenhum crítico.
 // No planejamento, a Serra tem a EAP inteira (5 grupos, uma arquivada); a UBS, só a fundação.
+// Nas medições, a UBS tem 3 do contrato e 1 de empreiteiro; a Serra, nenhuma do contrato e 7 de empreiteiro.
 //
 // As datas são relativas a hoje, para o exemplo continuar fazendo sentido amanhã.
 // O supabase-seed.sql foi gerado a partir daqui (01/11/2026): os ids viram uuid fixos.
@@ -363,9 +364,108 @@ export function criarMock(hoje = hojeISO()) {
     st('st-ubs-sap-2', 'obra-ubs', 'at-ubs-sap', 1, 'Armadura das sapatas'),
   ]
 
+  // ---- Medições (v1.3): o que teria vindo das planilhas ----
+  // UBS (licitação): 3 medições do contrato, R$ 2.418.300,00 adequado em 8 etapas, e o
+  // "2.1.3 Concreto em sapatas" medido ACIMA do adequado (91,20 de 86,40 m³). Mais 1 medição
+  // do empreiteiro Hidro Natal. Serra (alto padrão): NENHUMA medição de contrato (a lista vazia
+  // aparece lá) e 7 de empreiteiro: Reboco Forte 2, Imperme RN 1, Gesso Natal 2 (preço global) e
+  // Drywall RN 2 (por escopo, 3 itens).
+  // Serviço do contrato: [item, descrição, unid, qtd prevista, qtd adequada, preço, acumulado em cada medição].
+  const servicosUbs = [
+    ['1.0', 'SERVIÇOS PRELIMINARES'],
+    ['1.1', 'Mobilização e instalação do canteiro', 'VB', 1, 1, 46000, [1, 1, 1]],
+    ['1.2', 'Locação da obra', 'M2', 1000, 1000, 50, [600, 1000, 1000]],
+    ['2.0', 'FUNDAÇÃO'],
+    ['2.1', 'SAPATAS'],
+    ['2.1.1', 'Escavação manual de valas', 'M3', 400, 400, 60, [400, 400, 400]],
+    ['2.1.2', 'Armadura CA-50', 'KG', 8000, 8000, 13, [3000, 8000, 8000]],
+    ['2.1.3', 'Concreto fck 25 MPa em sapatas', 'M3', 80, 86.4, 750, [0, 60, 91.2]],
+    ['2.2', 'VIGAS BALDRAME'],
+    ['2.2.1', 'Forma e concreto de vigas baldrame', 'M3', 274, 274, 800, [0, 80, 192.25]],
+    ['3.0', 'ESTRUTURA'],
+    ['3.1', 'Pilares em concreto armado', 'M3', 200, 200, 1400, [0, 40, 140]],
+    ['3.2', 'Laje pré-moldada', 'M2', 1200, 1200, 300, [0, 0, 200]],
+    ['4.0', 'ALVENARIA'],
+    ['4.1', 'Alvenaria de bloco cerâmico', 'M2', 2800, 3100, 100, [0, 0, 465]],
+    ['5.0', 'INSTALAÇÕES HIDROSSANITÁRIAS'],
+    ['5.1', 'Tubulação de água fria', 'M', 1900, 1900, 60, [0, 100, 380]],
+    ['5.2', 'Tubulação de esgoto', 'M', 1500, 1500, 76, [0, 0, 0]],
+    ['6.0', 'IMPERMEABILIZAÇÃO'],
+    ['6.1', 'Manta asfáltica', 'M2', 1000, 1000, 74, [0, 0, 0]],
+    ['7.0', 'REVESTIMENTOS'],
+    ['7.1', 'Reboco interno e externo', 'M2', 6000, 6000, 40, [0, 0, 0]],
+    ['7.2', 'Revestimento cerâmico', 'M2', 2000, 2000, 90, [0, 0, 0]],
+    ['8.0', 'PINTURA'],
+    ['8.1', 'Pintura látex acrílica', 'M2', 9532, 9532, 25, [0, 0, 0]],
+  ]
+  const reais = (n) => Math.round(n * 100) / 100
+  const qtd = (n) => Math.round(n * 10000) / 10000
+  const medicoes = []
+  const medicao_itens = []
+  const med = (id, obra_id, tipo, empreiteiro, numero, data_medicao, extra) => medicoes.push({
+    id, obra_id, tipo, empreiteiro, numero, data_medicao, periodo_inicio: null, periodo_fim: null,
+    caminho_planilha: null, desconto: null, valor_a_pagar: null, observacao: null, avisos: [], importada_por: P.israel, ...extra,
+  })
+  ;[[-70, -48], [-47, -25], [-24, -2]].forEach(([ini, fim], k) => {
+    const id = `med-ubs-${k + 1}`
+    let etapa = null
+    let sub = null
+    servicosUbs.forEach(([item, descricao, unidade, prevista, adequada, preco, acum], linha) => {
+      if (!unidade) {
+        if (item.endsWith('.0')) { etapa = [item, descricao]; sub = null } else sub = [item, descricao]
+        return
+      }
+      const antes = k ? acum[k - 1] : 0
+      medicao_itens.push({
+        id: `mi-ubs-${k + 1}-${item}`, obra_id: 'obra-ubs', medicao_id: id, linha_planilha: 12 + linha, item,
+        etapa_codigo: etapa[0], etapa_nome: etapa[1],
+        subetapa_codigo: sub && item.startsWith(`${sub[0]}.`) ? sub[0] : null, subetapa_nome: sub && item.startsWith(`${sub[0]}.`) ? sub[1] : null,
+        descricao, unidade, preco_unitario: preco, qtd_prevista: prevista, qtd_contratada: adequada,
+        qtd_periodo: qtd(acum[k] - antes), qtd_acumulada: acum[k],
+        valor_previsto: reais(prevista * preco), valor_contratado: reais(adequada * preco),
+        valor_periodo: reais((acum[k] - antes) * preco), valor_acumulado: reais(acum[k] * preco),
+      })
+    })
+    const periodo = medicao_itens.filter((i) => i.medicao_id === id).reduce((s, i) => s + i.valor_periodo, 0)
+    med(id, 'obra-ubs', 'Contrato', null, k + 1, d(fim), {
+      periodo_inicio: d(ini), periodo_fim: d(fim), arquivo_nome: `BM ${k + 1}ª medição UBS.xlsm`, aba_origem: 'BM', valor_periodo: reais(periodo),
+    })
+  })
+  // Empreiteiro: [id, obra, empreiteiro, nº, dias atrás, aba, [item, descrição, unid, preço, previsto, no período, acumulado]].
+  const medicoesEmpreiteiro = [
+    ['med-ubs-hidro-1', 'obra-ubs', 'Hidro Natal', 1, -20, '01ª med', [['1', 'Instalação de tubulação de água fria', 'm', 12, 1900, 380, 380]]],
+    ['med-serra-reboco-1', 'obra-serra', 'Reboco Forte', 1, -30, '01ª med', [['1', 'Reboco de fachada', 'm²', 28, 450, 120, 120], ['2', 'Chapisco', 'm²', 6, 450, 450, 450]]],
+    ['med-serra-reboco-2', 'obra-serra', 'Reboco Forte', 2, -15, '02ª med', [['1', 'Reboco de fachada', 'm²', 28, 450, 80, 200]]],
+    ['med-serra-imperme-1', 'obra-serra', 'Imperme RN', 1, -10, '01ª med', [['1', 'Manta asfáltica na laje de cobertura', 'm²', 45, 180, 60, 60]]],
+    // Gesso por preço global (uma linha "vb" de R$ 30.000): 40% na 1ª, mais 25% na 2ª → 65% medido.
+    ['med-serra-gesso-1', 'obra-serra', 'Gesso Natal', 1, -40, '01ª med', [['1', 'Forro e sanca de gesso (preço global)', 'vb', 30000, 1, 0.4, 0.4]]],
+    ['med-serra-gesso-2', 'obra-serra', 'Gesso Natal', 2, -12, '02ª med', [['1', 'Forro e sanca de gesso (preço global)', 'vb', 30000, 1, 0.25, 0.65]]],
+    // Drywall por escopo (R$ 30.000 em 3 itens). Acumulado da 2ª = 1ª + período da 2ª, item por item.
+    ['med-serra-drywall-1', 'obra-serra', 'Drywall RN', 1, -25, '01ª med', [
+      ['1', 'Placas de drywall', 'm²', 80, 200, 80, 80], ['2', 'Tratamento de juntas', 'm²', 40, 200, 40, 40], ['3', 'Tabica', 'm', 120, 50, 0, 0],
+    ]],
+    ['med-serra-drywall-2', 'obra-serra', 'Drywall RN', 2, -5, '02ª med', [
+      ['1', 'Placas de drywall', 'm²', 80, 200, 70, 150], ['2', 'Tratamento de juntas', 'm²', 40, 200, 60, 100], ['3', 'Tabica', 'm', 120, 50, 20, 20],
+    ]],
+  ]
+  for (const [id, obra_id, empreiteiro, numero, dia, aba, linhas] of medicoesEmpreiteiro) {
+    linhas.forEach(([item, descricao, unidade, preco, prevista, periodo, acumulado], i) => medicao_itens.push({
+      id: `mi-${id.slice(4)}-${item}`, obra_id, medicao_id: id, linha_planilha: 12 + i, item,
+      etapa_codigo: null, etapa_nome: null, subetapa_codigo: null, subetapa_nome: null, descricao, unidade,
+      preco_unitario: preco, qtd_prevista: prevista, qtd_contratada: prevista, qtd_periodo: periodo, qtd_acumulada: acumulado,
+      valor_previsto: reais(prevista * preco), valor_contratado: reais(prevista * preco),
+      valor_periodo: reais(periodo * preco), valor_acumulado: reais(acumulado * preco),
+    }))
+    const total = reais(linhas.reduce((s, l) => s + l[3] * l[5], 0))
+    med(id, obra_id, 'Empreiteiro', empreiteiro, numero, d(dia), {
+      arquivo_nome: `Medições ${empreiteiro}.xlsx`, aba_origem: aba, valor_periodo: total, desconto: 0, valor_a_pagar: total,
+    })
+  }
+
   return {
     profiles, obras, membros, funcionarios, equipamentos, frentes_servico,
     rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos,
     materiais, pedidos_material, insumos, movimentos_estoque, atividades, restricoes, semana_atividades, subtarefas,
+    medicoes, medicao_itens,
   }
 }

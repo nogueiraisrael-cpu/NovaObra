@@ -468,3 +468,72 @@ button.cron-linha:hover{background:var(--card-2)}
 .imp-campo{display:grid;gap:4px}
 .imp-campo span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .imp-campo .field{min-height:46px;padding:8px 10px;font-size:16px}
+
+/* Medições (v1.3) */
+.med-numeros{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.med-numeros div{background:var(--card-2);border-radius:12px;padding:10px 12px;min-width:0;display:grid;gap:2px}
+.med-numeros span{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.med-numeros b{font-size:17px;overflow-wrap:anywhere}
+.med-conferir{border-color:var(--warn)}
+.med-acoes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.med-acoes .btn{width:100%}
+.med-acoes > :only-child{grid-column:1 / -1}
+.med-valor{font-size:18px;font-weight:700}
+.btn.desligado{opacity:.55}
+
+/* Medições — lista e painel (v1.3, etapa 2) */
+.med-topo-lista{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:12px}
+.med-topo-lista > :only-child{grid-column:1 / -1}
+.med-topo-lista .btn{justify-content:center}
+.med-painel-topo{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px}
+.med-painel-titulo{margin:6px 0 12px}
+.med-escolha{margin-bottom:6px}
+.med-numeros-painel{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}
+.med-numeros-painel b{white-space:nowrap;overflow-wrap:normal;font-size:16px}
+.med-numeros small{font-size:12px;color:var(--muted)}
+.med-barras{margin-top:14px}
+.med-barra{padding:6px 0}
+.med-barra-nome{display:flex;justify-content:space-between;gap:10px;font-size:14px;margin-bottom:4px}
+.med-barra-nome span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.med-barra-nome b{flex:none;font-variant-numeric:tabular-nums}
+.med-trilho{height:12px;border-radius:6px;background:var(--card-2);overflow:hidden}
+.med-trilho{display:flex}
+.med-feito{height:100%;background:var(--accent)}
+.med-antes{height:100%;background:var(--accent);opacity:.4}
+.med-trilho.acima .med-feito,.med-trilho.acima .med-antes{background:var(--bad)}
+.med-filtros{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:14px;align-items:center}
+.med-tabela{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;margin-top:12px}
+.med-tabela th{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;padding:0 8px 8px;white-space:nowrap}
+.med-tabela td{padding:7px 8px;border-top:1px solid var(--line);text-align:right;white-space:nowrap;vertical-align:top}
+.med-tabela th:nth-child(-n+2),.med-tabela td:nth-child(-n+2){text-align:left}
+.med-tabela-emp th:nth-child(-n+4),.med-tabela-emp td:nth-child(-n+4),.med-tabela-emp.varios th:nth-child(5),.med-tabela-emp.varios td:nth-child(5){text-align:left}
+.med-tabela .med-desc{white-space:normal;min-width:240px}
+.med-tabela .med-desc .pill{margin-left:4px}
+.med-tabela tr.med-grupo{cursor:pointer;background:var(--card-2)}
+.med-tabela tr.med-grupo td{border-top:1px solid var(--slate)}
+.med-tabela tr.med-grupo.n1 td:first-child{padding-left:22px}
+.med-tabela tr.med-grupo td svg,.med-grupo-cel svg{display:inline-block;width:14px;height:14px;vertical-align:-2px}
+.med-tabela tr.acima td{background:var(--bad-bg)}
+.med-cartoes{display:grid;gap:8px;margin-top:12px}
+.med-grupo-cel{display:grid;gap:2px;text-align:left;padding:10px 12px;border-radius:10px;background:var(--card-2);width:100%;min-height:46px}
+.med-grupo-cel.n1{margin-left:12px;width:calc(100% - 12px)}
+.med-grupo-cel.acima{box-shadow:inset 3px 0 0 var(--bad)}
+.med-grupo-num{font-size:13px;color:var(--muted)}
+.med-cartao{display:grid;gap:8px;text-align:left;width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px}
+.med-cartao.acima{background:var(--bad-bg);border-color:var(--bad-line)}
+.med-cartao-topo{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.med-cartao-topo b{flex:1 1 100%;font-size:15px;line-height:1.3}
+.med-cartao-resumo,.med-cartao-resto{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.med-cartao-resto{grid-template-columns:1fr 1fr;border-top:1px solid var(--line);padding-top:8px}
+.med-cartao span{display:grid;min-width:0}
+.med-cartao small{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.med-cartao span b{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.med-cartao-resumo{grid-template-columns:1.15fr 1.15fr .7fr}
+.med-so-computador{display:none}
+@media (min-width:900px){ .med-so-computador{display:block} .med-so-celular{display:none} }
+@media print{
+  .nao-imprimir{display:none !important}
+  .med-so-computador{display:block !important} .med-so-celular{display:none !important}
+  .med-tabela{font-size:8pt} .med-tabela tr.med-grupo td{background:#eee}
+  .med-numeros div,.med-barras{border:1px solid #bbb;break-inside:avoid}
+}

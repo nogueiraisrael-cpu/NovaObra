@@ -267,6 +267,42 @@ conferir('o Severino ficou no diário da UBS', (await dados.obterDiario(hojeUbs.
 dados.definirObraAtual('obra-serra')
 conferir('e a Serra não ganhou diário novo por causa disso', (await dados.listarDiarios()).data.filter((r) => r.data === hojeUbs.data).length, 1)
 
+// Medições: cada obra vê só as suas; não abre, troca nem exclui medição da outra.
+dados._reiniciarMock()
+await dados.entrar('eng@novaobra.test', 'x')
+dados.definirObraAtual('obra-ubs')
+const medUbs = (await dados.listarMedicoes()).data
+dados.definirObraAtual('obra-serra')
+const medSerra = (await dados.listarMedicoes()).data
+conferir('UBS: 3 medições do contrato e 1 da Hidro Natal', [medUbs.contrato.map((m) => m.numero), medUbs.empreiteiro.map((m) => m.empreiteiro)], [[1, 2, 3], ['Hidro Natal']])
+conferir('Serra: nenhuma do contrato, 7 de empreiteiro', [medSerra.contrato.length, medSerra.empreiteiro.map((m) => `${m.empreiteiro} ${m.numero}`)],
+  [0, ['Drywall RN 1', 'Drywall RN 2', 'Gesso Natal 1', 'Gesso Natal 2', 'Imperme RN 1', 'Reboco Forte 1', 'Reboco Forte 2']])
+conferir('medições da Serra são só da Serra', medSerra.empreiteiro.every((m) => m.obra_id === 'obra-serra'), true)
+conferir('empreiteiros da Serra: os das frentes dela, sem os da UBS', medSerra.empreiteiros.includes('Hidro Natal'), false)
+const painelSerra = (await dados.obterPainelMedicoes({ tipo: 'Empreiteiro' })).data
+conferir('painel da Serra: medições e linhas só da Serra', [painelSerra.medicoes.length, painelSerra.itens.every((i) => i.obra_id === 'obra-serra'), painelSerra.itens.length], [7, true, 12])
+conferir('painel do contrato da Serra vem vazio (o da UBS não vaza)', (await dados.obterPainelMedicoes({ tipo: 'Contrato' })).data, { medicoes: [], itens: [] })
+conferir('painel de um empreiteiro só traz o dele', (await dados.obterPainelMedicoes({ tipo: 'Empreiteiro', empreiteiro: 'Drywall RN' })).data.itens.length, 6)
+conferir('da Serra não abre medição da UBS',(await dados.obterMedicao('med-ubs-3')).erro, 'Medição não encontrada nesta obra.')
+conferir('da Serra não exclui medição da UBS', (await dados.excluirMedicao('med-ubs-3')).erro, 'Medição não encontrada nesta obra.')
+dados.definirObraAtual('obra-ubs')
+const m3 = (await dados.obterMedicao('med-ubs-3')).data
+conferir('a 3ª medição da UBS tem as linhas dela, só da UBS', [m3.itens.length, m3.itens.every((i) => i.obra_id === 'obra-ubs')], [15, true])
+const { id: _id, obra_id: _obra, itens: _itens, importada_por: _por, ...camposM3 } = m3
+const nova = { campos: { ...camposM3, numero: 4 }, itens: m3.itens.map(({ id: _i, medicao_id: _m, obra_id: _o, ...i }) => i) }
+conferir('nº repetido no contrato é recusado', (await dados.importarMedicoes([{ ...nova, campos: { ...nova.campos, numero: 3 } }])).erro, 'Já existe uma 3ª medição. Use outro número.')
+const gravada = await dados.importarMedicoes([nova])
+conferir('a 4ª medição grava na UBS', gravada.erro, null)
+dados.definirObraAtual('obra-serra')
+conferir('e não aparece na Serra', (await dados.listarMedicoes()).data.contrato.length, 0)
+conferir('o mesmo nº 1 de outro empreiteiro na Serra passa (cada empreiteiro conta o seu)',
+  (await dados.importarMedicoes([{ campos: { ...nova.campos, tipo: 'Empreiteiro', empreiteiro: 'Cerâmica Silva', numero: 1, aba_origem: '01ª med' }, itens: nova.itens }])).erro, null)
+const minusculo = await dados.importarMedicoes([{ campos: { ...nova.campos, tipo: 'Empreiteiro', empreiteiro: 'cerâmica  silva', numero: 2, aba_origem: '02ª med' }, itens: nova.itens }])
+conferir('o mesmo empreiteiro digitado em minúscula entra com o nome que já existe (nada duplica)',
+  [minusculo.erro, (await dados.listarMedicoes()).data.empreiteiro.filter((m) => m.empreiteiro === 'Cerâmica Silva').map((m) => m.numero)], [null, [1, 2]])
+dados.definirObraAtual('obra-ubs')
+conferir('excluir apaga a medição e as linhas', [(await dados.excluirMedicao(gravada.data.ids[0])).erro, (await dados.listarMedicoes()).data.contrato.length], [null, 3])
+
 // Sem obra escolhida a camada se recusa, em vez de cair numa obra qualquer.
 dados.definirObraAtual(null)
 const registrar = console.error

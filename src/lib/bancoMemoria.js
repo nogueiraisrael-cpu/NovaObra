@@ -32,6 +32,8 @@ export const UNICOS = {
   semana_atividades: [{ nome: 'semana_atividades_uma_por_semana', colunas: ['atividade_id', 'semana'] }],
   // Como no Postgres, linha sem pedido (baixa manual) não conta para a trava.
   movimentos_estoque: [{ nome: 'movimentos_um_por_pedido', colunas: ['pedido_id', 'tipo'], vale: (l) => l.pedido_id != null }],
+  // "nulls not distinct": duas medições de contrato (empreiteiro vazio) com o mesmo nº também repetem.
+  medicoes: [{ nome: 'medicoes_um_numero', colunas: ['obra_id', 'tipo', 'empreiteiro', 'numero'] }],
 }
 
 // Recusa a tabela que ficaria com linha repetida, no mesmo formato do erro do Supabase.

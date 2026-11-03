@@ -5,7 +5,7 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 
 - **Onde fica:** Supabase, projeto `nova-obra`, região São Paulo (`sa-east-1`), plano gratuito.
 - **Como o app entra:** endereço e chave publicável no `.env.local` (não vai para o Git).
-- **Atualizado em:** 02/11/2026 (módulo Diário de Obra, v1.0, Materiais — quadro de pedidos e estoque — e Planejamento — EAP).
+- **Atualizado em:** 02/11/2026 (módulo Diário de Obra, v1.0, Materiais — quadro de pedidos e estoque —, Planejamento e Medições, etapa 1).
 
 ## ⚠️ O que é provisório e o passo 10 precisa fechar
 
@@ -21,10 +21,13 @@ Detalhe técnico de cada coluna: `PRD-BACKEND.md` e as migrations em `supabase/m
 3. **"Quem abriu / fechou / mandou a foto"** (`criado_por`, `fechado_por`, `enviada_por`) guarda um
    código de pessoa que ainda não está ligado a ninguém no banco. No passo 10 vira ligação com
    `profiles`, e os códigos das pessoas de exemplo precisam ser trocados pelos do login real.
-4. **Fotos** ficam dentro do próprio registro, encolhidas. O lugar certo é o Storage (arquivos);
+4. **Medições (`medicoes`, `medicao_itens`) são só do Engenheiro.** Hoje estão abertas como o resto; a regra
+   do passo 10 não pode deixar o Cliente ler nenhuma linha delas (é custo). O arquivo original da planilha ainda
+   não é guardado (`caminho_planilha` vazio): entra com o Storage.
+5. **Fotos** ficam dentro do próprio registro, encolhidas. O lugar certo é o Storage (arquivos);
    entra antes do uso real.
 
-## As tabelas (18)
+## As tabelas (20)
 
 Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `movimentos_estoque`) existe
 `updated_at`: a hora da última alteração, que o próprio banco atualiza. O app nunca grava essa coluna.
@@ -49,6 +52,8 @@ Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `mo
 | `restricoes` | O Médio prazo: cada restrição (impedimento) de uma atividade: descrição, tipo (Material, Mão de obra, Método, Equipamento, Projeto, Segurança, Logística), prazo para resolver, responsável e se já foi resolvida (e quando). **A coluna da semana no quadro é a do prazo**: mover de semana é mudar o prazo. Tem `updated_at` automático | uma restrição |
 | `semana_atividades` | O Curto prazo: como cada atividade ficou numa semana (a semana é a segunda-feira): A fazer, Em andamento ou Concluído, e se foi "não realizada" com a causa raiz. Sem linha = A fazer. **O PPC não é guardado: sai destas linhas.** Concluir põe o avanço da atividade em 100% e guarda o de antes (`progresso_antes`) para devolver se voltar | uma atividade numa semana |
 | `subtarefas` | O checklist dentro de cada atividade: feita, ou não realizada com a causa raiz | uma subtarefa |
+| `medicoes` | Cada medição subida por planilha, do contrato (Boletim de Medição, aba BM) ou de um empreiteiro (uma aba por medição): nº, data, período, valor no período, desconto e valor a pagar (empreiteiro), nome do arquivo e da aba, e os avisos aceitos na conferência. **Os valores são os da planilha: o app não recalcula** | uma medição |
+| `medicao_itens` | Cada serviço lido da planilha de uma medição: item, etapa e subetapa (contrato), descrição, unidade, preço, quantidade prevista, contratada (= adequada), no período e acumulada, e os valores. **Saldo e % não são guardados: contratado − acumulado.** Excluir a medição apaga as linhas dela | um serviço numa medição |
 
 ## As travas que o próprio banco garante
 
@@ -69,13 +74,19 @@ Mesmo que a tela erre, o banco recusa:
 - **Coerência:** frente parada exige motivo; frente concluída exige data; deslocado exige a obra de
   destino; terceirizado exige o empreiteiro; equipamento "na obra" exige a obra (e fora dela, não tem).
 
-Testado em 01/11/2026, com 8 tentativas proibidas recusadas e nada sobrando no banco.
+- **Medição coerente:** tipo só `Contrato` ou `Empreiteiro`; empreiteiro obrigatório só no tipo Empreiteiro (e
+  vazio no Contrato); um nº por contrato (ou por empreiteiro) em cada obra; a linha é da mesma obra da medição.
+
+Testado em 01/11/2026, com 8 tentativas proibidas recusadas e nada sobrando no banco. Medições: testado em
+02/11/2026 (tipo inválido, empreiteiro vazio e nº repetido recusados; nada ficou gravado).
 
 ## Dados de exemplo (seed)
 
 `supabase-seed.sql`, na raiz: os mesmos dados de `src/lib/mockData.js`, com as duas obras de exemplo
 (Casa Alto da Serra 4 e UBS Nova Esperança, que não tem equipamento de propósito). As datas são
-relativas ao dia em que roda; rodar de novo não duplica nada.
+relativas ao dia em que roda; rodar de novo não duplica nada. Medições: a UBS tem 3 do contrato
+(R$ 2.418.300,00 adequado, com um serviço medido acima do adequado) e 1 da Hidro Natal; a Serra não tem
+nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 
 ## Histórico das migrations
 
@@ -93,3 +104,4 @@ relativas ao dia em que roda; rodar de novo não duplica nada.
 | `20261102-10-planejamento-longo-prazo.sql` | Avanço real (`progresso`) nas atividades e o calendário da obra (`dias_trabalho`, `feriados`) em `obras` |
 | `20261102-11-planejamento-restricoes.sql` | Cria `restricoes` (Médio prazo). A atividade é sempre da mesma obra; resolvida sempre tem data. ⚠️ Também aberta sem login, provisório até o passo 10 |
 | `20261102-12-planejamento-curto-prazo.sql` | Cria `semana_atividades` e `subtarefas` (Curto prazo). Semana sempre é segunda-feira; uma linha por atividade por semana; não realizada sempre tem causa. ⚠️ Também abertas sem login, provisório até o passo 10 |
+| `20261102-13-medicoes.sql` | Cria `medicoes` e `medicao_itens` (v1.3, etapa 1). Um nº por contrato/empreiteiro por obra; a linha é da mesma obra da medição. ⚠️ Também abertas sem login, provisório até o passo 10 (e lá, só Engenheiro) |

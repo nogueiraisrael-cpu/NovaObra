@@ -48,6 +48,9 @@ export const CAUSAS_NAO_REALIZADO = [
   'Material', 'Mão de obra', 'Projeto', 'Clima', 'Equipamento', 'Serviço anterior', 'Restrição não resolvida', 'Outro',
 ]
 
+// Medições (v1.3): de onde veio a planilha.
+export const TIPOS_MEDICAO = ['Contrato', 'Empreiteiro']
+
 export const STATUS_RDO = ['Em andamento', 'Fechado']
 // Como o RDO de hoje aparece no cartão da obra (inclui o caso "não existe RDO").
 export const STATUS_RDO_HOJE = ['Não iniciado', 'Em andamento', 'Fechado']

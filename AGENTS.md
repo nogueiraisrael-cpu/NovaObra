@@ -3,7 +3,8 @@
 Diário de obra (RDO) no celular para os dois engenheiros que tocam ~10 obras ao mesmo tempo.
 React + Vite + Supabase + Vercel; única biblioteca de app: `@supabase/supabase-js`. **Exceção
 autorizada pelo dono em 02/11/2026:** o SheetJS (`xlsx`), só para ler e gerar planilha do cronograma
-(`src/lib/planilhaCronograma.js`), carregado sob demanda (`import('xlsx')`). Instalado do site oficial
+(`src/lib/planilhaCronograma.js`) e, desde 02/11/2026 (o plano pede), para ler as planilhas de medição
+(`src/lib/planilhaMedicao.js`, só valores, nunca macro), carregado sob demanda (`import('xlsx')`). Instalado do site oficial
 (`cdn.sheetjs.com`, 0.20.3), nunca do npm: o `xlsx` do npm parou na 0.18.5, com falhas de segurança conhecidas.
 Perfis: Engenheiro (`src/pages/AppEngenheiro.jsx`), Cliente (`src/pages/AppCliente.jsx`, v1.1),
 Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md` e os dois PRDs.
@@ -35,7 +36,7 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    abre as 10 tabelas para quem não fez login (`anon`, `using (true)`), por decisão do dono em
    01/11/2026, enquanto o app roda só no computador dele e sem login. A `-05-materiais.sql` e a
    `-06-estoque.sql` fazem o mesmo com `materiais`, `pedidos_material`, `insumos` e
-   `movimentos_estoque`; a `-09-`, a `-11-` e a `-12-` (Planejamento), com `atividades`, `restricoes`, `semana_atividades` e `subtarefas`. **O passo 10 (login) desfaz isso antes de qualquer coisa ir para o ar.**
+   `movimentos_estoque`; a `-09-`, a `-11-` e a `-12-` (Planejamento), com `atividades`, `restricoes`, `semana_atividades` e `subtarefas`; a `-13-` (Medições), com `medicoes` e `medicao_itens`, que no passo 10 ficam **só para Engenheiro** (o Cliente não vê custo). **O passo 10 (login) desfaz isso antes de qualquer coisa ir para o ar.**
    O `check-grants` avisa em toda rodada.
 7. **Mock e seed sempre com DUAS obras diferentes** (`src/lib/mockData.js`): a UBS não tem
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —
@@ -123,11 +124,13 @@ e a Vercel publica sozinha. A pessoa não digita comando.
 - **Fotos, provisório até o Storage:** a foto é encolhida (1280 px, JPEG) e gravada dentro do
   próprio endereço em `fotos.caminho`. Funciona, mas pesa no banco: o Storage entra antes do uso real.
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
-  concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"): se a internet cair
+  concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
   a coluna e depois a movimentação de estoque: voltar a coluna e avançar de novo completa. No Planejamento,
   repetir o mesmo toque completa (mover para a mesma coluna, lançar o mesmo avanço); na importação
-  "substituir", as novas entram antes de as antigas serem arquivadas: se cair no meio, arquive as antigas na EAP.
+  "substituir", as novas entram antes de as antigas serem arquivadas: se cair no meio, arquive as antigas na EAP. "Trocar planilha" apaga as linhas da medição e grava as novas: se cair
+  no meio, a medição fica sem linhas, e trocar de novo completa. Importar medição grava o cabeçalho e as linhas; se as
+  linhas falharem, o próprio `dados.js` desfaz o cabeçalho.
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

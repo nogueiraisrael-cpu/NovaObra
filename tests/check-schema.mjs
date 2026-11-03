@@ -119,6 +119,16 @@ await d.salvarAtividade({ ...ativ.data, titulo: 'Conferência 2', pai_id: '' })
 await d.moverAtividade(ativ.data.id, -1)
 await d.arquivarAtividade(ativ.data.id)
 await d.arquivarAtividade(ativ.data.id, false)
+d.definirObraAtual('obra-ubs')
+await d.listarMedicoes()
+await d.obterPainelMedicoes({ tipo: 'Contrato' })
+await d.obterPainelMedicoes({ tipo: 'Empreiteiro', empreiteiro: 'Hidro Natal' })
+const med = (await d.obterMedicao('med-ubs-1')).data
+const camposMed = { tipo: 'Contrato', empreiteiro: null, numero: 9, data_medicao: hojeISO(), periodo_inicio: null, periodo_fim: null, arquivo_nome: 'conf.xlsx', aba_origem: 'BM', valor_periodo: 0, desconto: null, valor_a_pagar: null, observacao: null, avisos: [] }
+const itensMed = med.itens.map(({ id: _i, medicao_id: _m, obra_id: _o, created_at: _c, ...resto }) => resto)
+const medNova = await d.importarMedicoes([{ campos: camposMed, itens: itensMed }])
+await d.trocarPlanilhaMedicao(medNova.data.ids[0], { campos: { ...camposMed, numero: 10 }, itens: itensMed })
+await d.excluirMedicao(medNova.data.ids[0])
 const func = await d.salvarFuncionario({ nome: 'Novo', funcao: 'Servente', obra_id: 'obra-serra' })
 await d.salvarFuncionario({ ...func.data, ativo: false })
 

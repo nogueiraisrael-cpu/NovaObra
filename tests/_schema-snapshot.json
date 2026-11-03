@@ -1,5 +1,5 @@
 {
-  "_tirado_em": "2026-11-02, do banco nova-obra (Supabase), depois da migration 20261102-12. Regenere depois de QUALQUER migration.",
+  "_tirado_em": "2026-11-02, do banco nova-obra (Supabase), depois da migration 20261102-13. Regenere depois de QUALQUER migration.",
   "equipamentos": ["id", "nome", "codigo", "situacao", "obra_id", "situacao_desde", "oficina", "previsao_retorno", "defeito", "created_at"],
   "fotos": ["id", "obra_id", "rdo_id", "rdo_frente_id", "caminho", "legenda", "visivel_cliente", "enviada_por", "created_at"],
   "frentes_servico": ["id", "obra_id", "nome", "etapa", "executor", "empreiteiro", "situacao", "parada_desde", "motivo_parada", "data_inicio", "data_conclusao", "created_at"],
@@ -17,5 +17,7 @@
   "atividades": ["id", "obra_id", "pai_id", "ordem", "titulo", "data_inicio", "data_fim", "arquivada", "created_at", "updated_at", "progresso"],
   "restricoes": ["id", "obra_id", "atividade_id", "descricao", "tipo", "prazo", "responsavel", "resolvida", "resolvida_em", "created_at", "updated_at"],
   "semana_atividades": ["id", "obra_id", "atividade_id", "semana", "status", "nao_realizada", "causa", "progresso_antes", "created_at", "updated_at"],
-  "subtarefas": ["id", "obra_id", "atividade_id", "titulo", "ordem", "feita", "nao_realizada", "causa", "created_at", "updated_at"]
+  "subtarefas": ["id", "obra_id", "atividade_id", "titulo", "ordem", "feita", "nao_realizada", "causa", "created_at", "updated_at"],
+  "medicoes": ["id", "obra_id", "tipo", "empreiteiro", "numero", "periodo_inicio", "periodo_fim", "data_medicao", "arquivo_nome", "caminho_planilha", "aba_origem", "valor_periodo", "desconto", "valor_a_pagar", "observacao", "avisos", "importada_por", "created_at", "updated_at"],
+  "medicao_itens": ["id", "obra_id", "medicao_id", "linha_planilha", "item", "etapa_codigo", "etapa_nome", "subetapa_codigo", "subetapa_nome", "descricao", "unidade", "preco_unitario", "qtd_prevista", "qtd_contratada", "qtd_periodo", "qtd_acumulada", "valor_previsto", "valor_contratado", "valor_periodo", "valor_acumulado", "created_at"]
 }

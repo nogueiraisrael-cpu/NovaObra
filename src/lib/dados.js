@@ -30,6 +30,7 @@ import {
 } from './planejamento.js'
 import { validarRestricao, novoPrazo, podeMover } from './restricoes.js'
 import { validarCausa, REGISTRO_VAZIO, mudancaDeColuna, efeitoDoAvanco, camposDaSubtarefa } from './curtoPrazo.js'
+import { nomesDeEmpreiteiros, nomeDoEmpreiteiro, conferirParaGravar } from './medicoes.js'
 import { STATUS_SEMANA } from './listas.js'
 
 export const USAR_MOCK = false
@@ -38,6 +39,7 @@ export const USAR_MOCK = false
 export const TABELAS_DA_OBRA = [
   'rdos', 'rdo_efetivo', 'rdo_equipamentos', 'frentes_servico', 'rdo_frentes', 'rdo_frente_equipe', 'fotos',
   'pedidos_material', 'insumos', 'movimentos_estoque', 'atividades', 'restricoes', 'semana_atividades', 'subtarefas',
+  'medicoes', 'medicao_itens',
 ]
 
 // ---------------------------------------------------------------------------
@@ -118,6 +120,7 @@ function traduzirErro(e) {
   if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
   if (e.code === '23505' && /uma_presenca_por_dia/.test(e.message)) return 'Esse funcionário já está presente hoje em outra obra.'
   if (/saldo_negativo/.test(e.message)) return 'O estoque ficaria negativo: alguém mexeu neste insumo ao mesmo tempo. Confira o saldo e tente de novo.'
+  if (e.code === '23505' && /medicoes_um_numero/.test(e.message)) return 'Já existe medição com esse número. Use outro número.'
   if (e.code === '23505') return 'Isso já está gravado (registro repetido).'
   if (e.code === '23514') return 'O banco recusou um valor fora da lista permitida.'
   if (e.code === '23503') return 'Este registro aponta para algo que não existe mais.'
@@ -1082,6 +1085,108 @@ export const apagarSubtarefa = (id) => executar(async () => {
   const filtro = { id, obra_id: obraAtual() }
   if (!(await um('subtarefas', filtro))) return falha('Subtarefa não encontrada nesta obra.')
   await apagar('subtarefas', filtro)
+  return ok(true)
+})
+
+// ---------------------------------------------------------------------------
+// Medições (v1.3): o que foi lido das planilhas de medição da obra atual. Nada é digitado
+// aqui além do nº e das datas conferidos na tela. Só o Engenheiro vê (o Cliente não vê custo).
+// ---------------------------------------------------------------------------
+
+const porNumero = (a, b) => a.numero - b.numero
+
+// A lista das medições da obra (sem os itens) e os empreiteiros que dá para escolher.
+export const listarMedicoes = () => executar(async () => {
+  const obraId = obraAtual()
+  const [medicoes, frentes] = await Promise.all([ler('medicoes', { obra_id: obraId }), ler('frentes_servico', { obra_id: obraId })])
+  return ok({
+    contrato: medicoes.filter((m) => m.tipo === 'Contrato').sort(porNumero),
+    empreiteiro: medicoes.filter((m) => m.tipo === 'Empreiteiro')
+      .sort((a, b) => a.empreiteiro.localeCompare(b.empreiteiro, 'pt-BR') || porNumero(a, b)),
+    empreiteiros: nomesDeEmpreiteiros(frentes, medicoes),
+  })
+})
+
+// Uma medição com as linhas dela, na ordem da planilha.
+export const obterMedicao = (id) => executar(async () => {
+  const obraId = obraAtual()
+  const medicao = await um('medicoes', { id, obra_id: obraId })
+  if (!medicao) return falha('Medição não encontrada nesta obra.')
+  const itens = (await ler('medicao_itens', { medicao_id: id, obra_id: obraId })).sort((a, b) => a.linha_planilha - b.linha_planilha)
+  return ok({ ...medicao, itens })
+})
+
+// O painel: as medições do contrato (tipo 'Contrato') ou de um empreiteiro (sem nome = todos
+// os empreiteiros) da obra atual, com as linhas de todas. As contas ficam em painelMedicao.js.
+// As linhas vêm em lotes de 50 medições: a lista de ids vai no endereço do pedido.
+export const obterPainelMedicoes = ({ tipo, empreiteiro = null }) => executar(async () => {
+  const obraId = obraAtual()
+  const filtro = { obra_id: obraId, tipo }
+  if (tipo === 'Empreiteiro' && empreiteiro) filtro.empreiteiro = empreiteiro
+  const medicoes = (await ler('medicoes', filtro)).sort(porNumero)
+  const itens = []
+  for (let i = 0; i < medicoes.length; i += 50) {
+    itens.push(...await ler('medicao_itens', { obra_id: obraId, medicao_id: medicoes.slice(i, i + 50).map((m) => m.id) }))
+  }
+  return ok({ medicoes, itens })
+})
+
+// As medições do mesmo contrato (ou do mesmo empreiteiro) já gravadas nesta obra.
+const medicoesIrmas = (obraId, { tipo, empreiteiro }) => ler('medicoes', { obra_id: obraId, tipo, empreiteiro: tipo === 'Contrato' ? null : empreiteiro })
+
+// Grava medições (cabeçalho e linhas). São duas gravações: se as linhas falharem, a medição
+// recém-criada é desfeita aqui, para não ficar uma medição sem linhas.
+async function gravarMedicoes(obraId, medicoes) {
+  const ids = medicoes.map(() => crypto.randomUUID())
+  await inserirVarios('medicoes', medicoes.map((m, i) => ({ id: ids[i], obra_id: obraId, ...m.campos, importada_por: usuario?.id ?? null })))
+  try {
+    await inserirVarios('medicao_itens', medicoes.flatMap((m, i) => m.itens.map((it) => ({ ...it, medicao_id: ids[i], obra_id: obraId }))))
+  } catch (e) {
+    await apagar('medicoes', { id: ids, obra_id: obraId }).catch((x) => console.error('[dados] desfazer medição', x))
+    throw e
+  }
+  return ids
+}
+
+// `medicoes` = [{ campos, itens }] já montadas por medicaoDoContrato / medicaoDaAba (medicoes.js).
+// Todas do mesmo tipo e do mesmo empreiteiro.
+export const importarMedicoes = (pacotes) => executar(async () => {
+  const obraId = obraAtual()
+  // O mesmo empreiteiro escrito com outra maiúscula vira o nome que já existe (nada duplica).
+  const conhecidos = nomesDeEmpreiteiros(await ler('frentes_servico', { obra_id: obraId }), await ler('medicoes', { obra_id: obraId, tipo: 'Empreiteiro' }))
+  const medicoes = pacotes.map((m) => (m.campos.tipo === 'Empreiteiro'
+    ? { ...m, campos: { ...m.campos, empreiteiro: nomeDoEmpreiteiro(m.campos.empreiteiro, conhecidos) } }
+    : m))
+  const existentes = medicoes.length ? await medicoesIrmas(obraId, medicoes[0].campos) : []
+  const erro = conferirParaGravar(medicoes, existentes)
+  if (erro) return falha(erro)
+  return ok({ ids: await gravarMedicoes(obraId, medicoes) })
+})
+
+// "Trocar planilha" do contrato: apaga as linhas da medição e grava as da planilha nova.
+// Não é atômico: se a internet cair depois de apagar, a medição fica sem linhas; trocar de
+// novo completa.
+export const trocarPlanilhaMedicao = (id, { campos, itens }) => executar(async () => {
+  const obraId = obraAtual()
+  const atual = await um('medicoes', { id, obra_id: obraId })
+  if (!atual) return falha('Medição não encontrada nesta obra.')
+  const erro = conferirParaGravar([{ campos, itens }], await medicoesIrmas(obraId, atual), id)
+  if (erro) return falha(erro)
+  await apagar('medicao_itens', { medicao_id: id, obra_id: obraId })
+  await inserirVarios('medicao_itens', itens.map((it) => ({ ...it, medicao_id: id, obra_id: obraId })))
+  const { tipo: _tipo, empreiteiro: _empreiteiro, ...resto } = campos
+  await atualizar('medicoes', { id, obra_id: obraId }, { ...resto, importada_por: usuario?.id ?? null })
+  return ok(true)
+})
+
+// Apaga a medição e as linhas dela (a tela pede confirmação antes). A planilha continua com você.
+export const excluirMedicao = (id) => executar(async () => {
+  const filtro = { id, obra_id: obraAtual() }
+  if (!(await um('medicoes', filtro))) return falha('Medição não encontrada nesta obra.')
+  // No Supabase, apagar a medição já leva as linhas (on delete cascade), numa gravação só. A
+  // segunda serve ao banco em memória, que não tem cascata; no Supabase não acha nada.
+  await apagar('medicoes', filtro)
+  await apagar('medicao_itens', { medicao_id: id, obra_id: filtro.obra_id })
   return ok(true)
 })
 

@@ -99,3 +99,32 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 02/11/2026 · Importar planilha · substituir arquiva as atuais e mostra quantas.
 - 02/11/2026 · Importar planilha · conferência aponta código órfão, data inválida e sem nome; corrigir ali tira o vermelho.
 - 02/11/2026 · Importar planilha · .csv em ponto e vírgula abre a mesma conferência; foto é recusada.
+
+## Rodada 7 · Medições, etapa 1 (subir planilha) — testada pelo Claude no app, com o banco de verdade
+
+- 02/11/2026 · Medições · a lista do contrato da UBS mostra 3ª, 2ª e 1ª com período, data e valor.
+- 02/11/2026 · Medições · trocar de obra troca as medições; a Serra mostra contrato vazio e só os empreiteiros dela.
+- 02/11/2026 · Medições · a planilha real do contrato abre com 13 etapas, 277 serviços e os quatro totais do PRD; nº XXX vira 4 em amarelo.
+- 02/11/2026 · Medições · nº que já existe é recusado com aviso, sem gravar.
+- 02/11/2026 · Medições · gravar a planilha real: 1 medição, 277 linhas, continua lá depois do F5, sem duplicar.
+- 02/11/2026 · Medições · Trocar planilha regrava as linhas sem dobrar (277).
+- 02/11/2026 · Medições · Excluir pede confirmação; "Não" mantém, "Sim" apaga a medição e as linhas.
+- 02/11/2026 · Medições · a planilha real do empreiteiro lista 33 abas, acusa os nº 30, 26 e 02 repetidos e não mostra dado bancário.
+- 02/11/2026 · Medições · sem empreiteiro, o botão de escolher planilha fica apagado e travado (corrigido na rodada).
+- 02/11/2026 · Medições · corrigidos os nº repetidos, as 33 do empreiteiro gravam e continuam lá depois do F5.
+- 02/11/2026 · Medições · subir o mesmo arquivo de novo: todas "Já no app", 0 novas, nada gravado.
+- 02/11/2026 · Medições · o Cliente não vê medição nenhuma.
+- 02/11/2026 · Medições · no celular, lista e detalhe cabem na tela (375 px, sem rolar para o lado).
+- 02/11/2026 · Medições · sem banco (queda simulada), a tela avisa "Não foi gravado" e nada entra.
+
+## Rodada 7 · Medições, etapa 2 (painel) — testada pelo Claude no app, com o banco de verdade
+
+- 02/11/2026 · Painel · "Ver painel" no Contrato e no Empreiteiro; subir uma medição abre o painel sozinho, já nela.
+- 02/11/2026 · Painel do contrato · UBS, Todas: adequado R$ 2.418.300,00, medido R$ 771.500,00, saldo R$ 1.646.800,00, 31,9%; barras das 8 etapas com o % do PRD.
+- 02/11/2026 · Painel do contrato · só a 2ª: medido é o período dela e o saldo conta tudo até a 2ª.
+- 02/11/2026 · Painel do contrato · "Só com saldo negativo" deixa só o 2.1.3, em vermelho, com "Acima do contratado" e "Cresceu na adequação".
+- 02/11/2026 · Painel do contrato · a planilha real: 13 etapas e saldo R$ 874.262,85, igual ao "SALDO DO CONTRATO" do boletim; Todas = 67,2%.
+- 02/11/2026 · Painel do contrato · centavo de arredondamento da planilha (item 1.8) não vira mais "acima do contratado" (corrigido na rodada, com teste).
+- 02/11/2026 · Painel do empreiteiro · Drywall e Gesso com previsto, executado, pago e %; 33 medições reais do topógrafo com barras e tabela por medição.
+- 02/11/2026 · Painel do empreiteiro · "Todos os empreiteiros" soma tudo, as barras levam o nome e a escolha por nº fica para um empreiteiro só.
+- 02/11/2026 · Painel · no celular, cartões com medido, saldo e %; tocar mostra o resto; nada passa da largura.
