@@ -1,6 +1,7 @@
 // MULTI-OBRA: a camada de dados nunca devolve dado de uma obra na outra,
 // e lançamento sem obra escolhida é recusado. É o teste que pega o filtro esquecido.
 import * as dados from '../src/lib/dados.js'
+import { reiniciarMock } from './apoio/bancoMemoria.js'
 
 let ok = 0
 let tot = 0
@@ -11,7 +12,7 @@ function conferir(descricao, real, esperado) {
 }
 const ids = (lista) => lista.map((x) => x.id).sort()
 
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 
 dados.definirObraAtual('obra-serra')
@@ -161,7 +162,7 @@ conferir('substituir arquiva as que existiam', (await dados.importarCronograma(l
 conferir('ficam ativas só as da planilha', (await dados.listarPlanejamento()).data.atividades.filter((x) => !x.arquivada).length, 2)
 dados.definirObraAtual('obra-serra')
 conferir('nada importado na UBS aparece na Serra', (await dados.listarPlanejamento()).data.atividades.some((x) => x.titulo === 'Importada'), false)
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 dados.definirObraAtual('obra-serra')
 
@@ -211,7 +212,7 @@ dados.definirObraAtual('obra-serra')
 conferir('mudar o calendário da UBS não mexe no da Serra', (await dados.listarPlanejamento()).data.calendario.feriados.includes('2026-12-08'), false)
 
 // Estoque: cada obra vê só os insumos dela, e não dá baixa no insumo da outra.
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 const hojeISOteste = (await import('../src/lib/datas.js')).hojeISO()
 const linhaDe = (estoque, nome) => estoque.find((l) => l.nome.startsWith(nome))
@@ -255,7 +256,7 @@ conferir('voltar recebimento já consumido é bloqueado', (await dados.moverPedi
   'Parte deste lote já saiu do estoque (há 1,5 m³). Não dá para voltar o recebimento.')
 
 // Trocar de obra no meio de uma gravação: ela termina na obra em que foi tocada.
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 dados.definirObraAtual('obra-ubs')
 const tocado = dados.marcarEfetivo('f-severino', 'Falta')
@@ -268,7 +269,7 @@ dados.definirObraAtual('obra-serra')
 conferir('e a Serra não ganhou diário novo por causa disso', (await dados.listarDiarios()).data.filter((r) => r.data === hojeUbs.data).length, 1)
 
 // Medições: cada obra vê só as suas; não abre, troca nem exclui medição da outra.
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 dados.definirObraAtual('obra-ubs')
 const medUbs = (await dados.listarMedicoes()).data

@@ -2,7 +2,7 @@
 // de erro da camada de dados (registro repetido, alteração sem filtro) nunca roda
 // nos testes e só aparece com o banco de verdade.
 import * as dados from '../src/lib/dados.js'
-import { criarBancoMemoria } from '../src/lib/bancoMemoria.js'
+import { criarBancoMemoria, reiniciarMock } from './apoio/bancoMemoria.js'
 
 let ok = 0
 let tot = 0
@@ -29,7 +29,7 @@ conferir('alteração que repetiria não muda nada',
   [true, true])
 
 // Pela camada de dados.
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 dados.definirObraAtual('obra-ubs')
 const [a, b] = await Promise.all([dados.salvarRdo({ clima_manha: 'Nublado' }), dados.salvarRdo({ clima_tarde: 'Chuva leve' })])

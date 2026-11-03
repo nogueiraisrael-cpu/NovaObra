@@ -2,6 +2,7 @@
 // sem a foto da nota fiscal. Roda no banco em memória. No banco real, a tranca por obra (RLS)
 // das tabelas de lançamento só chega na fase 5 do passo 10: até lá, isto é só o que a tela mostra.
 import * as dados from '../src/lib/dados.js'
+import { reiniciarMock } from './apoio/bancoMemoria.js'
 
 let ok = 0
 let tot = 0
@@ -12,7 +13,7 @@ function conferir(descricao, real, esperado) {
 }
 const ids = (lista) => lista.map((x) => x.id).sort()
 
-dados._reiniciarMock()
+reiniciarMock(dados)
 const conta = (await dados.criarConta({ nome: 'Gerente Teste', email: 'gerente@novaobra.test', senha: '123456' })).data
 conferir('conta nova nasce pendente, sem perfil', [conta.status, conta.role], ['pendente', null])
 conferir('pendente não pode ver obra', dados.posso('obra.ver'), false)

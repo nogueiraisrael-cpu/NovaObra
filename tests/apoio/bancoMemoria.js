@@ -1,7 +1,7 @@
 // Banco de mentira, em memória, com os dados de exemplo (mockData.js).
 // Fala a mesma língua do banco de verdade em dados.js (ler, inserir, atualizar,
 // apagar), então as regras da camada de dados rodam iguais nos dois.
-// Serve aos testes (Node, sem internet) e ao app quando USAR_MOCK = true.
+// Serve só aos testes (Node, sem internet): o app não tem mais modo de mentira.
 //
 // Ele anota cada coluna que a camada de dados usa em filtro e em gravação: o
 // tests/check-schema.mjs confere essa lista contra as colunas do banco real.
@@ -88,3 +88,6 @@ export function criarBancoMemoria(hoje) {
     },
   }
 }
+
+// Os testes trocam o banco da camada de dados por um em memória novo, com os exemplos.
+export const reiniciarMock = (dados, hoje) => dados._usarBancoDeTeste(criarBancoMemoria(hoje))

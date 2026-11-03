@@ -19,7 +19,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as dados from '../src/lib/dados.js'
-import { criarMock } from '../src/lib/mockData.js'
+import { criarMock } from './apoio/mockData.js'
+import { reiniciarMock } from './apoio/bancoMemoria.js'
 import { hojeISO, somarDias } from '../src/lib/datas.js'
 
 const aqui = path.dirname(fileURLToPath(import.meta.url))
@@ -40,7 +41,7 @@ const d = new Proxy(dados, {
 })
 
 // 1) Percorre a camada de dados inteira, como um dia de uso.
-d._reiniciarMock()
+reiniciarMock(d)
 await d.entrar('eng@novaobra.test', 'x')
 await d.listarObras()
 await d.listarResumoObras()

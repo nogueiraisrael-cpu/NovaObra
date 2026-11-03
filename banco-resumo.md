@@ -89,7 +89,7 @@ Testado em 01/11/2026, com 8 tentativas proibidas recusadas e nada sobrando no b
 
 ## Dados de exemplo (seed)
 
-`supabase-seed.sql`, na raiz: os mesmos dados de `src/lib/mockData.js`, com as duas obras de exemplo
+`supabase-seed.sql`, na raiz: os mesmos dados de `tests/apoio/mockData.js` (os exemplos dos testes), com as duas obras de exemplo
 (Casa Alto da Serra 4 e UBS Nova Esperança, que não tem equipamento de propósito). As datas são
 relativas ao dia em que roda; rodar de novo não duplica nada. Medições: a UBS tem 3 do contrato
 (R$ 2.418.300,00 adequado, com um serviço medido acima do adequado) e 1 da Hidro Natal; a Serra não tem

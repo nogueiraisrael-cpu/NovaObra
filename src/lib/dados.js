@@ -6,13 +6,11 @@
 // Assim nenhuma tela consegue esquecer o filtro.
 //
 // As regras abaixo conversam com o banco por quatro verbos (ler, inserir,
-// atualizar, apagar). Quem atende é o Supabase (USAR_MOCK = false) ou o banco
-// em memória de bancoMemoria.js (USAR_MOCK = true, e sempre nos testes).
+// atualizar, apagar). Quem atende é o Supabase; nos testes, um banco em memória
+// (tests/apoio/bancoMemoria.js) que os próprios testes encaixam aqui.
 //
-// O LOGIN é o Supabase Auth; no banco em memória, as pessoas vêm do mockData.
+// O LOGIN é o Supabase Auth; no banco dos testes, as pessoas vêm dos dados de exemplo.
 import { supabase } from './supabase.js'
-import { criarMock } from './mockData.js'
-import { criarBancoMemoria } from './bancoMemoria.js'
 import { hojeISO, somarDias } from './datas.js'
 import { montarEfetivo, podeMarcarPresenca, mensagemTrava, contaComoPresenca } from './efetivo.js'
 import { aplicarFechamento, validarPreenchimento, validarFrente } from './frentes.js'
@@ -35,8 +33,6 @@ import {
   validarEntrada, validarCadastro, validarEmail, validarSenha, mensagemDoLogin, mensagemDoPerfil, AVISO_BLOQUEADO,
 } from './login.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras } from './permissoes.js'
-
-export const USAR_MOCK = false
 
 // Tabelas de lançamento: obra_id obrigatório. Toda tabela nova de módulo novo entra aqui.
 export const TABELAS_DA_OBRA = [
@@ -95,15 +91,15 @@ const semBanco = {
 }
 semBanco.inserir = semBanco.atualizar = semBanco.apagar = semBanco.ler
 
-let banco = USAR_MOCK ? criarBancoMemoria() : supabase ? bancoSupabase : semBanco
-let perfis = banco.perfis ?? criarMock().profiles
+let banco = supabase ? bancoSupabase : semBanco
+let perfis = []
 let obraAtualId = null
 let usuario = null
 
-// Só para os testes: troca para um banco em memória novo, com os dados de exemplo.
-export function _reiniciarMock(hoje) {
-  banco = criarBancoMemoria(hoje)
-  perfis = banco.perfis
+// Só para os testes: encaixa um banco em memória (tests/apoio/bancoMemoria.js).
+export function _usarBancoDeTeste(bancoDeTeste) {
+  banco = bancoDeTeste
+  perfis = bancoDeTeste.perfis
   obraAtualId = null
   usuario = null
 }
@@ -177,7 +173,7 @@ async function nomesDasObras() {
 }
 
 // ---------------------------------------------------------------------------
-// Login: Supabase Auth. Com o banco em memória (testes, USAR_MOCK) as pessoas vêm dos
+// Login: Supabase Auth. Com o banco em memória dos testes, as pessoas vêm dos
 // dados de exemplo e qualquer senha serve.
 // ---------------------------------------------------------------------------
 

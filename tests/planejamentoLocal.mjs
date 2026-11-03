@@ -1,6 +1,7 @@
 // Planejamento — o que a tela mostra no toque (otimista), antes de o banco responder.
 // Tem que bater com o que dados.js grava: rodamos as duas coisas lado a lado no banco em memória.
 import * as dados from '../src/lib/dados.js'
+import { reiniciarMock } from './apoio/bancoMemoria.js'
 import { segundaDaSemana } from '../src/lib/planejamento.js'
 import { hojeISO } from '../src/lib/datas.js'
 import {
@@ -16,7 +17,7 @@ function conferir(descricao, real, esperado) {
   else console.log(`  ✗ ${descricao}\n     esperado: ${JSON.stringify(esperado)}\n     veio:     ${JSON.stringify(real)}`)
 }
 
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 dados.definirObraAtual('obra-serra')
 const ler = async () => (await dados.listarPlanejamento()).data

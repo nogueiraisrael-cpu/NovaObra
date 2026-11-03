@@ -1,7 +1,7 @@
 // Painel de medição: as contas do contrato (casando serviços entre medições pelo item) e do
 // empreiteiro (cada medição sozinha), a escolha "1ª · 2ª · … · Todas", a busca e o filtro.
 // Usa os dados de exemplo (mockData): a UBS tem 3 medições do contrato; a Serra, o Drywall e o Gesso.
-import { criarMock } from '../src/lib/mockData.js'
+import { criarMock } from './apoio/mockData.js'
 import { alternarEscolha, painelContrato, painelEmpreiteiro, filtrarEtapas, passaNoFiltro, compararItens } from '../src/lib/painelMedicao.js'
 
 let ok = 0

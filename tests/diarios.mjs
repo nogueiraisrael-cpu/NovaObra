@@ -2,6 +2,7 @@
 import { ordenarDiarios, resumirDiario, situacaoDiario, textoClima, textoResponsavel } from '../src/lib/diarios.js'
 import { hojeISO } from '../src/lib/datas.js'
 import * as dados from '../src/lib/dados.js'
+import { reiniciarMock } from './apoio/bancoMemoria.js'
 
 let ok = 0
 let tot = 0
@@ -41,7 +42,7 @@ conferir('aberto sem nome', textoResponsavel({ status: 'Em andamento', criado_po
 
 // Bug achado na revisão: quem entrou na obra depois que o RDO abriu aparecia na
 // aba Hoje mas sumia do diário fechado. Ao fechar, a linha agora é gravada.
-dados._reiniciarMock()
+reiniciarMock(dados)
 await dados.entrar('eng@novaobra.test', 'x')
 dados.definirObraAtual('obra-ubs')
 await dados.salvarRdo({ clima_manha: 'Bom' })

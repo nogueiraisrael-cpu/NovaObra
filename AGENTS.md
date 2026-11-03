@@ -39,7 +39,8 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    `-06-estoque.sql` fazem o mesmo com `materiais`, `pedidos_material`, `insumos` e
    `movimentos_estoque`; a `-09-`, a `-11-` e a `-12-` (Planejamento), com `atividades`, `restricoes`, `semana_atividades` e `subtarefas`; a `-13-` (Medições), com `medicoes` e `medicao_itens`, que no passo 10 ficam **só para Engenheiro** (o Cliente não vê custo). **O passo 10 (login) desfaz isso antes de qualquer coisa ir para o ar.**
    O `check-grants` avisa em toda rodada.
-7. **Mock e seed sempre com DUAS obras diferentes** (`src/lib/mockData.js`): a UBS não tem
+7. **Dados de exemplo e seed sempre com DUAS obras diferentes** (`tests/apoio/mockData.js`, só dos
+   testes: o app não tem mais dado de mentira desde 03/11/2026): a UBS não tem
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —
    módulo novo ganha a sua linha nesse teste.
 
@@ -66,10 +67,10 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
   decisão à lib**; não decide.
 - `src/lib/dados.js` — **única porta do banco**, e o único arquivo que chama `supabase.from(...)`
   (o `check-schema` reprova outro). As regras falam com o banco por quatro verbos (ler, inserir,
-  atualizar, apagar); quem atende é o Supabase (`USAR_MOCK = false`, desde 01/11/2026) ou o
-  banco em memória de `src/lib/bancoMemoria.js` (nos testes, e se `USAR_MOCK = true`). O login
-  é o Supabase Auth desde 03/11/2026 (regras puras em `src/lib/login.js`); no banco em memória,
-  as pessoas vêm do `mockData` e qualquer senha serve. O agente nunca cria conta nem digita senha:
+  atualizar, apagar); quem atende é o Supabase, sempre. Nos testes, um banco em memória
+  (`tests/apoio/bancoMemoria.js`) entra no lugar por `_usarBancoDeTeste`; nada em `src/` importa
+  dado de exemplo. O login é o Supabase Auth desde 03/11/2026 (regras puras em `src/lib/login.js`);
+  no banco dos testes, as pessoas vêm dos dados de exemplo e qualquer senha serve. O agente nunca cria conta nem digita senha:
   quem testa login é o Israel.
 - `src/lib/supabase.js` — a conexão. URL e chave publicável (`sb_publishable_...`) no `.env.local`,
   que não vai para o Git. Nunca a chave secreta nem a `service_role` no app.
@@ -227,8 +228,8 @@ linha por item aprovado em `docs/DIARIO.md` (data, o que mudou, o que passou), n
 - **Teste o caminho errado também:** campo vazio, e-mail inválido, botão clicado duas vezes, o que
   não deveria ser permitido.
 - **Diga qual conta usar** quando importar (Engenheiro, Cliente, Pendente).
-- **Diga se o teste grava dado de verdade**, e como desfazer depois. Enquanto `USAR_MOCK = true`,
-  F5 volta aos dados de exemplo — diga isso no item.
+- **Diga se o teste grava dado de verdade**, e como desfazer depois. Desde 01/11/2026 o app grava
+  sempre no banco: F5 não desfaz nada.
 
 ### 4. Quando o banco entra (Etapa 7): itens que nunca faltam
 

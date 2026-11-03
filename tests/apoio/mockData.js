@@ -1,5 +1,5 @@
-// Dados de mentira, com os mesmos nomes de tabela e coluna do PRD-BACKEND.
-// Na Etapa 7 eles viram o seed do banco.
+// Dados de exemplo SÓ PARA OS TESTES (saíram do app em 03/11/2026: o app usa só o banco).
+// Mesmos nomes de tabela e coluna do banco; o supabase-seed.sql planta os mesmos exemplos.
 //
 // DUAS obras, de propósito e bem diferentes (o-segundo): a Serra tem RDO de hoje
 // em andamento, 8 funcionários e equipamentos; a UBS não tem RDO de hoje, tem
@@ -11,8 +11,8 @@
 //
 // As datas são relativas a hoje, para o exemplo continuar fazendo sentido amanhã.
 // O supabase-seed.sql foi gerado a partir daqui (01/11/2026): os ids viram uuid fixos.
-import { hojeISO, somarDias } from './datas.js'
-import { segundaDaSemana } from './planejamento.js'
+import { hojeISO, somarDias } from '../../src/lib/datas.js'
+import { segundaDaSemana } from '../../src/lib/planejamento.js'
 
 // As pessoas de exemplo já têm id no formato do banco (uuid): é o que vai em
 // criado_por / fechado_por / enviada_por. O login de verdade chega no passo 10.
