@@ -45,6 +45,11 @@ await dados.salvarObrasDoUsuario(conta.id, [])
 await dados.entrar('gerente@novaobra.test', 'x')
 conferir('sem obra liberada, o gerente não vê nenhuma', (await dados.listarObras()).data, [])
 
+// Virou Engenheiro: a lista antiga de obras some (não volta se um dia for rebaixado).
+await dados.salvarObrasDoUsuario(conta.id, ['obra-ubs'])
+await dados.salvarUsuario({ id: conta.id, role: 'admin_master', status: 'ativo' })
+conferir('virar Engenheiro apaga a lista de obras', (await dados.listarObrasDoUsuario(conta.id)).data.filter((o) => o.liberada), [])
+
 // Bloqueado não entra.
 await dados.entrar('eng@novaobra.test', 'x')
 await dados.salvarUsuario({ id: conta.id, role: 'gerente', status: 'bloqueado' })

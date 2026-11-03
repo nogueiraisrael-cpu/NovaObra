@@ -32,7 +32,8 @@ import { STATUS_SEMANA } from './listas.js'
 import {
   validarEntrada, validarCadastro, validarEmail, validarSenha, mensagemDoLogin, mensagemDoPerfil, AVISO_BLOQUEADO,
 } from './login.js'
-import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras } from './permissoes.js'
+import { fraseDoErroInterno } from './erros.js'
+import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
 
 // Tabelas de lançamento: obra_id obrigatório. Toda tabela nova de módulo novo entra aqui.
 export const TABELAS_DA_OBRA = [
@@ -116,8 +117,7 @@ const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR')
 // Erro do banco em frase de gente. A trava de duas obras e o "um RDO por dia" têm frase própria.
 function traduzirErro(e) {
   if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
-  // Erro de programação (em inglês) nunca vai para a tela; as frases das regras daqui, sim.
-  if (!e.doBanco) return e instanceof TypeError || e instanceof ReferenceError ? 'Algo deu errado nesta tela. Recarregue a página e tente de novo.' : e.message
+  if (!e.doBanco) return fraseDoErroInterno(e)
   const doPerfil = mensagemDoPerfil(e.message)
   if (doPerfil) return doPerfil
   if (e.code === '23505' && /uma_presenca_por_dia/.test(e.message)) return 'Esse funcionário já está presente hoje em outra obra.'
@@ -183,9 +183,15 @@ const enderecoDoApp = () => globalThis.location?.origin
 
 // Depois de entrar (ou ao reabrir o app): o próprio perfil decide a porta. Bloqueado não
 // fica com sessão aberta. Os nomes da equipe vêm junto (a regra do banco só entrega o que pode).
-async function abrirSessao(id) {
+// Cada Sair (e cada nova entrada) muda a "vez". Uma conferência que começou antes e termina
+// depois não pode trazer de volta quem acabou de sair.
+let vezDaSessao = 0
+
+async function abrirSessao(id, vez = vezDaSessao) {
   const meu = await um('profiles', { id })
+  if (vez !== vezDaSessao) return ok(null)
   if (!meu) {
+    usuario = null
     await supabase.auth.signOut()
     return falha('Conta sem perfil. Fale com o administrador.')
   }
@@ -194,25 +200,29 @@ async function abrirSessao(id) {
     await supabase.auth.signOut()
     return falha(AVISO_BLOQUEADO)
   }
+  const nomes = await nomesDaEquipe(meu)
+  if (vez !== vezDaSessao) return ok(null)
   usuario = meu
-  perfis = await nomesDaEquipe()
+  perfis = nomes
   return ok(copia(meu))
 }
 
 // Nomes de quem lançou ("fechado por Eng. Ricardo"). O admin lê os perfis inteiros; o gerente,
 // só id e nome (função nomes_da_equipe, migration -15); o cliente, só o dele.
-async function nomesDaEquipe() {
-  if (pode('usuarios.ver', usuario)) return ler('profiles')
-  if (!pode('obra.ver_comparativo', usuario)) return [usuario]
-  return resposta(await supabase.rpc('nomes_da_equipe'))
+async function nomesDaEquipe(meu) {
+  const fonte = fonteDosNomes(meu)
+  if (fonte === 'perfis') return ler('profiles')
+  if (fonte === 'equipe') return resposta(await supabase.rpc('nomes_da_equipe'))
+  return [meu]
 }
 
 // Ao abrir o app: a sessão fica guardada no aparelho (F5 não desloga).
 export const sessaoAtual = () => executar(async () => {
+  const vez = vezDaSessao
   if (!authReal()) return ok(usuario ? copia(usuario) : null)
   const { data } = await supabase.auth.getSession()
   if (!data.session) return ok(null)
-  return abrirSessao(data.session.user.id)
+  return abrirSessao(data.session.user.id, vez)
 })
 
 export const entrar = (email, senha) => executar(async () => {
@@ -227,6 +237,7 @@ export const entrar = (email, senha) => executar(async () => {
   if (invalido) return falha(invalido)
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha })
   if (error) return falha(mensagemDoLogin(error))
+  vezDaSessao++
   return abrirSessao(data.user.id)
 })
 
@@ -292,13 +303,14 @@ export function ouvirSessao({ aoChegarPeloLinkDeSenha, aoAcabarASessao }) {
 }
 
 export const sair = () => executar(async () => {
+  vezDaSessao++
+  // Antes do signOut: o aviso de "sessão acabou" é só para quando ela acaba sozinha.
+  usuario = null
+  obraAtualId = null
   if (authReal()) {
-    usuario = null // antes do signOut: o aviso de "sessão acabou" é só para quando acaba sozinha
     await supabase.auth.signOut()
     perfis = []
   }
-  usuario = null
-  obraAtualId = null
   return ok(true)
 })
 

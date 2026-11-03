@@ -1,7 +1,8 @@
 // Permissões: o código (src/lib/permissoes.js) é cópia fiel do quadro decidido pelo Israel
 // (docs/permissoes/quadro.json). Mudou um sem o outro, este teste reprova.
 import fs from 'node:fs'
-import { QUADRO, PERFIS, pode, obrasVisiveis, podeAbrir, veTodasAsObras, precisaEscolherObras, textosDeObras } from '../src/lib/permissoes.js'
+import { ROLES as PERFIS } from '../src/lib/listas.js'
+import { QUADRO, pode, fonteDosNomes, obrasVisiveis, podeAbrir, veTodasAsObras, precisaEscolherObras, textosDeObras } from '../src/lib/permissoes.js'
 
 const quadro = JSON.parse(fs.readFileSync(new URL('../docs/permissoes/quadro.json', import.meta.url), 'utf8'))
 
@@ -56,6 +57,11 @@ conferir('só o admin ativo vê todas as obras', [veTodasAsObras(admin), veTodas
 conferir('gerente precisa de obras liberadas; admin não', [precisaEscolherObras('gerente'), precisaEscolherObras('admin_master'), precisaEscolherObras(null)], [true, false, false])
 conferir('textos do gerente falam das obras dele', textosDeObras(gerente).semObra, 'Nenhuma obra liberada')
 conferir('textos do admin falam de todas', textosDeObras(admin).comparar, 'Comparar todas as obras')
+
+conferir('nomes: admin lê os perfis inteiros', fonteDosNomes(admin), 'perfis')
+conferir('nomes: gerente só id e nome da equipe', fonteDosNomes(gerente), 'equipe')
+conferir('nomes: cliente só o dele', fonteDosNomes(cliente), 'so_o_meu')
+conferir('nomes: admin bloqueado só o dele', fonteDosNomes({ ...admin, status: 'bloqueado' }), 'so_o_meu')
 
 console.log(`${ok}/${tot} — permissoes`)
 if (ok !== tot) process.exit(1)

@@ -31,7 +31,11 @@ export default function App() {
     })
     // Voltou para o app (outra aba, celular desbloqueado): confere de novo o perfil. Quem foi
     // bloqueado ou voltou a pendente no meio do uso cai na porta certa sem esperar o próximo login.
+    // No máximo uma vez por minuto: trocar de aba ou abrir o seletor de arquivo também é "voltar".
+    let ultima = Date.now()
     function conferir() {
+      if (document.visibilityState !== 'visible' || Date.now() - ultima < 60_000) return
+      ultima = Date.now()
       sessaoAtual().then(({ data, erro }) => {
         if (!vivo) return
         if (data) setPerfil(data)
@@ -40,7 +44,13 @@ export default function App() {
       })
     }
     window.addEventListener('focus', conferir)
-    return () => { vivo = false; parar(); window.removeEventListener('focus', conferir) }
+    document.addEventListener('visibilitychange', conferir)
+    return () => {
+      vivo = false
+      parar()
+      window.removeEventListener('focus', conferir)
+      document.removeEventListener('visibilitychange', conferir)
+    }
   }, [])
 
   async function aoSair() {

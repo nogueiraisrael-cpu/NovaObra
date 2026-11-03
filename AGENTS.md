@@ -150,7 +150,8 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   "substituir", as novas entram antes de as antigas serem arquivadas: se cair no meio, arquive as antigas na EAP. "Trocar planilha" apaga as linhas da medição e grava as novas: se cair
   no meio, a medição fica sem linhas, e trocar de novo completa. Importar medição grava o cabeçalho e as linhas; se as
   linhas falharem, o próprio `dados.js` desfaz o cabeçalho. Em Usuários, salvar grava o perfil e depois as obras
-  liberadas (apaga as que saíram, grava as novas): se cair no meio, salvar de novo completa.
+  liberadas (apaga as que saíram, grava as novas), e virar Engenheiro grava o perfil e depois apaga a lista de
+  obras: se cair no meio, salvar de novo completa.
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

@@ -2,17 +2,15 @@
 // docs/permissoes/quadro.json). Toda tela pergunta `pode(acao, usuario, dono)`; nenhuma decide
 // sozinha por perfil. tests/permissoes.mjs confere esta tabela contra o quadro.json, linha por linha.
 // Esconder botão não protege nada: a barreira é o banco (RLS). Isto só decide o que a tela mostra.
+import { ROLES } from './listas.js'
 
 const P = 'pode'
 const D = 'só os dele'
 const X = '·'
 const N = 'ninguém'
 
-import { ROLES } from './listas.js'
 
-export const PERFIS = ROLES
-
-// Ação → [admin_master, gerente, cliente]
+// Ação → [admin_master, gerente, cliente], na ordem de ROLES (src/lib/listas.js)
 export const QUADRO = {
   'obra.ver': [P, P, P],
   'obra.ver_comparativo': [P, P, X],
@@ -101,7 +99,7 @@ export function pode(acao, usuario, dono = null) {
   const linha = QUADRO[acao]
   if (!linha) throw new Error(`Ação fora do quadro de permissões: ${acao}`)
   if (!usuario || usuario.status !== 'ativo') return false
-  const valor = linha[PERFIS.indexOf(usuario.role)]
+  const valor = linha[ROLES.indexOf(usuario.role)]
   if (valor === P) return true
   if (valor === D) return Boolean(dono) && dono === usuario.id
   return false
@@ -109,6 +107,15 @@ export function pode(acao, usuario, dono = null) {
 
 // Quem vê todas as obras: só o admin ativo (quadro, seção 2). Os outros, só as liberadas.
 export const veTodasAsObras = (usuario) => usuario?.status === 'ativo' && usuario.role === 'admin_master'
+
+// De onde vêm os nomes de quem lançou ("fechado por..."): o admin lê os perfis inteiros; o
+// gerente, só id e nome (função nomes_da_equipe, migration -15); o cliente e o pendente, só o dele.
+export function fonteDosNomes(usuario) {
+  if (usuario?.status !== 'ativo') return 'so_o_meu'
+  if (usuario.role === 'admin_master') return 'perfis'
+  if (usuario.role === 'gerente') return 'equipe'
+  return 'so_o_meu'
+}
 
 // O gerente (e, na v1.1, o cliente) precisa de obras liberadas; o admin não tem lista.
 export const precisaEscolherObras = (role) => Boolean(role) && role !== 'admin_master'
