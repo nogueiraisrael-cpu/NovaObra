@@ -93,7 +93,9 @@ const baixa = await d.registrarBaixa({ insumo_id: insumo.id, quantidade: '1', fr
 await d.obterHistoricoInsumo(insumo.id)
 await d.desfazerBaixa(baixa.data.id)
 await d.salvarMinimo(insumo.id, '3')
-await d.apagarPedido(pedido.data.id)
+// Só pedido em Solicitar se apaga: o de cima já foi entregue.
+const desistido = await d.salvarPedido({ material_id: 'mat-areia', quantidade: '1', frente: 'Conferência', prioridade: 'Normal' })
+await d.apagarPedido(desistido.data.id)
 await d.listarPlanejamento()
 await d.salvarProgresso('at-reb-int', '55')
 const rs = await d.salvarRestricao({ atividade_id: 'at-aca-pin', descricao: 'Conferência', tipo: 'Logística', prazo: hojeISO(), responsavel: 'Eu' })

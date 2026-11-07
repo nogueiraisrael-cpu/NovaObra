@@ -89,6 +89,7 @@ conferir('o catálogo é o mesmo nas duas', quadroUbs.catalogo.length, quadroSer
 conferir('sugestão de frente da UBS não traz frente da Serra', quadroUbs.frentes.includes('Reboco fachada norte'), false)
 conferir('da UBS não move pedido da Serra', (await dados.moverPedido('ped-tubo', 'Em cotação')).erro, 'Pedido não encontrado nesta obra.')
 conferir('da UBS não apaga pedido da Serra, e avisa', (await dados.apagarPedido('ped-tubo')).erro, 'Pedido não encontrado nesta obra.')
+conferir('pedido já comprado não se apaga, e avisa', (await dados.apagarPedido('ped-ubs-aco')).erro, 'Só dá para excluir pedido em Solicitar. Para desfazer, volte ele de coluna.')
 const novoUbs = await dados.salvarPedido({ material_id: 'mat-cimento', quantidade: '30', frente: 'Fundação — sapatas', prioridade: 'Normal' })
 conferir('pedido novo entra na obra escolhida, em Solicitar', [novoUbs.data.obra_id, novoUbs.data.status], ['obra-ubs', 'Solicitar'])
 dados.definirObraAtual('obra-serra')

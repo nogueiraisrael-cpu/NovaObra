@@ -114,6 +114,9 @@ Dentro dos testes rodam também:
   authenticated`, com `grant all` ou aberta para `anon` sem marca.
 - `supabase/testes/permissoes.sql` — não roda no `npm run check` (precisa do banco): o agente roda pelo
   `execute_sql`. Cada perfil tenta ler e gravar no que é seu e no do vizinho, e tudo se desfaz no fim.
+- **Auditoria "teste do estranho"** (`seguranca-relatorio.md`): `node teste-do-estranho.mjs` (sem login, só a chave
+  publicável) e `supabase/testes/intruso.sql` (execute_sql; Pendente, Bloqueado, Cliente e Gerente). Têm que dar 100% 🔒
+  (✅ só onde o quadro deixa). **Tabela nova entra na lista dos dois e a auditoria roda de novo.**
 - `supabase/testes/gravacoes.sql` — idem: o que cada tela grava, como Engenheiro e como Gerente (acento, número,
   repetido, histórico). Rode depois de mudar tabela, CHECK ou trava.
 

@@ -1,7 +1,7 @@
 // Materiais: aging, lead time, atrasado, contadores, ordem das colunas e as regras de mover.
 import {
   proximoStatus, statusAnterior, lerQuantidade, quantidadeComUnidade, novoPedido, pedeFormulario, foiRecebido, filtrarQuantidade, diasNaColuna, leadTime, estaAtrasado,
-  chegaEstaSemana, recebidoComProblema, contadores, montarQuadro, validarNovoPedido, validarMovimento, aplicarMovimento,
+  chegaEstaSemana, recebidoComProblema, contadores, montarQuadro, validarNovoPedido, validarMovimento, aplicarMovimento, podeExcluirPedido,
 } from '../src/lib/materiais.js'
 
 let ok = 0
@@ -17,6 +17,8 @@ const p = (id, status, extra = {}) => ({ id, status, prioridade: 'Normal', previ
 
 conferir('próxima coluna', [proximoStatus('Solicitar'), proximoStatus('No almoxarifado'), proximoStatus('Entregue')], ['Em cotação', 'Entregue', null])
 conferir('coluna anterior', [statusAnterior('Em cotação'), statusAnterior('Solicitar')], ['Solicitar', null])
+// Bug de 07/11: o botão Excluir aparecia em qualquer coluna (o banco recusava depois).
+conferir('só pedido em Solicitar se exclui', [podeExcluirPedido(p('a', 'Solicitar')), podeExcluirPedido(p('b', 'Em cotação')), podeExcluirPedido(p('c', 'Entregue')), podeExcluirPedido(null)], [true, false, false, false])
 
 conferir('quantidade com vírgula', lerQuantidade('2,5'), 2.5)
 conferir('quantidade com milhar', lerQuantidade('2.000'), 2000)

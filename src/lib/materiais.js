@@ -9,6 +9,10 @@ import { diasEntre, somarDias } from './datas.js'
 export const proximoStatus = (status) => STATUS_PEDIDO[STATUS_PEDIDO.indexOf(status) + 1] ?? null
 export const statusAnterior = (status) => STATUS_PEDIDO[STATUS_PEDIDO.indexOf(status) - 1] ?? null
 
+// Quadro: "Apagar · só em Solicitar". Depois disso o pedido tem histórico (cotação, compra,
+// entrada no estoque) e se volta de coluna, não se apaga. O banco recusa do mesmo jeito.
+export const podeExcluirPedido = (pedido) => pedido?.status === STATUS_PEDIDO[0]
+
 // "2,5", "50" e "2.000" viram número; o que não for número positivo vira null.
 // Com vírgula, o ponto é de milhar ("1.234,5"). Sem vírgula, o ponto só é de milhar
 // quando separa grupos de 3 ("2.000"); senão é decimal ("2.5"), para não virar 25.

@@ -8,6 +8,7 @@ import { useDados } from '../lib/useDados.js'
 import {
   proximoStatus, statusAnterior, diasNaColuna, leadTime, estaAtrasado, recebidoComProblema, foiRecebido, contadores, montarQuadro,
   validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, pedeFormulario, filtrarQuantidade, quantidadeComUnidade, lerQuantidade,
+  podeExcluirPedido,
 } from '../lib/materiais.js'
 import { ajustarLinha, contarCriticos, efeitoNoEstoque, lerMinimo } from '../lib/estoque.js'
 import { PRIORIDADES_PEDIDO, CATEGORIAS_MATERIAL, STATUS_PEDIDO } from '../lib/listas.js'
@@ -266,7 +267,7 @@ function Detalhes({ pedido, hoje, fechar, voltar, excluir }) {
         )
         : (
           <div className="sheet-actions">
-            <button className="btn btn-danger" onClick={() => setConfirmarExclusao(true)}>Excluir</button>
+            {posso('pedidos.apagar') && podeExcluirPedido(pedido) && <button className="btn btn-danger" onClick={() => setConfirmarExclusao(true)}>Excluir</button>}
             {anterior
               ? <button className="btn btn-ghost" onClick={voltar}>Voltar para {TITULO[anterior]}</button>
               : <button className="btn btn-ghost" onClick={fechar}>Fechar</button>}

@@ -17,7 +17,7 @@ import { aplicarFechamento, validarPreenchimento, validarFrente } from './frente
 import { statusRdoHoje, validarObra, normalizarCodigo } from './obras.js'
 import { ordenarDiarios, resumirDiario } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
-import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade } from './materiais.js'
+import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido } from './materiais.js'
 import {
   montarEstoque, saldoDe, validarBaixa, lerMinimo, validarMinimo, efeitoNoEstoque, saidaDoQueSobrou, bloqueioNoEstoque, ordenarHistorico,
 } from './estoque.js'
@@ -966,6 +966,7 @@ export const apagarPedido = (pedidoId) => executar(async () => {
   const filtro = { id: pedidoId, obra_id: obraAtual() }
   const pedido = await um('pedidos_material', filtro)
   if (!pedido) return falha('Pedido não encontrado nesta obra.')
+  if (!podeExcluirPedido(pedido)) return falha('Só dá para excluir pedido em Solicitar. Para desfazer, volte ele de coluna.')
   await apagarDeVerdade('pedidos_material', filtro)
   await apagarArquivos([pedido.foto_nf], filtro.obra_id, 'nota-fiscal')
   return ok(true)
