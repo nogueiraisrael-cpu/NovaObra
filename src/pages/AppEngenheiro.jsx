@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
 import { posso, possoAbrir, textosDasObras } from '../lib/dados.js'
 import { NOME_PERFIL } from '../lib/listas.js'
-import { Icon, SeletorObra, Vazio } from '../components/index.jsx'
+import { Icon, MenuConta, SeletorObra, Vazio } from '../components/index.jsx'
 import Obras from '../screens/obras.jsx'
 import Obra from '../screens/obra.jsx'
 import Ocorrencias from '../screens/ocorrencias.jsx'
@@ -13,13 +13,14 @@ import Pessoas from '../screens/pessoas.jsx'
 import Presenca from '../screens/presenca.jsx'
 import EfetivoGeral from '../screens/efetivoGeral.jsx'
 import Perfil from '../screens/perfil.jsx'
+import PainelAdmin from '../screens/painelAdmin.jsx'
 
 const MENU = [
   { id: 'obras', rotulo: 'Obras', curto: 'Obras', telas: ['obras', 'obra'] },
   { id: 'ocorrencias', rotulo: 'Ocorrências', curto: 'Ocorrênc.', icone: 'ocorr', telas: ['ocorrencias'] },
   { id: 'equipamentos', rotulo: 'Equipamentos', curto: 'Equipam.', icone: 'equip', telas: ['equipamentos'] },
   { id: 'pessoas', rotulo: 'Pessoas', curto: 'Pessoas', telas: ['pessoas', 'presenca', 'efetivo'] },
-  { id: 'perfil', rotulo: 'Perfil', curto: 'Perfil', telas: ['perfil'] },
+  { id: 'perfil', rotulo: 'Perfil', curto: 'Perfil', telas: ['perfil', 'painel'] },
 ]
 
 // Telas que só fazem sentido dentro de uma obra escolhida.
@@ -62,6 +63,7 @@ export default function AppEngenheiro({ perfil, aoSair }) {
       case 'presenca': corpo = <Presenca goto={goto} />; break
       case 'efetivo': corpo = <EfetivoGeral goto={goto} />; break
       case 'perfil': corpo = <Perfil perfil={perfil} aoSair={aoSair} />; break
+      case 'painel': corpo = <PainelAdmin perfil={perfil} />; break
       default: corpo = <Obras goto={goto} abrirObra={abrirObra} />
     }
   }
@@ -86,7 +88,9 @@ export default function AppEngenheiro({ perfil, aoSair }) {
 
       <main className="main">
         <div className="wrap">
-          <SeletorObra aoTrocar={aoTrocarObra} aoComparar={() => goto('obras')} />
+          <SeletorObra aoTrocar={aoTrocarObra} aoComparar={() => goto('obras')}
+            conta={<MenuConta nome={perfil.nome} papel={NOME_PERFIL[perfil.role]} aoSair={aoSair}
+              aoAbrirPainel={possoAbrir('painel') ? () => goto('painel') : null} />} />
           <div key={obraId ?? 'sem-obra'}>{corpo}</div>
         </div>
       </main>

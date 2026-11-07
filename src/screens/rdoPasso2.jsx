@@ -31,8 +31,12 @@ function CartaoFrente({ f, hoje, abrir }) {
 function FormNovaFrente({ fechar, salvo }) {
   const [f, setF] = useState({ nome: '', etapa: '', executor: 'Equipe própria', empreiteiro: '' })
   const [erro, setErro] = useState(null)
+  const [salvando, setSalvando] = useState(false)
   async function salvar() {
+    if (salvando) return
+    setSalvando(true)
     const { erro: falhou } = await salvarFrente(f)
+    setSalvando(false)
     if (falhou) return setErro(falhou)
     salvo()
   }
@@ -60,7 +64,7 @@ function FormNovaFrente({ fechar, salvo }) {
       {erro && <div className="err">{erro}</div>}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={salvar}>Salvar</button>
+        <button className="btn btn-primary" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </>
   )

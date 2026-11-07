@@ -11,8 +11,12 @@ function FormEquipamento({ fechar, salvo }) {
   const { obra } = useObra()
   const [e, setE] = useState({ nome: '', codigo: '', nesta_obra: true })
   const [erro, setErro] = useState(null)
+  const [salvando, setSalvando] = useState(false)
   async function salvar() {
+    if (salvando) return
+    setSalvando(true)
     const { erro: falhou } = await salvarEquipamento(e)
+    setSalvando(false)
     if (falhou) return setErro(falhou)
     salvo()
   }
@@ -32,7 +36,7 @@ function FormEquipamento({ fechar, salvo }) {
       {erro && <div className="err">{erro}</div>}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={salvar}>Salvar</button>
+        <button className="btn btn-primary" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </>
   )

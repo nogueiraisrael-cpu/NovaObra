@@ -1,6 +1,6 @@
 {
   "app": "Nova Obra",
-  "atualizado": "2026-11-02",
+  "atualizado": "2026-11-03",
   "decidido_por": "Israel Nogueira",
   "fonte": "docs/permissoes/QUEM-PODE-O-QUE.md",
   "perfis": [
@@ -101,8 +101,8 @@
     "usuarios.apagar": {
       "assunto": "Usuários (contas)",
       "acao": "Apagar conta",
-      "condicao": "bloqueia, nunca apaga",
-      "admin_master": "·",
+      "condicao": "só conta sem nenhum registro lançado; quem lançou algo se bloqueia",
+      "admin_master": "pode",
       "gerente": "·",
       "cliente": "·"
     },

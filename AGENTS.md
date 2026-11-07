@@ -45,6 +45,14 @@ Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md`
    equipamento de propósito. `tests/multiobra.mjs` confere que nada vaza de uma para a outra —
    módulo novo ganha a sua linha nesse teste.
 
+## Painel de admin
+
+Contas só mudam pela Edge Function `admin-usuarios` (`supabase/functions/admin-usuarios/`, verify_jwt ligado): ela
+descobre quem chama pelo token e confere no banco se é admin ativo; a chave de serviço existe só lá. As travas
+ficam em `regras.js`, o mesmo arquivo que `tests/adminUsuarios.mjs` e o banco em memória usam. Mudou uma função
+ou `regras.js`: publique de novo pelo conector, com os dois arquivos. O gatilho de `profiles` recusa perfil e
+situação vindos do navegador, mesmo do admin. A tela é `src/screens/painelAdmin.jsx`, aberta pelo ícone do topo.
+
 ## Quem pode o quê
 
 1. **O quadro manda nas permissões do app:** `docs/permissoes/QUEM-PODE-O-QUE.md` (decidido pelo Israel
@@ -106,6 +114,8 @@ Dentro dos testes rodam também:
   authenticated`, com `grant all` ou aberta para `anon` sem marca.
 - `supabase/testes/permissoes.sql` — não roda no `npm run check` (precisa do banco): o agente roda pelo
   `execute_sql`. Cada perfil tenta ler e gravar no que é seu e no do vizinho, e tudo se desfaz no fim.
+- `supabase/testes/gravacoes.sql` — idem: o que cada tela grava, como Engenheiro e como Gerente (acento, número,
+  repetido, histórico). Rode depois de mudar tabela, CHECK ou trava.
 
 Nada disso prova que a tela funciona. Verde com a tela em branco é rotina: abra a tela, e troque
 de obra com ela aberta.
@@ -126,8 +136,13 @@ e a Vercel publica sozinha. A pessoa não digita comando.
 
 ## Armadilhas desta base
 
-- **O primeiro cadastro do banco vira o admin_master** (gatilho da migration -14). Hoje é o Israel. Se o banco
-  for recriado do zero, ele cadastra primeiro, antes de o app ir para o ar com cadastro aberto.
+- **A regra do banco recusa alteração sem dar erro:** muda 0 linhas e a tela diria "salvo". Em `dados.js`, use
+  `gravar` e `apagarDeVerdade`, que transformam isso em frase; `atualizar` e `apagar` soltos só quando o "não achei"
+  é esperado ou tem frase própria (teste: `tests/recusaCalada.mjs`).
+- **O cadastro público está fechado** (painel do Supabase, Authentication: "Allow new users to sign up" desligado;
+  não é migration). Contas nascem pela função `admin-usuarios`. Se o banco for recriado do zero, não há admin:
+  religue o cadastro, o Israel se cadastra primeiro (o gatilho da migration -14 faz do primeiro o admin_master), e
+  desligue de novo. O banco recusa tirar o último admin ativo (migration -22).
 
 - **Tabela nova nasce fechada para o app.** Toda tabela precisa de `grant` escrito na migration,
   só para `authenticated` (e `service_role`). Erro "permission denied for table (42501)" é GRANT
@@ -157,9 +172,9 @@ e a Vercel publica sozinha. A pessoa não digita comando.
   repetir o mesmo toque completa (mover para a mesma coluna, lançar o mesmo avanço); na importação
   "substituir", as novas entram antes de as antigas serem arquivadas: se cair no meio, arquive as antigas na EAP. "Trocar planilha" apaga as linhas da medição e grava as novas: se cair
   no meio, a medição fica sem linhas, e trocar de novo completa. Importar medição grava o cabeçalho e as linhas; se as
-  linhas falharem, o próprio `dados.js` desfaz o cabeçalho. Em Usuários, salvar grava o perfil e depois as obras
-  liberadas (apaga as que saíram, grava as novas), e virar Engenheiro grava o perfil e depois apaga a lista de
-  obras: se cair no meio, salvar de novo completa. Foto: sobe o arquivo e só depois grava o registro (caiu no
+  linhas falharem, o próprio `dados.js` desfaz o cabeçalho. No Painel de admin, criar grava o login, depois o perfil e as
+  obras (se falhar no meio, a função apaga o login); virar Engenheiro grava o perfil e depois apaga a lista de
+  obras, e bloquear grava a situação e depois trava o login: se cair no meio, repetir completa. Foto: sobe o arquivo e só depois grava o registro (caiu no
   meio, sobra um arquivo solto, sem estrago); ao tirar uma foto da frente, apagar o pedido ou receber de novo,
   grava a tabela e depois apaga o arquivo (caiu no meio, idem).
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)

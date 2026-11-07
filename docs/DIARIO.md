@@ -150,3 +150,24 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 03/11/2026 · Fotos · sem internet para o envio, a foto sai da lista com "A foto não subiu: sem internet…" e o Salvar continua liberado.
 - 03/11/2026 · Fotos · tirar a foto da frente e salvar apaga o arquivo da pasta.
 - 03/11/2026 · Fotos · receber de novo um pedido que voltou de coluna agora apaga a nota antiga (corrigido na rodada).
+
+## Rodada 9 · Painel de admin — testada com o Israel, na conta de teste marcos
+
+- 04/11/2026 · Painel · novo usuário pelo painel nasce ativo, com senha provisória e as obras escolhidas.
+- 04/11/2026 · Painel · conta comum não usa a função (listar, criar, virar admin: 403) nem o banco direto.
+- 04/11/2026 · Painel · sem login, cadastro recusado (`signup_disabled`); `disable_signup` e `mailer_autoconfirm` em `true`.
+- 04/11/2026 · Painel · Gerente com uma obra: seletor só com ela, sem Painel de admin, sem Medições, sem Desfazer.
+- 04/11/2026 · Painel · bloquear corta a sessão aberta na hora (0 obras) e o login; desbloquear devolve os dois.
+- 04/11/2026 · Painel · redefinir senha: a antiga é recusada e a nova entra.
+- 04/11/2026 · Painel · excluir com nome errado é recusado; com o nome certo somem login, perfil e obras liberadas.
+- 04/11/2026 · Login · senha errada é recusada pelo servidor, no teste com a senha antiga.
+
+## Rodada 10 · Banco de verdade, tela por tela — parte feita pelo Claude, sem senha
+
+- 04/11/2026 · Banco · 47 gravações por tela (Engenheiro e Gerente) em `supabase/testes/gravacoes.sql`, tudo desfeito: passaram.
+- 04/11/2026 · Banco · 49 permissões em `supabase/testes/permissoes.sql`: passaram.
+- 04/11/2026 · Recusa calada · alteração recusada pela regra do banco agora avisa "Não foi gravado" (corrigido na rodada, com teste).
+- 04/11/2026 · Clique duplo · Funcionário, Equipamento e Frente gravam um só, com o banco lento (corrigido na rodada; banco em memória).
+- 04/11/2026 · Lista vazia · Hoje, Frentes, Pessoas, Equipamentos, Pedidos, Estoque, EAP, Longo, Curto e Medições dizem o que fazer (banco em memória).
+- 04/11/2026 · Erro de rede · Obras, Efetivo, Frentes, Pessoas, Equipamentos, Pedidos, Estoque, Longo e Médio avisam e não deixam nada pela metade (queda simulada, banco em memória).
+- 04/11/2026 · Lista grande · 2.500 linhas vêm todas (teste automático).

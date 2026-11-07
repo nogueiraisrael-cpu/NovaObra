@@ -10,7 +10,7 @@ declare
   adm uuid; ger uuid := gen_random_uuid(); cli uuid := gen_random_uuid();
   pen uuid := gen_random_uuid(); blq uuid := gen_random_uuid();
   ubs uuid; serra uuid; n int; falhas text := ''; total int := 0; certos int := 0;
-  pedido_ubs uuid; pedido_novo uuid;
+  pedido_ubs uuid; pedido_novo uuid; dia date; efetivo_do_dia_todo int;
 begin
   select id into adm from public.profiles where role = 'admin_master' and status = 'ativo' order by created_at limit 1;
   select id into ubs from public.obras where codigo = 'UBS-NE';
@@ -27,6 +27,10 @@ begin
   update public.profiles set role = 'gerente', status = 'bloqueado' where id = blq;
   insert into public.membros (obra_id, profile_id) values (ubs, ger), (serra, cli), (ubs, blq);
   select id into pedido_ubs from public.pedidos_material where obra_id = ubs and status <> 'Solicitar' limit 1;
+
+  -- Um dia com efetivo lançado: o teste não depende de ter diário hoje.
+  select max(data) into dia from public.rdo_efetivo where obra_id = serra;
+  select count(*) into efetivo_do_dia_todo from public.rdo_efetivo where data = dia;
 
   create temp table _r (caso text, ok boolean) on commit drop;
   grant all on _r to anon, authenticated;
@@ -62,7 +66,7 @@ begin
   select count(*) into n from public.obras; insert into _r values ('cliente vê só a obra dele', n = 1);
   select count(*) into n from public.rdos; insert into _r values ('cliente ainda não vê diário (v1.1)', n = 0);
   select count(*) into n from public.medicoes; insert into _r values ('cliente nunca vê medição', n = 0);
-  select count(*) into n from public.efetivo_do_dia((now() at time zone 'America/Fortaleza')::date); insert into _r values ('cliente não vê o efetivo do dia', n = 0);
+  select count(*) into n from public.efetivo_do_dia(dia); insert into _r values ('cliente não vê o efetivo do dia', n = 0);
   select count(*) into n from public.fotos; insert into _r values ('cliente ainda não vê foto (v1.1)', n = 0);
   reset role;
 
@@ -122,8 +126,8 @@ begin
   insert into _r values ('gerente muda funcionário lotado na UBS', n > 0);
   update public.equipamentos set nome = nome where obra_id = serra; get diagnostics n = row_count;
   insert into _r values ('gerente não mexe em equipamento da Serra', n = 0);
-  select count(distinct obra_id) into n from public.efetivo_do_dia((now() at time zone 'America/Fortaleza')::date);
-  insert into _r values ('gerente enxerga quem está presente em qualquer obra hoje (trava)', n >= 1);
+  select count(*) into n from public.efetivo_do_dia(dia);
+  insert into _r values ('gerente enxerga quem está presente em qualquer obra (trava)', n = efetivo_do_dia_todo and n > 0);
   select count(*) into n from public.rdo_efetivo where obra_id = serra; insert into _r values ('mas não lê o efetivo da Serra direto', n = 0);
   insert into _r values ('gerente abre foto do diário da UBS', privado.pode_foto(ubs || '/diario/' || gen_random_uuid() || '.jpg'));
   insert into _r values ('gerente não abre nota fiscal', not privado.pode_foto(ubs || '/nota-fiscal/' || gen_random_uuid() || '.jpg'));
@@ -140,6 +144,10 @@ begin
   insert into _r values ('engenheiro edita a obra', n = 1);
   delete from public.rdos where status = 'Fechado'; get diagnostics n = row_count;
   insert into _r values ('nem o engenheiro apaga diário fechado', n = 0);
+  begin
+    update public.profiles set status = 'bloqueado' where id = ger;
+    insert into _r values ('nem o engenheiro muda situação pelo navegador', false);
+  exception when insufficient_privilege then insert into _r values ('nem o engenheiro muda situação pelo navegador', true); end;
   insert into _r values ('engenheiro abre nota fiscal', privado.pode_foto(ubs || '/nota-fiscal/' || gen_random_uuid() || '.jpg'));
   reset role;
 

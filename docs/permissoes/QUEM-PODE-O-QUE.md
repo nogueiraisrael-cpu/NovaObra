@@ -1,6 +1,6 @@
 # Quem pode o quê: Nova Obra
 
-Última atualização: 02/11/2026 · Decidido por: Israel Nogueira
+Última atualização: 03/11/2026 · Decidido por: Israel Nogueira
 
 Este quadro manda nas permissões do app. Tudo o mais (`quadro.json`, `src/lib/permissoes.js`, as regras
 do banco e o teste de permissões) é cópia dele. Ele substitui a "Matriz de permissões" do
@@ -22,8 +22,10 @@ liberar), **ativo** e **bloqueado** (perdeu o acesso; o que lançou continua no 
 "Pendente" deixou de ser perfil (decidido em 02/11/2026).
 
 Regras que valem para todo app (não se pergunta de novo):
-- Ninguém escolhe o próprio perfil. Conta nova nasce pendente, ou é criada pelo administrador no painel de admin.
+- Ninguém escolhe o próprio perfil. Desde 04/11/2026 o cadastro público está fechado: quem cria o login é o
+  administrador, no Painel de admin, já com perfil e obras. Conta pendente só existe se vier de antes disso.
 - Saiu da equipe é bloqueado, não excluído: perde o acesso na hora, e o que fez continua com o nome dele.
+  Excluir é só para cadastro feito errado: conta sem nenhum registro lançado.
 - Depois do painel de admin, o cadastro público fica fechado: quem cria o login é o administrador.
 - Ninguém muda o próprio perfil, a própria situação nem as próprias obras, e o app nunca fica sem um administrador ativo.
 
@@ -60,7 +62,7 @@ tempo. O app não liga nem desliga módulos por pessoa: não há terceira dimens
 | Usuários (contas) | Criar login, liberar conta, escolher perfil e obras | pode | · | · |
 | Usuários (contas) | Bloquear | pode | · | · |
 | Usuários (contas) | Editar o próprio nome | pode | pode | pode |
-| Usuários (contas) | Apagar conta · bloqueia, nunca apaga | · | · | · |
+| Usuários (contas) | Apagar conta · só conta sem nenhum registro lançado; quem lançou algo se bloqueia | pode | · | · |
 | Funcionários (Pessoas) | Ver nome e função | pode | pode | · |
 | Funcionários (Pessoas) | Criar | pode | pode | · |
 | Funcionários (Pessoas) | Editar · inclusive mudar a obra de lotação | pode | pode | · |
@@ -133,9 +135,9 @@ tempo. O app não liga nem desliga módulos por pessoa: não há terceira dimens
 ## 5. O menu de cada perfil
 
 - **admin_master:** Obras · Ocorrências · Equipamentos · Pessoas (com Presença do mês e Efetivo geral) ·
-  Perfil (com Usuários). Dentro da obra: Hoje · Diários · Fotos · Comentários · Pranchas · Medições ·
+  Perfil. No topo, o ícone com a inicial abre Painel de admin (a lista de Usuários) e Sair. Dentro da obra: Hoje · Diários · Fotos · Comentários · Pranchas · Medições ·
   Materiais · Planejamento.
-- **gerente:** Obras · Ocorrências · Equipamentos · Pessoas · Perfil (sem Usuários). Dentro da obra: Hoje ·
+- **gerente:** Obras · Ocorrências · Equipamentos · Pessoas · Perfil. O ícone do topo mostra só o nome e Sair. Dentro da obra: Hoje ·
   Diários · Fotos · Comentários · Pranchas · Materiais (sem a foto da nota fiscal) · Planejamento. **Sem
   Medições.**
 - **cliente:** Avanço · Fotos · Recados · Perfil.
@@ -195,8 +197,9 @@ tempo. O app não liga nem desliga módulos por pessoa: não há terceira dimens
 5. Um teste de permissões no banco: cada perfil tenta cada ação na obra dele e numa obra de outra pessoa.
 6. Antes de abrir para gente de verdade, o teste do estranho.
 
-Hoje (02/11/2026) nada disso existe ainda: o app não tem login e o banco está aberto de propósito
-(`20261101-02-acesso-provisorio-dev.sql`). O passo 10 constrói os itens 2 a 5 a partir deste quadro.
+Feito no passo 10 (03 e 04/11/2026): os itens 2 a 5 existem. O banco está fechado por perfil e obra
+(migration -18), e `supabase/testes/permissoes.sql` e `gravacoes.sql` conferem as regras. Falta o item 6
+(o teste do estranho), antes de abrir para gente de verdade.
 
 ## 8. Mudar depois
 
@@ -206,6 +209,7 @@ Decisão que só existe no chat não existe.
 
 | Data | Quem decidiu | O que mudou e por quê |
 |---|---|---|
+| 03/11/2026 | Israel Nogueira | Painel de admin: o `admin_master` passa a poder apagar conta, só sem nenhum registro lançado, para cadastro feito errado (era "bloqueia, nunca apaga"). Quem lançou algo continua sendo bloqueado. Usuários sai de Perfil e vira o Painel de admin, no ícone do topo. |
 | 02/11/2026 | Israel Nogueira | Quadro criado. Mudanças sobre a proposta: o `admin_master` edita e apaga qualquer comentário e marca como lido (era "·" e "só os dele"). |
 
 ## Em aberto

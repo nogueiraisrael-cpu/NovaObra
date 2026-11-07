@@ -15,7 +15,7 @@ grava só nas obras liberadas para ele em `membros`; não vê Medições; não a
 funcionário, equipamento, material do catálogo nem baixa manual de estoque; apaga pedido só em "Solicitar".
 Funcionários e equipamentos ele vê todos (só nome e função), porque o efetivo do dia mostra quem veio de outra
 obra, mas só muda os das obras dele e os sem obra. Nem o Engenheiro apaga diário fechado ou com fotos. O **Cliente** (v1.1) só vê as obras dele, nenhum lançamento ainda. O teste
-`supabase/testes/permissoes.sql` confere 48 casos (último resultado: 48 de 48, 03/11/2026). A trava "presente em duas obras" do
+`supabase/testes/permissoes.sql` confere 49 casos (último resultado: 49 de 49). A trava "presente em duas obras" do
 gerente lê as outras obras pela função `efetivo_do_dia` (só quem está em qual obra no dia).
 
 ## O que ainda falta
@@ -118,3 +118,5 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | `20261103-18-rls-por-perfil-e-obra.sql` | **Fecha o banco.** Apaga as 20 regras provisórias abertas, tira tudo de quem não fez login e põe as regras do quadro por perfil e por obra (função `privado.sou_equipe`). Testado em 03/11/2026: 40 de 40 |
 | `20261103-19-perfis-sem-anon.sql` | `profiles` e `membros` sem a liberação padrão para quem não fez login |
 | `20261103-20-correcoes-da-revisao-rls.sql` | Achados da revisão: o gerente só mexe em movimento de pedido (não na baixa manual), só muda funcionário e equipamento das obras dele, enxerga a trava de presença pela função `efetivo_do_dia`; diário fechado ou com fotos não se apaga. Testado: 48 de 48 |
+| `20261103-21-painel-de-admin.sql` | Painel de admin: perfil e situação só mudam pela função `admin-usuarios` (nem o admin muda pelo navegador). Apagar o login leva o perfil e as obras liberadas; os lançamentos não vão junto, e conta que lançou algo o banco recusa inteira |
+| `20261107-22-ultimo-admin-no-banco.sql` | Achado da revisão: o banco recusa tirar o último admin ativo (bloquear, rebaixar ou apagar), com uma fila que faz dois pedidos juntos esperarem um ao outro |

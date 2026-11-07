@@ -30,9 +30,11 @@ import { validarCausa, REGISTRO_VAZIO, mudancaDeColuna, efeitoDoAvanco, camposDa
 import { nomesDeEmpreiteiros, nomeDoEmpreiteiro, conferirParaGravar } from './medicoes.js'
 import { STATUS_SEMANA } from './listas.js'
 import {
-  validarEntrada, validarCadastro, validarEmail, validarSenha, mensagemDoLogin, mensagemDoPerfil, AVISO_BLOQUEADO,
+  validarEntrada, validarSenha, mensagemDoLogin, AVISO_BLOQUEADO,
 } from './login.js'
 import { fraseDoErroInterno } from './erros.js'
+import { lerTudo } from './paginas.js'
+import { ordenarUsuarios } from './painelAdmin.js'
 import { PASTA_DE_FOTOS, VALIDADE_DO_ENDERECO, caminhoDaFoto, caminhoEhDe, estaNoStorage, mensagemDoEnvio } from './fotos.js'
 import { encolherFoto } from './imagem.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
@@ -47,9 +49,6 @@ export const TABELAS_DA_OBRA = [
 // ---------------------------------------------------------------------------
 // O banco de verdade (Supabase)
 // ---------------------------------------------------------------------------
-
-// O Supabase devolve no máximo 1.000 linhas por pedido, sem avisar: lemos em páginas.
-const PAGINA = 1000
 
 function filtrar(q, filtros) {
   for (const [c, v] of Object.entries(filtros)) {
@@ -70,13 +69,8 @@ const exigirFiltro = (filtros) => {
 }
 
 const bancoSupabase = {
-  async ler(tabela, filtros = {}) {
-    const linhas = []
-    for (let de = 0; ; de += PAGINA) {
-      const pagina = resposta(await filtrar(supabase.from(tabela).select('*'), filtros).order('id').range(de, de + PAGINA - 1))
-      linhas.push(...pagina)
-      if (pagina.length < PAGINA) return linhas
-    }
+  ler(tabela, filtros = {}) {
+    return lerTudo(async (de, ate) => resposta(await filtrar(supabase.from(tabela).select('*'), filtros).order('id').range(de, ate)))
   },
   async inserir(tabela, linhas) {
     return resposta(await supabase.from(tabela).insert(linhas).select())
@@ -85,14 +79,21 @@ const bancoSupabase = {
     return resposta(await filtrar(supabase.from(tabela).update(campos), filtros).select())
   },
   async apagar(tabela, filtros) {
-    resposta(await filtrar(supabase.from(tabela).delete(), filtros))
+    return resposta(await filtrar(supabase.from(tabela).delete(), filtros).select())
+  },
+  // Contas: a função admin-usuarios (chave de serviço só no servidor). A frase de recusa vem dela.
+  async admin(acao, dados) {
+    const { data, error } = await supabase.functions.invoke('admin-usuarios', { body: { acao, ...dados } })
+    if (!error) return data
+    const corpo = await error.context?.json?.().catch(() => null)
+    throw new Error(corpo?.erro ?? 'Não foi possível falar com o servidor. Verifique a internet e tente de novo.')
   },
 }
 
 const semBanco = {
   async ler() { throw new Error('Banco não configurado: falta o arquivo .env.local com a URL e a chave do Supabase.') },
 }
-semBanco.inserir = semBanco.atualizar = semBanco.apagar = semBanco.ler
+semBanco.inserir = semBanco.atualizar = semBanco.apagar = semBanco.admin = semBanco.ler
 
 let banco = supabase ? bancoSupabase : semBanco
 let perfis = []
@@ -120,8 +121,6 @@ const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR')
 function traduzirErro(e) {
   if (/fetch|network|Load failed/i.test(e.message)) return 'Não foi possível falar com o banco. Verifique a internet e tente de novo.'
   if (!e.doBanco) return fraseDoErroInterno(e)
-  const doPerfil = mensagemDoPerfil(e.message)
-  if (doPerfil) return doPerfil
   if (e.code === '23505' && /uma_presenca_por_dia/.test(e.message)) return 'Esse funcionário já está presente hoje em outra obra.'
   if (/saldo_negativo/.test(e.message)) return 'O estoque ficaria negativo: alguém mexeu neste insumo ao mesmo tempo. Confira o saldo e tente de novo.'
   if (e.code === '23505' && /medicoes_um_numero/.test(e.message)) return 'Já existe medição com esse número. Use outro número.'
@@ -129,6 +128,7 @@ function traduzirErro(e) {
   if (e.code === '23514') return 'O banco recusou um valor fora da lista permitida.'
   if (e.code === '23503') return 'Este registro aponta para algo que não existe mais.'
   if (e.code === '42501') return 'Sem permissão para gravar aqui.'
+  if (e.code === 'nao_gravou') return 'Não foi gravado: você não tem permissão aqui, ou este registro mudou. Recarregue a tela e confira.'
   return 'Não foi possível salvar. Verifique a internet e tente de novo.'
 }
 
@@ -147,6 +147,21 @@ const um = async (tabela, filtros) => (await banco.ler(tabela, filtros))[0] ?? n
 // Alterar ou apagar sem filtro mexeria na tabela inteira: recusado aqui, para os dois bancos.
 const atualizar = (tabela, filtros, campos) => { exigirFiltro(filtros); return banco.atualizar(tabela, filtros, campos) }
 const apagar = (tabela, filtros) => { exigirFiltro(filtros); return banco.apagar(tabela, filtros) }
+
+// Quando a regra do banco recusa uma alteração, ele não dá erro: só muda 0 linhas. Sem esta
+// conferência a tela diria "salvo" sem ter salvo. Quem tem frase própria para o "não achei"
+// (ex.: o pedido que mudou de coluna em outro aparelho) usa atualizar e confere o resultado.
+const naoGravou = () => Object.assign(new Error('Nenhuma linha mudou'), { doBanco: true, code: 'nao_gravou' })
+async function gravar(tabela, filtros, campos) {
+  const linhas = await atualizar(tabela, filtros, campos)
+  if (!linhas.length) throw naoGravou()
+  return linhas
+}
+async function apagarDeVerdade(tabela, filtros) {
+  const linhas = await apagar(tabela, filtros)
+  if (!linhas.length) throw naoGravou()
+  return linhas
+}
 
 async function inserirVarios(tabela, linhas) {
   if (!linhas.length) return []
@@ -180,14 +195,14 @@ async function nomesDasObras() {
 // ---------------------------------------------------------------------------
 
 const authReal = () => banco === bancoSupabase
-// Para onde os links de e-mail (confirmar conta, nova senha) trazem a pessoa de volta.
-const enderecoDoApp = () => globalThis.location?.origin
 
 // Depois de entrar (ou ao reabrir o app): o próprio perfil decide a porta. Bloqueado não
 // fica com sessão aberta. Os nomes da equipe vêm junto (a regra do banco só entrega o que pode).
 // Cada Sair (e cada nova entrada) muda a "vez". Uma conferência que começou antes e termina
 // depois não pode trazer de volta quem acabou de sair.
 let vezDaSessao = 0
+// Quem caiu fora por bloqueio já não tem sessão: o aviso espera aqui até a tela de Entrar mostrar.
+let avisoDaSaida = null
 
 async function abrirSessao(id, vez = vezDaSessao) {
   const meu = await um('profiles', { id })
@@ -199,6 +214,7 @@ async function abrirSessao(id, vez = vezDaSessao) {
   }
   if (meu.status === 'bloqueado') {
     usuario = null // o aviso é o de bloqueado, não o de "sessão acabou"
+    avisoDaSaida = AVISO_BLOQUEADO
     await supabase.auth.signOut()
     return falha(AVISO_BLOQUEADO)
   }
@@ -223,7 +239,11 @@ export const sessaoAtual = () => executar(async () => {
   const vez = vezDaSessao
   if (!authReal()) return ok(usuario ? copia(usuario) : null)
   const { data } = await supabase.auth.getSession()
-  if (!data.session) return ok(null)
+  if (!data.session) {
+    const aviso = avisoDaSaida
+    avisoDaSaida = null
+    return aviso ? falha(aviso) : ok(null)
+  }
   return abrirSessao(data.session.user.id, vez)
 })
 
@@ -237,63 +257,27 @@ export const entrar = (email, senha) => executar(async () => {
   }
   const invalido = validarEntrada({ email, senha })
   if (invalido) return falha(invalido)
+  avisoDaSaida = null
   const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha })
   if (error) return falha(mensagemDoLogin(error))
   vezDaSessao++
   return abrirSessao(data.user.id)
 })
 
-// Conta nova nasce pendente (o banco decide; o primeiro cadastro do app vira o admin).
-// Com a confirmação de e-mail ligada, volta { confirmar: true } e a pessoa entra pelo link.
-export const criarConta = ({ nome, email, senha }) => executar(async () => {
-  const invalido = validarCadastro({ nome, email, senha })
-  if (invalido) return falha(invalido)
-  if (!authReal()) {
-    if (perfis.some((x) => x.email.toLowerCase() === email.trim().toLowerCase())) return falha('Já existe conta com este e-mail.')
-    const p = { id: crypto.randomUUID(), nome: nome.trim(), email: email.trim(), role: null, status: 'pendente' }
-    perfis.push(p)
-    usuario = p
-    return ok(copia(p))
-  }
-  const { data, error } = await supabase.auth.signUp({
-    email: email.trim(), password: senha, options: { data: { nome: nome.trim() }, emailRedirectTo: enderecoDoApp() },
-  })
-  if (error) return falha(mensagemDoLogin(error))
-  if (!data.session) return ok({ confirmar: true })
-  return abrirSessao(data.user.id)
-})
-
-// Manda o link de nova senha. Responde igual exista ou não a conta (não revela quem tem login).
-export const esqueciSenha = (email) => executar(async () => {
-  const invalido = validarEmail(email)
-  if (invalido) return falha(invalido)
-  if (!authReal()) return ok(true)
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: enderecoDoApp() })
-  if (error) return falha(mensagemDoLogin(error))
-  return ok(true)
-})
-
-// Depois do link de nova senha, a pessoa já está com sessão: só grava a senha e entra.
+// A própria senha (Perfil): quem recebeu uma senha provisória põe a dele.
 export const trocarSenha = (senha) => executar(async () => {
   const invalido = validarSenha(senha)
   if (invalido) return falha(invalido)
   if (!authReal()) return ok(true)
-  const { data, error } = await supabase.auth.updateUser({ password: senha })
-  if (error) return falha(mensagemDoLogin(error))
-  return abrirSessao(data.user.id)
+  const { error } = await supabase.auth.updateUser({ password: senha })
+  if (error) return falha(mensagemDoLogin(error, 'Não foi possível trocar a senha agora. Tente de novo em instantes.'))
+  return ok(true)
 })
 
-// O link de nova senha chega com "type=recovery" no endereço. Lido já ao carregar: o Supabase
-// limpa o endereço sozinho e o aviso dele pode sair antes de a tela começar a ouvir.
-const veioPeloLinkDeSenha = /type=recovery/.test(globalThis.location?.hash ?? '')
-
-// Ouve a sessão: o link de nova senha e a sessão que acaba sozinha (expirou, saiu em outra aba).
-// Devolve a função de parar de ouvir.
-export function ouvirSessao({ aoChegarPeloLinkDeSenha, aoAcabarASessao }) {
+// Ouve a sessão que acaba sozinha (expirou, saiu em outra aba). Devolve a função de parar de ouvir.
+export function ouvirSessao({ aoAcabarASessao }) {
   if (!authReal()) return () => {}
-  if (veioPeloLinkDeSenha) aoChegarPeloLinkDeSenha()
   const { data } = supabase.auth.onAuthStateChange((evento) => {
-    if (evento === 'PASSWORD_RECOVERY') aoChegarPeloLinkDeSenha()
     if (evento === 'SIGNED_OUT' && usuario) {
       usuario = null
       perfis = []
@@ -306,6 +290,7 @@ export function ouvirSessao({ aoChegarPeloLinkDeSenha, aoAcabarASessao }) {
 
 export const sair = () => executar(async () => {
   vezDaSessao++
+  avisoDaSaida = null
   // Antes do signOut: o aviso de "sessão acabou" é só para quando ela acaba sozinha.
   usuario = null
   obraAtualId = null
@@ -371,7 +356,7 @@ export const salvarObra = (dados) => executar(async () => {
     cliente: obra.cliente || null, numero_contrato: obra.numero_contrato || null, data_inicio: obra.data_inicio,
     data_meta_entrega: obra.data_meta_entrega || null, situacao: obra.situacao,
   }
-  if (obra.id) return ok((await atualizar('obras', { id: obra.id }, campos))[0])
+  if (obra.id) return ok((await gravar('obras', { id: obra.id }, campos))[0])
   return ok(await inserir('obras', campos))
 })
 
@@ -432,7 +417,7 @@ export const salvarRdo = (campos) => executar(async () => {
   const permitidos = ['clima_manha', 'clima_tarde', 'praticavel_manha', 'praticavel_tarde', 'observacoes']
   const mudancas = Object.fromEntries(permitidos.filter((k) => k in campos).map((k) => [k, campos[k]]))
   if (!Object.keys(mudancas).length) return ok(rdo)
-  return ok((await atualizar('rdos', { id: rdo.id }, mudancas))[0])
+  return ok((await gravar('rdos', { id: rdo.id }, mudancas))[0])
 })
 
 // ---- Efetivo ----
@@ -474,7 +459,7 @@ export const marcarEfetivo = (funcionarioId, situacao, obraDestinoId = null) => 
   if (existente) {
     // Antes de voltar a Presente aqui, a chegada no destino sai (senão a trava do banco recusa).
     if (existente.situacao === 'Deslocado' && existente.obra_destino_id) await desfazerChegada(funcionarioId, existente.obra_destino_id)
-    linha = (await atualizar('rdo_efetivo', { id: existente.id }, novos))[0]
+    linha = (await gravar('rdo_efetivo', { id: existente.id }, novos))[0]
   } else {
     linha = await inserir('rdo_efetivo', { rdo_id: rdo.id, obra_id: obraId, data: rdo.data, funcionario_id: funcionarioId, ...novos })
   }
@@ -522,7 +507,7 @@ export const trazerFuncionario = (funcionarioId) => executar(async () => {
   const rdoOrigem = func.obra_id ? await rdoDeHoje(func.obra_id) : null
   if (rdoOrigem) {
     const l = await um('rdo_efetivo', { rdo_id: rdoOrigem.id, funcionario_id: funcionarioId })
-    if (l) await atualizar('rdo_efetivo', { id: l.id }, { situacao: 'Deslocado', obra_destino_id: obraId })
+    if (l) await gravar('rdo_efetivo', { id: l.id }, { situacao: 'Deslocado', obra_destino_id: obraId })
     else await inserir('rdo_efetivo', { rdo_id: rdoOrigem.id, obra_id: func.obra_id, data: rdoOrigem.data, funcionario_id: funcionarioId, situacao: 'Deslocado', obra_destino_id: obraId })
   }
   await inserir('rdo_efetivo', { rdo_id: rdo.id, obra_id: obraId, data: rdo.data, funcionario_id: funcionarioId, situacao: 'Veio de outra obra', obra_destino_id: null })
@@ -536,7 +521,7 @@ export const devolverFuncionario = (funcionarioId) => executar(async () => {
   await desfazerChegada(funcionarioId, obraId)
   await tirarDasEquipes(rdo.id, funcionarioId)
   const origem = await um('rdo_efetivo', { funcionario_id: funcionarioId, data: hoje(), situacao: 'Deslocado', obra_destino_id: obraId })
-  if (origem) await atualizar('rdo_efetivo', { id: origem.id }, { situacao: 'Presente', obra_destino_id: null })
+  if (origem) await gravar('rdo_efetivo', { id: origem.id }, { situacao: 'Presente', obra_destino_id: null })
   return ok(true)
 })
 
@@ -568,7 +553,7 @@ export const marcarEquipamentoDia = (equipamentoId, situacao, observacao) => exe
   if (observacao !== undefined) mudancas.observacao = observacao
   if (situacao === 'Operando') mudancas.observacao = ''
   const existente = await um('rdo_equipamentos', { rdo_id: rdo.id, equipamento_id: equipamentoId })
-  if (existente) return ok((await atualizar('rdo_equipamentos', { id: existente.id }, mudancas))[0])
+  if (existente) return ok((await gravar('rdo_equipamentos', { id: existente.id }, mudancas))[0])
   return ok(await inserir('rdo_equipamentos', { rdo_id: rdo.id, obra_id: obraId, equipamento_id: equipamentoId, observacao: '', ...mudancas }))
 })
 
@@ -646,7 +631,7 @@ export const salvarPreenchimento = (frenteId, { situacao, motivo_parada, descric
   const campos = { situacao, motivo_parada: situacao === 'Parada' ? motivo_parada : null, descricao: descricao ?? '' }
   const existente = await um('rdo_frentes', { rdo_id: rdo.id, frente_id: frenteId })
   const rf = existente
-    ? (await atualizar('rdo_frentes', { id: existente.id }, campos))[0]
+    ? (await gravar('rdo_frentes', { id: existente.id }, campos))[0]
     : await inserir('rdo_frentes', { rdo_id: rdo.id, obra_id: obraId, frente_id: frenteId, ...campos })
   await apagar('rdo_frente_equipe', { rdo_frente_id: rf.id })
   await inserirVarios('rdo_frente_equipe', equipe.map((id) => ({ rdo_frente_id: rf.id, obra_id: obraId, funcionario_id: id })))
@@ -686,7 +671,7 @@ export const fecharRdo = () => executar(async () => {
   const campos = ['situacao', 'parada_desde', 'motivo_parada', 'data_inicio', 'data_conclusao']
   for (const f of aplicarFechamento(daObra, rfs, rdo.data)) {
     const mudou = campos.filter((c) => f[c] !== antes.get(f.id)[c])
-    if (mudou.length) await atualizar('frentes_servico', { id: f.id }, Object.fromEntries(mudou.map((c) => [c, f[c]])))
+    if (mudou.length) await gravar('frentes_servico', { id: f.id }, Object.fromEntries(mudou.map((c) => [c, f[c]])))
   }
   // Quem está no efetivo só pelo padrão (lotado depois que o RDO abriu, ou vindo
   // de outra obra) ganha linha agora: o diário fechado guarda o mesmo que a tela mostrou.
@@ -694,7 +679,7 @@ export const fecharRdo = () => executar(async () => {
     rdo_id: rdo.id, obra_id: obraId, data: rdo.data, funcionario_id: item.funcionario.id,
     situacao: item.situacao, obra_destino_id: item.obra_destino_id,
   })))
-  return ok((await atualizar('rdos', { id: rdo.id }, {
+  return ok((await gravar('rdos', { id: rdo.id }, {
     status: 'Fechado', fechado_por: usuario?.id ?? null, fechado_em: new Date().toISOString(),
   }))[0])
 })
@@ -781,7 +766,7 @@ export const salvarFuncionario = (dados) => executar(async () => {
   if (!dados.nome?.trim()) return falha('Informe o nome.')
   if (!dados.funcao) return falha('Escolha a função.')
   const f = { nome: dados.nome.trim(), funcao: dados.funcao, obra_id: dados.obra_id || null, ativo: dados.ativo ?? true }
-  if (dados.id) return ok((await atualizar('funcionarios', { id: dados.id }, f))[0])
+  if (dados.id) return ok((await gravar('funcionarios', { id: dados.id }, f))[0])
   return ok(await inserir('funcionarios', f))
 })
 
@@ -931,7 +916,7 @@ async function aplicarNoEstoque(obraId, pedido, { efeito, insumo }) {
   const alvo = insumo ?? await garantirInsumo(obraId, pedido.material_id)
   const campos = { quantidade, data: hoje(), frente: pedido.frente }
   const existente = await um('movimentos_estoque', { obra_id: obraId, pedido_id: pedido.id, tipo })
-  if (existente) return atualizar('movimentos_estoque', { id: existente.id, obra_id: obraId }, campos)
+  if (existente) return gravar('movimentos_estoque', { id: existente.id, obra_id: obraId }, campos)
   return inserir('movimentos_estoque', { ...campos, obra_id: obraId, insumo_id: alvo.id, tipo, origem: 'Pedido', pedido_id: pedido.id })
 }
 
@@ -957,7 +942,7 @@ export const desfazerBaixa = (movimentoId) => executar(async () => {
   const filtro = { id: movimentoId, obra_id: obraAtual(), tipo: 'Saída', origem: 'Manual' }
   const mov = await um('movimentos_estoque', filtro)
   if (!mov) return falha('Baixa não encontrada nesta obra.')
-  await apagar('movimentos_estoque', filtro)
+  await apagarDeVerdade('movimentos_estoque', filtro)
   return ok(true)
 })
 
@@ -981,7 +966,7 @@ export const apagarPedido = (pedidoId) => executar(async () => {
   const filtro = { id: pedidoId, obra_id: obraAtual() }
   const pedido = await um('pedidos_material', filtro)
   if (!pedido) return falha('Pedido não encontrado nesta obra.')
-  await apagar('pedidos_material', filtro)
+  await apagarDeVerdade('pedidos_material', filtro)
   await apagarArquivos([pedido.foto_nf], filtro.obra_id, 'nota-fiscal')
   return ok(true)
 })
@@ -1015,11 +1000,11 @@ export const salvarProgresso = (id, texto) => executar(async () => {
   const atual = lista.find((x) => x.id === id)
   if (!atual) return falha('Atividade não encontrada nesta obra.')
   if (lista.some((x) => x.pai_id === id && !x.arquivada)) return falha('O avanço de um grupo vem das subatividades.')
-  const [salva] = await atualizar('atividades', { id, obra_id: obraId }, { progresso })
+  const [salva] = await gravar('atividades', { id, obra_id: obraId }, { progresso })
   const registros = await ler('semana_atividades', { obra_id: obraId, atividade_id: id })
   const efeito = efeitoDoAvanco(registros, progresso, atual.progresso, segundaDaSemana(hoje()))
   if (efeito.concluir) await gravarNaSemana(obraId, id, efeito.concluir.semana, efeito.concluir.campos)
-  if (efeito.reabrir.length) await atualizar('semana_atividades', { id: efeito.reabrir, obra_id: obraId }, { status: 'Em andamento', progresso_antes: null })
+  if (efeito.reabrir.length) await gravar('semana_atividades', { id: efeito.reabrir, obra_id: obraId }, { status: 'Em andamento', progresso_antes: null })
   return ok(salva)
 })
 
@@ -1027,8 +1012,8 @@ export const salvarCalendario = ({ dias, feriados }) => executar(async () => {
   const erro = validarCalendario({ dias })
   if (erro) return falha(erro)
   const cal = calendarioDaObra({ dias_trabalho: [...new Set(dias)].sort(), feriados })
-  const [obra] = await atualizar('obras', { id: obraAtual() }, { dias_trabalho: cal.dias, feriados: cal.feriados })
-  return obra ? ok(calendarioDaObra(obra)) : falha('Obra não encontrada.')
+  const [obra] = await gravar('obras', { id: obraAtual() }, { dias_trabalho: cal.dias, feriados: cal.feriados })
+  return ok(calendarioDaObra(obra))
 })
 
 // Cria ou edita. Mudar de "dentro de" leva a atividade para o fim das novas irmãs.
@@ -1047,7 +1032,7 @@ export const salvarAtividade = (dados) => executar(async () => {
   }
   const campos = { titulo: dados.titulo.trim(), data_inicio: dados.data_inicio, data_fim: dados.data_fim, pai_id: paiId }
   if (!atual || (atual.pai_id ?? null) !== paiId) campos.ordem = proximaOrdem(lista, paiId)
-  if (atual) return ok((await atualizar('atividades', { id: atual.id, obra_id: obraId }, campos))[0])
+  if (atual) return ok((await gravar('atividades', { id: atual.id, obra_id: obraId }, campos))[0])
   return ok(await inserir('atividades', { ...campos, obra_id: obraId }))
 })
 
@@ -1075,7 +1060,7 @@ export const importarCronograma = (linhas, modo) => executar(async () => {
     ordem: l.paiChave ? l.ordem : depoisDe + l.ordem, titulo: l.titulo.trim(),
     data_inicio: l.data_inicio, data_fim: l.data_fim, progresso: 0, arquivada: false,
   })))
-  if (modo === 'substituir' && antigas.length) await atualizar('atividades', { id: antigas, obra_id: obraId }, { arquivada: true })
+  if (modo === 'substituir' && antigas.length) await gravar('atividades', { id: antigas, obra_id: obraId }, { arquivada: true })
   return ok({ criadas: novas.length, arquivadas: modo === 'substituir' ? antigas.length : 0 })
 })
 
@@ -1087,7 +1072,7 @@ export const moverAtividade = (id, direcao) => executar(async () => {
   if (!lista.some((x) => x.id === id)) return falha('Atividade não encontrada nesta obra.')
   const troca = trocaDeOrdem(lista, id, direcao)
   if (!troca) return falha(direcao < 0 ? 'Ela já é a primeira.' : 'Ela já é a última.')
-  for (const t of troca) await atualizar('atividades', { id: t.id, obra_id: obraId }, { ordem: t.ordem })
+  for (const t of troca) await gravar('atividades', { id: t.id, obra_id: obraId }, { ordem: t.ordem })
   return ok(troca)
 })
 
@@ -1097,7 +1082,7 @@ export const arquivarAtividade = (id, arquivar = true) => executar(async () => {
   const lista = await atividadesDaObra(obraId)
   if (!lista.some((x) => x.id === id)) return falha('Atividade não encontrada nesta obra.')
   const ids = arquivar ? idsParaArquivar(lista, id) : idsParaDesarquivar(lista, id)
-  return ok(await atualizar('atividades', { id: ids, obra_id: obraId }, { arquivada: arquivar }))
+  return ok(await gravar('atividades', { id: ids, obra_id: obraId }, { arquivada: arquivar }))
 })
 
 // ---- Médio prazo: as restrições das atividades ----
@@ -1143,7 +1128,7 @@ export const resolverRestricao = (id, resolvida = true) => executar(async () => 
 export const apagarRestricao = (id) => executar(async () => {
   const filtro = { id, obra_id: obraAtual() }
   if (!(await um('restricoes', filtro))) return falha('Restrição não encontrada nesta obra.')
-  await apagar('restricoes', filtro)
+  await apagarDeVerdade('restricoes', filtro)
   return ok(true)
 })
 
@@ -1164,14 +1149,14 @@ const semanaValida = (semana) => Boolean(semana) && segundaDaSemana(semana) === 
 async function gravarNaSemana(obraId, atividadeId, semana, campos) {
   const filtro = { obra_id: obraId, atividade_id: atividadeId, semana }
   const existente = await um('semana_atividades', filtro)
-  if (existente) return (await atualizar('semana_atividades', { id: existente.id, obra_id: obraId }, campos))[0]
+  if (existente) return (await gravar('semana_atividades', { id: existente.id, obra_id: obraId }, campos))[0]
   try {
     return await inserir('semana_atividades', { ...REGISTRO_VAZIO, ...filtro, ...campos })
   } catch (e) {
     // Dois toques ao mesmo tempo: o outro já criou a linha. Atualiza a dele.
     if (e.code !== '23505') throw e
     const outra = await um('semana_atividades', filtro)
-    return (await atualizar('semana_atividades', { id: outra.id, obra_id: obraId }, campos))[0]
+    return (await gravar('semana_atividades', { id: outra.id, obra_id: obraId }, campos))[0]
   }
 }
 
@@ -1187,7 +1172,7 @@ export const moverNaSemana = (atividadeId, semana, status) => executar(async () 
   const antes = await um('semana_atividades', { obra_id: obraId, atividade_id: atividadeId, semana })
   const { campos, progresso } = mudancaDeColuna(antes, status, at.progresso)
   const salva = await gravarNaSemana(obraId, atividadeId, semana, campos)
-  if (progresso !== null) await atualizar('atividades', { id: atividadeId, obra_id: obraId }, { progresso })
+  if (progresso !== null) await gravar('atividades', { id: atividadeId, obra_id: obraId }, { progresso })
   return ok(salva)
 })
 
@@ -1230,7 +1215,7 @@ export const marcarSubtarefa = (id, { feita, causa }) => executar(async () => {
 export const apagarSubtarefa = (id) => executar(async () => {
   const filtro = { id, obra_id: obraAtual() }
   if (!(await um('subtarefas', filtro))) return falha('Subtarefa não encontrada nesta obra.')
-  await apagar('subtarefas', filtro)
+  await apagarDeVerdade('subtarefas', filtro)
   return ok(true)
 })
 
@@ -1321,7 +1306,7 @@ export const trocarPlanilhaMedicao = (id, { campos, itens }) => executar(async (
   await apagar('medicao_itens', { medicao_id: id, obra_id: obraId })
   await inserirVarios('medicao_itens', itens.map((it) => ({ ...it, medicao_id: id, obra_id: obraId })))
   const { tipo: _tipo, empreiteiro: _empreiteiro, ...resto } = campos
-  await atualizar('medicoes', { id, obra_id: obraId }, { ...resto, importada_por: usuario?.id ?? null })
+  await gravar('medicoes', { id, obra_id: obraId }, { ...resto, importada_por: usuario?.id ?? null })
   return ok(true)
 })
 
@@ -1331,7 +1316,7 @@ export const excluirMedicao = (id) => executar(async () => {
   if (!(await um('medicoes', filtro))) return falha('Medição não encontrada nesta obra.')
   // No Supabase, apagar a medição já leva as linhas (on delete cascade), numa gravação só. A
   // segunda serve ao banco em memória, que não tem cascata; no Supabase não acha nada.
-  await apagar('medicoes', filtro)
+  await apagarDeVerdade('medicoes', filtro)
   await apagar('medicao_itens', { medicao_id: id, obra_id: filtro.obra_id })
   return ok(true)
 })
@@ -1380,39 +1365,22 @@ export const possoAbrir = (tela) => podeAbrir(tela, usuario)
 export const textosDasObras = () => textosDeObras(usuario)
 
 // ---------------------------------------------------------------------------
-// Usuários (só o admin). Quem barra os outros é o banco (regra e gatilho de profiles).
+// Usuários (só o admin): tudo passa pela função admin-usuarios, que confere no servidor quem pede.
 // ---------------------------------------------------------------------------
 
+const admin = (acao, dados = {}) => banco.admin(acao, dados, usuario)
+
 export const listarUsuarios = () => executar(async () => {
-  perfis = await ler('profiles')
-  // Pendentes primeiro: são os que esperam o admin.
-  const ordem = { pendente: 0, ativo: 1, bloqueado: 2 }
-  return ok(copia([...perfis].sort((a, b) => (ordem[a.status] - ordem[b.status]) || a.nome.localeCompare(b.nome, 'pt-BR'))))
+  const { usuarios } = await admin('listar')
+  if (authReal()) perfis = usuarios
+  return ok(ordenarUsuarios(usuarios))
 })
 
-export const salvarUsuario = ({ id, role, status }) => executar(async () => {
-  if (status === 'ativo' && !role) return falha('Escolha o perfil antes de liberar.')
-  const [salvo] = await atualizar('profiles', { id }, { role, status })
-  if (!salvo) return falha('Sem permissão para mudar este usuário.')
-  // Virou admin: vê todas, e a lista antiga de obras não pode voltar se um dia for rebaixado.
-  if (role === 'admin_master') await apagar('membros', { profile_id: id })
-  return ok(copia(salvo))
-})
-
-// As obras liberadas para uma pessoa (o admin vê todas e não precisa de lista).
-export const listarObrasDoUsuario = (profileId) => executar(async () => {
-  const [obras, membros] = await Promise.all([ler('obras'), ler('membros', { profile_id: profileId })])
-  const liberadas = new Set(membros.map((m) => m.obra_id))
-  return ok(obras.sort(porNome).map((o) => ({ id: o.id, nome: o.nome, codigo: o.codigo, liberada: liberadas.has(o.id) })))
-})
-
-// Libera ou tira obras de uma pessoa: grava só a diferença.
-export const salvarObrasDoUsuario = (profileId, obraIds) => executar(async () => {
-  const atuais = await ler('membros', { profile_id: profileId })
-  const querer = new Set(obraIds)
-  const tirar = atuais.filter((m) => !querer.has(m.obra_id))
-  const novas = [...querer].filter((id) => !atuais.some((m) => m.obra_id === id))
-  if (tirar.length) await apagar('membros', { id: tirar.map((m) => m.id) })
-  if (novas.length) await inserirVarios('membros', novas.map((obra_id) => ({ obra_id, profile_id: profileId })))
-  return ok(true)
-})
+// Devolve { id, senha }: a senha provisória só existe nesta resposta.
+export const criarUsuario = (dados) => executar(async () => ok(await admin('criar', dados)))
+export const redefinirSenha = (id) => executar(async () => ok(await admin('redefinir_senha', { id })))
+export const mudarPerfil = (id, role) => executar(async () => ok(await admin('perfil', { id, role })))
+export const mudarObras = (id, obras) => executar(async () => ok(await admin('obras', { id, obras })))
+export const bloquearUsuario = (id) => executar(async () => ok(await admin('bloquear', { id })))
+export const desbloquearUsuario = (id) => executar(async () => ok(await admin('desbloquear', { id })))
+export const excluirUsuario = (id, confirmacao) => executar(async () => ok(await admin('excluir', { id, confirmacao })))

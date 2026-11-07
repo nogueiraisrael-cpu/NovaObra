@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
 import { textosDasObras } from '../lib/dados.js'
+import { inicialDoNome } from '../lib/login.js'
 
 // ---------- ícones (SVG do preview.html) ----------
 const ICONES = {
@@ -171,7 +172,39 @@ export const useToast = () => useContext(ToastCtx)
 // ---------- seletor de obra (sempre visível no topo) ----------
 const COR_SITUACAO = { 'Em andamento': 'ok', 'Parada': 'warn', 'Concluída': 'idle' }
 
-export function SeletorObra({ aoTrocar, aoComparar }) {
+// O ícone redondo do topo: nome, papel e as saídas da conta. Sem `aoAbrirPainel`, o item some.
+export function MenuConta({ nome, papel, aoAbrirPainel, aoSair }) {
+  const [aberto, setAberto] = useState(false)
+  const caixa = useRef(null)
+  useEffect(() => {
+    if (!aberto) return
+    const aoClicarFora = (e) => { if (!caixa.current?.contains(e.target)) setAberto(false) }
+    const aoTeclar = (e) => { if (e.key === 'Escape') setAberto(false) }
+    document.addEventListener('mousedown', aoClicarFora)
+    window.addEventListener('keydown', aoTeclar)
+    return () => {
+      document.removeEventListener('mousedown', aoClicarFora)
+      window.removeEventListener('keydown', aoTeclar)
+    }
+  }, [aberto])
+
+  return (
+    <div className="conta" ref={caixa}>
+      <button className="conta-bola" aria-label={`Conta de ${nome}`} aria-haspopup="menu" aria-expanded={aberto} onClick={() => setAberto(!aberto)}>
+        {inicialDoNome(nome)}
+      </button>
+      {aberto && (
+        <div className="conta-menu" role="menu">
+          <div className="conta-quem"><b>{nome}</b><span>{papel}</span></div>
+          {aoAbrirPainel && <button role="menuitem" onClick={() => { setAberto(false); aoAbrirPainel() }}>Painel de admin</button>}
+          <button role="menuitem" onClick={aoSair}>Sair</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function SeletorObra({ aoTrocar, aoComparar, conta }) {
   const { obras, obra, obraId } = useObra()
   const [aberto, setAberto] = useState(false)
   const grupos = [
@@ -190,6 +223,7 @@ export function SeletorObra({ aoTrocar, aoComparar }) {
         {obra && <span className="cod">{obra.codigo}</span>}
         <Icon nome="down" />
       </button>
+      {conta}
       <Gaveta aberta={aberto} fechar={() => setAberto(false)} rotulo="Escolher obra">
         <div className="eyebrow">Trocar de obra</div>
         <h2>Em qual obra você está?</h2>

@@ -6,6 +6,10 @@
 // Ele anota cada coluna que a camada de dados usa em filtro e em gravação: o
 // tests/check-schema.mjs confere essa lista contra as colunas do banco real.
 import { criarMock } from './mockData.js'
+import {
+  PERFIS_VALIDOS, ehAdminAtivo, gerarSenha, nomeConfere, recusaSobreConta, validarNovoUsuario, AUTORIA,
+  situacaoAoDesbloquear, situacaoAoMudarPerfil,
+} from '../../supabase/functions/admin-usuarios/regras.js'
 
 // Filtro { coluna: valor }: lista = "uma destas", null = "vazio".
 export function casa(linha, filtros) {
@@ -84,7 +88,64 @@ export function criarBancoMemoria(hoje) {
     },
     async apagar(tabela, filtros) {
       anotar(tabela, filtros)
+      const apagadas = db[tabela].filter((l) => casa(l, filtros))
       db[tabela] = db[tabela].filter((l) => !casa(l, filtros))
+      return copia(apagadas)
+    },
+    // O papel da função admin-usuarios nos testes: mesmas regras, sem login de verdade.
+    async admin(acao, dados, quem) {
+      if (!ehAdminAtivo(quem)) throw new Error('Só o Engenheiro administrador cuida dos usuários.')
+      const conta = (id) => {
+        const achada = db.profiles.find((p) => p.id === id)
+        if (!achada) throw new Error('Usuário não encontrado.')
+        return achada
+      }
+      const adminsAtivos = () => db.profiles.filter(ehAdminAtivo).length
+      const travar = (nome, alvo, novoPerfil) => {
+        const frase = recusaSobreConta({ acao: nome, quem, alvo, novoPerfil, adminsAtivos: adminsAtivos() })
+        if (frase) throw new Error(frase)
+      }
+      const gravarObras = (id, obras = []) => {
+        db.membros = db.membros.filter((m) => m.profile_id !== id)
+        db.membros.push(...obras.map((obra_id) => ({ id: crypto.randomUUID(), obra_id, profile_id: id })))
+      }
+      const { id } = dados
+      if (acao === 'listar') {
+        return { usuarios: copia(db.profiles).map((p) => ({ ...p, ultimo_acesso: null, obras: db.membros.filter((m) => m.profile_id === p.id).map((m) => m.obra_id) })) }
+      }
+      if (acao === 'criar') {
+        const invalido = validarNovoUsuario(dados)
+        if (invalido) throw new Error(invalido)
+        if (db.profiles.some((p) => p.email === dados.email.trim())) throw new Error('Já existe conta com este e-mail.')
+        const novo = { id: crypto.randomUUID(), nome: dados.nome.trim(), email: dados.email.trim(), role: dados.role, status: 'ativo' }
+        db.profiles.push(novo)
+        if (dados.role !== 'admin_master') gravarObras(novo.id, dados.obras)
+        return { id: novo.id, senha: gerarSenha() }
+      }
+      const alvo = conta(id)
+      if (acao === 'redefinir_senha') return { senha: gerarSenha() }
+      if (acao === 'perfil') {
+        if (!PERFIS_VALIDOS.includes(dados.role)) throw new Error('Escolha o perfil.')
+        travar('perfil', alvo, dados.role)
+        Object.assign(alvo, { role: dados.role, status: situacaoAoMudarPerfil(alvo) })
+        if (dados.role === 'admin_master') gravarObras(id, [])
+      } else if (acao === 'obras') {
+        if (alvo.role === 'admin_master') throw new Error('O Engenheiro já vê todas as obras.')
+        gravarObras(id, dados.obras)
+      } else if (acao === 'bloquear') {
+        travar('bloquear', alvo)
+        alvo.status = 'bloqueado'
+      } else if (acao === 'desbloquear') {
+        alvo.status = situacaoAoDesbloquear(alvo)
+      } else if (acao === 'excluir') {
+        travar('excluir', alvo)
+        if (!nomeConfere(dados.confirmacao, alvo.nome)) throw new Error('Digite o nome da pessoa, igual ao da lista, para confirmar.')
+        const registros = AUTORIA.reduce((total, [tabela, coluna]) => total + (db[tabela] ?? []).filter((l) => l[coluna] === id).length, 0)
+        if (registros) throw new Error(`${alvo.nome} tem registros lançados no app: a conta não pode ser excluída. Bloqueie no lugar.`)
+        db.profiles.splice(db.profiles.indexOf(alvo), 1)
+        gravarObras(id, [])
+      }
+      return { ok: true }
     },
   }
 }

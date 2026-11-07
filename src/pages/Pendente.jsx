@@ -1,6 +1,6 @@
 import { Icon, Vazio } from '../components/index.jsx'
 
-// Quem se cadastrou e ainda não foi liberado não vê dado nenhum.
+// Conta que ainda não foi liberada pelo administrador não vê dado nenhum.
 export default function Pendente({ perfil, aoSair }) {
   return (
     <div className="login">

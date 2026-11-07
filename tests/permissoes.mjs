@@ -52,6 +52,8 @@ conferir('aba Medições some para o gerente', podeAbrir('Medições', gerente),
 conferir('aba Medições aparece para o admin', podeAbrir('Medições', admin), true)
 conferir('gerente abre o comparativo de obras', podeAbrir('obras', gerente), true)
 conferir('todo ativo abre o Perfil', podeAbrir('perfil', cliente), true)
+conferir('só o admin abre o Painel de admin', [podeAbrir('painel', admin), podeAbrir('painel', gerente), podeAbrir('painel', cliente)], [true, false, false])
+conferir('só o admin apaga conta', [pode('usuarios.apagar', admin), pode('usuarios.apagar', gerente)], [true, false])
 
 conferir('só o admin ativo vê todas as obras', [veTodasAsObras(admin), veTodasAsObras(gerente), veTodasAsObras({ ...admin, status: 'bloqueado' })], [true, false, false])
 conferir('gerente precisa de obras liberadas; admin não', [precisaEscolherObras('gerente'), precisaEscolherObras('admin_master'), precisaEscolherObras(null)], [true, false, false])

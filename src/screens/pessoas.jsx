@@ -11,8 +11,12 @@ function FormFuncionario({ inicial, fechar, salvo }) {
   const { obras } = useObra()
   const [f, setF] = useState({ nome: '', funcao: 'Pedreiro', ativo: true, ...inicial })
   const [erro, setErro] = useState(null)
+  const [salvando, setSalvando] = useState(false)
   async function salvar() {
+    if (salvando) return
+    setSalvando(true)
     const { erro: falhou } = await salvarFuncionario(f)
+    setSalvando(false)
     if (falhou) return setErro(falhou)
     salvo()
   }
@@ -41,7 +45,7 @@ function FormFuncionario({ inicial, fechar, salvo }) {
       {erro && <div className="err">{erro}</div>}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={salvar}>Salvar</button>
+        <button className="btn btn-primary" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
     </>
   )
