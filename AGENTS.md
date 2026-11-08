@@ -134,8 +134,12 @@ arquivos o erro não aparece na tela. Filtro de obra esquecido ou RLS frouxa vaz
 
 ## Deploy
 
-Ainda não ligado (Etapas 6 e 9). O padrão: a pessoa diz "sobe pro GitHub", o agente sobe com git
-e a Vercel publica sozinha. A pessoa não digita comando.
+Ligado desde 07/11/2026. A pessoa diz "sobe pro GitHub", o agente roda `npm run check`, sobe com git
+(`main` de `nogueiraisrael-cpu/NovaObra`) e a Vercel (projeto `nova-obra`, conta `israel-7f2d`) publica
+sozinha em **https://nova-obra-weld.vercel.app**. A pessoa não digita comando. O link comprido de cada
+publicação pede login da Vercel; para a equipe, só o curto. As chaves da Vercel (`VITE_SUPABASE_URL`,
+`VITE_SUPABASE_PUBLISHABLE_KEY`) são cópias das do `.env.local`: trocou uma, troca a outra e publica de novo.
+O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior do curso): não é este app.
 
 ## Armadilhas desta base
 
