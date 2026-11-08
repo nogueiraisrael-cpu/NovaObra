@@ -53,6 +53,24 @@ ficam em `regras.js`, o mesmo arquivo que `tests/adminUsuarios.mjs` e o banco em
 ou `regras.js`: publique de novo pelo conector, com os dois arquivos. O gatilho de `profiles` recusa perfil e
 situação vindos do navegador, mesmo do admin. A tela é `src/screens/painelAdmin.jsx`, aberta pelo ícone do topo.
 
+## Segurança — não desfazer
+
+Conferido na vistoria de 07/11/2026 (relatório local em `seguranca/`, fora do Git). Vale daqui para frente:
+
+- **O cadastro público fica fechado de propósito.** Nunca religar (exceto o caso "banco recriado do zero" das
+  Armadilhas) e nunca criar tela com `auth.signUp`. Conta nova nasce só pelo Painel de admin (`admin-usuarios`).
+- **Papel nunca sai do cadastro nem do token.** Conta nova nasce sem papel e `pendente` (`privado.criar_perfil`); do
+  `raw_user_meta_data` só se aproveita o nome. Nenhuma regra olha `user_metadata`.
+- **Ninguém muda o próprio papel, situação ou e-mail pelo navegador**, nem o admin: o gatilho `privado.proteger_perfil`
+  recusa. Papel e situação mudam só pela função `admin-usuarios`, que confere no banco se quem chama é admin ativo.
+- **Pendente e bloqueado não leem nada** além da própria linha de `profiles`: toda regra passa por `privado.meu_perfil()`,
+  que exige `status = 'ativo'`. Não troque essa função por uma que ignore a situação.
+- **Nada de senha, chave secreta ou `service_role` em variável `VITE_`** nem no código: tudo que começa com `VITE_` vai
+  para o site público. A chave de serviço mora só nos Secrets da função.
+- **O bucket `fotos` continua privado**, e a foto sobe sempre redesenhada no aparelho (`encolherFoto`): isso tira o GPS.
+- **Não tire o `EXECUTE` de `efetivo_do_dia`, `nomes_da_equipe` nem das funções de `privado`** por causa do aviso do
+  advisor: as regras e as telas dependem delas, e elas conferem quem chama por dentro.
+
 ## Quem pode o quê
 
 1. **O quadro manda nas permissões do app:** `docs/permissoes/QUEM-PODE-O-QUE.md` (decidido pelo Israel
