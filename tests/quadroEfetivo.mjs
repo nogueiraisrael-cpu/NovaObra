@@ -1,4 +1,6 @@
 // Efetivo geral: contagem por função, por obra e as fatias da pizza.
+import { readFileSync, readdirSync } from 'node:fs'
+import { FUNCOES } from '../src/lib/listas.js'
 import { contarPorFuncao, montarQuadro, fatiasDaPizza, percentual, grupoDaPizza } from '../src/lib/quadroEfetivo.js'
 
 let ok = 0
@@ -35,6 +37,18 @@ conferir('cada fatia começa onde a anterior terminou', fatias.map((x) => Math.r
 conferir('obra sem ninguém não tem fatia', fatiasDaPizza([]), [])
 conferir('percentual arredondado', percentual(1 / 3), '33%')
 conferir('a tela pinta pela mesma regra da pizza', ['Pedreiro', 'Mestre', 'Pintor'].map(grupoDaPizza), ['Pedreiro', 'Outras', 'Outras'])
+
+// Funções novas da equipe real (migration -23): contam e caem em "Outras".
+conferir('função nova conta', contarPorFuncao([f('n', 'Encarregado', 'o1'), f('m', 'Betoneiro', 'o1')]),
+  [{ funcao: 'Encarregado', quantidade: 1 }, { funcao: 'Betoneiro', quantidade: 1 }])
+conferir('função nova vai para Outras', grupoDaPizza('Operador de máquina'), 'Outras')
+
+// FUNCOES tem que ser idêntica ao CHECK mais recente de funcionarios.funcao nas migrations.
+const pasta = new URL('../supabase/migrations/', import.meta.url)
+const ultimoCheck = readdirSync(pasta).sort()
+  .map((n) => readFileSync(new URL(n, pasta), 'utf8').match(/(?:funcao text not null|funcionarios_funcao_check) check \(funcao in \(([^)]*)\)/))
+  .filter(Boolean).pop()[1]
+conferir('FUNCOES igual ao CHECK do banco', [...ultimoCheck.matchAll(/'([^']+)'/g)].map((x) => x[1]), FUNCOES)
 
 console.log(`${ok}/${tot} — quadroEfetivo`)
 process.exit(ok === tot ? 0 : 1)

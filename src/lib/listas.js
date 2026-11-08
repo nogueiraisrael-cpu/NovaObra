@@ -18,7 +18,11 @@ export const SITUACOES_EFETIVO_TOQUE = ['Presente', 'Falta', 'Atestado', 'Desloc
 export const SITUACOES_EQUIPAMENTO_DIA = ['Operando', 'Parado', 'Quebrado']
 export const SITUACOES_EQUIPAMENTO = ['Na obra', 'No conserto', 'No depósito']
 
-export const FUNCOES = ['Pedreiro', 'Servente', 'Carpinteiro', 'Armador', 'Eletricista', 'Encanador', 'Pintor', 'Mestre', 'Outro']
+export const FUNCOES = [
+  'Pedreiro', 'Servente', 'Carpinteiro', 'Armador', 'Eletricista', 'Encanador', 'Pintor', 'Mestre',
+  'Contramestre', 'Encarregado', 'Betoneiro', 'Auxiliar de pedreiro', 'Auxiliar de serviços gerais',
+  'Almoxarife', 'Motorista', 'Operador de máquina', 'Outro',
+]
 
 export const ETAPAS = [
   'Fundação', 'Estrutura / Concretagem', 'Alvenaria', 'Reboco de fachada', 'Reboco interno',

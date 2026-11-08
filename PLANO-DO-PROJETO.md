@@ -105,7 +105,7 @@ A sua dor tem dois blocos de tamanho parecido. Fazer os dois de uma vez dá um s
 - **Vazio:** "Nenhum equipamento cadastrado."
 
 ### Pessoas (funcionários da obra)
-- Cadastro do efetivo: nome, função (Pedreiro, Servente, Carpinteiro, Armador, Eletricista, Encanador, Pintor, Mestre, Outro), obra em que está lotado, ativo/inativo. Funcionário **não** precisa ter login.
+- Cadastro do efetivo: nome, função (Pedreiro, Servente, Carpinteiro, Armador, Eletricista, Encanador, Pintor, Mestre, Outro; desde 07/11/2026 também Contramestre, Encarregado, Betoneiro, Auxiliar de pedreiro, Auxiliar de serviços gerais, Almoxarife, Motorista e Operador de máquina), obra em que está lotado, ativo/inativo. Funcionário **não** precisa ter login.
 
 ### Presença do mês (relatório, só engenheiro)
 - **Abre em:** tabela do mês escolhido (padrão: mês atual; no começo do mês, o anterior).

@@ -102,7 +102,7 @@ Para que serve: o efetivo. Funcionário **não tem login**.
 |---|---|---|---|
 | id | uuid | sim | chave |
 | nome | text | sim | |
-| funcao | text | sim | CHECK: `Pedreiro`, `Servente`, `Carpinteiro`, `Armador`, `Eletricista`, `Encanador`, `Pintor`, `Mestre`, `Outro` |
+| funcao | text | sim | CHECK: `Pedreiro`, `Servente`, `Carpinteiro`, `Armador`, `Eletricista`, `Encanador`, `Pintor`, `Mestre`, `Contramestre`, `Encarregado`, `Betoneiro`, `Auxiliar de pedreiro`, `Auxiliar de serviços gerais`, `Almoxarife`, `Motorista`, `Operador de máquina`, `Outro` (migration -23) |
 | obra_id | uuid | não | obra em que está lotado hoje (vazio = sem obra) |
 | ativo | boolean | sim | padrão verdadeiro |
 | created_at | timestamptz | sim | automático |
