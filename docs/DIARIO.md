@@ -234,3 +234,7 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 07/11/2026 · Medições · Cada um vê o seu: medições são de cada obra (Claude, com a conta do Israel).
 - 07/11/2026 · Equipamentos · Nada duplica: mandar para a obra duas vezes não repete (corrigido: o botão trava enquanto grava).
 - 07/11/2026 · Obras · Obra nova e segunda-feira não cobram mais "RDO de ontem não fechado" (corrigido, com teste).
+- 07/11/2026 · No ar · App publicado na Vercel (nova-obra-weld.vercel.app), republicando sozinho a cada envio ao GitHub (testado com "Bora pra Obra").
+- 07/11/2026 · No ar · O link abre no celular, no 4G, e no computador (Israel).
+- 07/11/2026 · No ar · Entrar com a conta do Engenheiro no link público, no celular e no computador (Israel).
+- 07/11/2026 · No ar · Trocar de obra e abrir cada módulo no link público (Israel).
