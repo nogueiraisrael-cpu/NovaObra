@@ -28,7 +28,7 @@ export default function Login({ aoEntrar, avisoInicial = null }) {
           <div className="brand-mark"><Icon nome="obras" /></div>
           <b>Nova Obra</b>
         </div>
-        <h1 style={{ fontSize: 28, fontWeight: 800 }}>Entrar no Nova Obra</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>Bora pra Obra</h1>
         <label className="label" htmlFor="email">E-mail</label>
         <input id="email" className="field" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
         <label className="label" htmlFor="senha">Senha</label>
