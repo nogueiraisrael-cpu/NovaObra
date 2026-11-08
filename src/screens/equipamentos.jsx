@@ -58,12 +58,19 @@ export default function Equipamentos() {
   const toast = useToast()
   const lista = useDados(listarEquipamentos)
   const [novo, setNovo] = useState(false)
+  // Trava os botões enquanto grava: o segundo toque de um clique duplo virava outro pedido,
+  // recusado com "está na obra..., mande para o depósito de lá primeiro" (achado de 07/11).
+  const [movendo, setMovendo] = useState(false)
 
-  async function mover(promessa, msg) {
-    const { erro } = await promessa
-    if (erro) return toast(erro, 'bad')
-    toast(msg)
-    lista.recarregar()
+  async function mover(acao, msg) {
+    if (movendo) return
+    setMovendo(true)
+    const { erro } = await acao()
+    if (erro) toast(erro, 'bad')
+    else toast(msg)
+    // Só destrava depois de a lista mostrar o equipamento no lugar novo.
+    await lista.recarregar()
+    setMovendo(false)
   }
 
   const cabecalho = (
@@ -91,13 +98,13 @@ export default function Equipamentos() {
       <div className="sec"><h2>Nesta obra</h2><span className="t-muted" style={{ fontSize: 15 }}>{naObra.length}</span></div>
       {naObra.length
         ? <div className="list two">{naObra.map((e) => (
-          <Cartao key={e.id} e={e} acao={<button className="btn btn-ghost" onClick={() => mover(mandarEquipamentoParaDeposito(e.id), `${e.nome} foi para o depósito`)}>Mandar para o depósito</button>} />
+          <Cartao key={e.id} e={e} acao={<button className="btn btn-ghost" disabled={movendo} onClick={() => mover(() => mandarEquipamentoParaDeposito(e.id), `${e.nome} foi para o depósito`)}>Mandar para o depósito</button>} />
         ))}</div>
         : <Vazio pequeno icone="equip" titulo="Nenhum equipamento nesta obra" texto="Mande um do depósito, aqui embaixo." />}
       <div className="sec"><h2>No depósito</h2><span className="t-muted" style={{ fontSize: 15 }}>{noDeposito.length}</span></div>
       {noDeposito.length
         ? <div className="list two">{noDeposito.map((e) => (
-          <Cartao key={e.id} e={e} acao={<button className="btn btn-ghost" onClick={() => mover(mandarEquipamentoParaObra(e.id), `${e.nome} foi para ${obra.nome}`)}>Mandar para {obra.codigo}</button>} />
+          <Cartao key={e.id} e={e} acao={<button className="btn btn-ghost" disabled={movendo} onClick={() => mover(() => mandarEquipamentoParaObra(e.id), `${e.nome} foi para ${obra.nome}`)}>Mandar para {obra.codigo}</button>} />
         ))}</div>
         : <Vazio pequeno icone="equip" titulo="Depósito vazio" />}
       <div className="note" style={{ marginTop: 20, textAlign: 'left', fontSize: 15 }}>Conserto (oficina, defeito, previsão de retorno) chega na v1.1.</div>

@@ -14,7 +14,7 @@ import { supabase } from './supabase.js'
 import { hojeISO, somarDias } from './datas.js'
 import { montarEfetivo, podeMarcarPresenca, mensagemTrava, contaComoPresenca } from './efetivo.js'
 import { aplicarFechamento, validarPreenchimento, validarFrente } from './frentes.js'
-import { statusRdoHoje, validarObra, normalizarCodigo } from './obras.js'
+import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo } from './obras.js'
 import { ordenarDiarios, resumirDiario } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
 import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido } from './materiais.js'
@@ -334,7 +334,7 @@ export const listarResumoObras = () => executar(async () => {
       rdo_hoje: statusRdoHoje(rdoHoje),
       frentes_paradas: paradas.filter((f) => f.obra_id === o.id).length,
       equipamentos_quebrados: rdoHoje ? quebrados.filter((x) => x.rdo_id === rdoHoje.id).length : 0,
-      rdo_ontem_nao_fechado: o.situacao === 'Em andamento' && rdoOntem?.status !== 'Fechado',
+      rdo_ontem_nao_fechado: cobraRdoDeOntem(o, rdoOntem, ontem),
     }
   }))
 })

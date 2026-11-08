@@ -1,5 +1,16 @@
 // Regras da entidade OBRA. Puras.
 import { SITUACOES_OBRA, TIPOS_OBRA } from './listas.js'
+import { diasUteis, calendarioDaObra } from './planejamento.js'
+
+// "RDO de ontem não fechado" só cobra o dia que devia ter diário: obra em andamento, já começada
+// e ontem era dia de trabalho dela (calendário e feriados). Achado de 07/11/2026: obra criada hoje
+// já nascia cobrando, e toda segunda-feira cobraria o domingo de todas as obras.
+export function cobraRdoDeOntem(obra, rdoOntem, ontem) {
+  if (obra.situacao !== 'Em andamento') return false
+  if (obra.data_inicio && obra.data_inicio > ontem) return false
+  if (!diasUteis(ontem, ontem, calendarioDaObra(obra))) return false
+  return rdoOntem?.status !== 'Fechado'
+}
 
 export function statusRdoHoje(rdoHoje) {
   if (!rdoHoje) return 'Não iniciado'

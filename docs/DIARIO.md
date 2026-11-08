@@ -171,3 +171,66 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 04/11/2026 · Lista vazia · Hoje, Frentes, Pessoas, Equipamentos, Pedidos, Estoque, EAP, Longo, Curto e Medições dizem o que fazer (banco em memória).
 - 04/11/2026 · Erro de rede · Obras, Efetivo, Frentes, Pessoas, Equipamentos, Pedidos, Estoque, Longo e Médio avisam e não deixam nada pela metade (queda simulada, banco em memória).
 - 04/11/2026 · Lista grande · 2.500 linhas vêm todas (teste automático).
+
+## Rodada 10 · parte feita pelo Claude com a sessão do Israel · 07/11/2026
+
+- 07/11/2026 · 0 · Antes de começar · Preparar a Obra de Teste (Claude, com a conta do Israel).
+- 07/11/2026 · Login e perfis · A sessão continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Login e perfis · Foto tirada no app continua lá depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Obras · Ficou gravado: a obra continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Obras · Gravou certo: acento, data e número voltam iguais (Claude, com a conta do Israel).
+- 07/11/2026 · Obras · Nada duplica: código repetido é recusado (Claude, com a conta do Israel).
+- 07/11/2026 · Obras · Apagar não some com histórico: obra concluída continua consultável (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Efetivo e clima · Ficou gravado: falta e clima continuam depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Efetivo e clima · Gravou certo: a ocorrência volta com acento (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Efetivo e clima · Cada um vê o seu: trocar de obra troca o efetivo (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Efetivo e clima · Quem não pode: funcionário presente em outra obra não é trazido (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Efetivo e clima · Nada duplica: tocar duas vezes não repete a pessoa (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Frentes e fechar · Ficou gravado: frente nova e preenchida continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Frentes e fechar · Gravou certo: nome e texto voltam iguais (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Frentes e fechar · Cada um vê o seu: frentes não passam de uma obra para a outra (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Frentes e fechar · Apagar não some com histórico: frente concluída segue no diário (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Frentes e fechar · Fechar RDO: o dia fechado continua fechado depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Diário · Frentes e fechar · Fechar RDO: clique duplo não fecha nem repete nada (Claude, com a conta do Israel).
+- 07/11/2026 · Pessoas · Ficou gravado: funcionário novo continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Pessoas · Gravou certo: nome com acento e lotação voltam iguais (Claude, com a conta do Israel).
+- 07/11/2026 · Pessoas · Cada um vê o seu: cada obra mostra a sua equipe (Claude, com a conta do Israel).
+- 07/11/2026 · Pessoas · Apagar não some com histórico: desativar não tira do diário (Claude, com a conta do Israel).
+- 07/11/2026 · Equipamentos · Ficou gravado: equipamento novo continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Equipamentos · Gravou certo: nome, código e data voltam iguais (Claude, com a conta do Israel).
+- 07/11/2026 · Equipamentos · Cada um vê o seu: a UBS segue sem equipamento próprio (Claude, com a conta do Israel).
+- 07/11/2026 · Equipamentos · Apagar não some com histórico: mandar ao depósito não tira do diário (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Pedidos · Ficou gravado: pedido novo continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Pedidos · Gravou certo: quantidade quebrada e texto voltam iguais (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Pedidos · Cada um vê o seu: pedidos não passam de uma obra para a outra (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Pedidos · Nada duplica: tocar duas vezes não move duas colunas (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Pedidos · Apagar não some com histórico: pedido recebido não se exclui (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Estoque · Ficou gravado: baixa continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Estoque · Gravou certo: número quebrado no mínimo volta igual (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Estoque · Cada um vê o seu: cada obra tem o seu saldo (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Estoque · Quem não pode: saldo negativo é recusado com aviso (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Estoque · Nada duplica: clique duplo em Dar baixa baixa uma vez (Claude, com a conta do Israel).
+- 07/11/2026 · Materiais · Estoque · Apagar não some com histórico: desfazer devolve o saldo (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · EAP · Ficou gravado: atividade nova continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · EAP · Gravou certo: nome e datas voltam iguais (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · EAP · Cada um vê o seu: trocar de obra troca a EAP (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · EAP · Nada duplica: clique duplo em salvar cria uma atividade só (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · EAP · Apagar não some com histórico: arquivar mantém o registro (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Longo prazo · Ficou gravado: avanço continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Longo prazo · Gravou certo: calendário volta igual (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Longo prazo · Cada um vê o seu: o calendário é de cada obra (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Longo prazo · Nada duplica: salvar o mesmo avanço duas vezes não muda nada (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Médio prazo · Ficou gravado: restrição continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Médio prazo · Gravou certo: texto e responsável voltam iguais (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Médio prazo · Cada um vê o seu: restrições são de cada obra (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Médio prazo · Nada duplica: mover duas vezes rápido anda uma semana (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Médio prazo · Apagar não some com histórico: resolver mantém a restrição (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Médio prazo · Lista vazia: sem restrição, a tela diz o que fazer (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Curto prazo · Ficou gravado: mover para Concluído continua depois do F5 (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Curto prazo · Gravou certo: causa da não realizada volta igual (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Curto prazo · Cada um vê o seu: o kanban é de cada obra (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Curto prazo · Nada duplica: subtarefa com clique duplo entra uma vez (Claude, com a conta do Israel).
+- 07/11/2026 · Planejamento · Curto prazo · Apagar não some com histórico: excluir subtarefa não mexe na atividade (Claude, com a conta do Israel).
+- 07/11/2026 · Medições · Cada um vê o seu: medições são de cada obra (Claude, com a conta do Israel).
+- 07/11/2026 · Equipamentos · Nada duplica: mandar para a obra duas vezes não repete (corrigido: o botão trava enquanto grava).
+- 07/11/2026 · Obras · Obra nova e segunda-feira não cobram mais "RDO de ontem não fechado" (corrigido, com teste).
