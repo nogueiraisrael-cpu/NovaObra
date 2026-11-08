@@ -238,3 +238,5 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 07/11/2026 · No ar · O link abre no celular, no 4G, e no computador (Israel).
 - 07/11/2026 · No ar · Entrar com a conta do Engenheiro no link público, no celular e no computador (Israel).
 - 07/11/2026 · No ar · Trocar de obra e abrir cada módulo no link público (Israel).
+- 07/11/2026 · No ar · Funcionário criado no celular pelo link público ficou gravado na obra certa (conferido no banco) (Israel).
+- 07/11/2026 · No ar · Ctrl+F5 no link público volta logado, sem tela em branco (Israel).
