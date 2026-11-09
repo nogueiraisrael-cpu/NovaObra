@@ -7,37 +7,14 @@ import {
 } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { resumoEfetivo } from '../lib/efetivo.js'
-import { CLIMAS, SITUACOES_EFETIVO_TOQUE, SITUACOES_EQUIPAMENTO_DIA } from '../lib/listas.js'
-import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, useToast, ICONE_CLIMA, COR_EFETIVO, COR_EQUIP } from '../components/index.jsx'
+import { SITUACOES_EFETIVO_TOQUE, SITUACOES_EQUIPAMENTO_DIA } from '../lib/listas.js'
+import { BlocoClima, Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, useToast, COR_EFETIVO, COR_EQUIP } from '../components/index.jsx'
 
-function BlocoClima({ rdo, salvar }) {
-  const valores = {
-    clima_manha: rdo?.clima_manha ?? 'Bom', clima_tarde: rdo?.clima_tarde ?? 'Bom',
-    praticavel_manha: rdo?.praticavel_manha ?? true, praticavel_tarde: rdo?.praticavel_tarde ?? true,
-  }
-  return (
-    <section className="block">
-      <div className="block-h"><h3>Clima</h3></div>
-      {[['manha', 'Manhã'], ['tarde', 'Tarde']].map(([per, rotulo]) => (
-        <div key={per}>
-          <div className="period">{rotulo}</div>
-          <div className="opts">
-            {CLIMAS.map((c) => (
-              <button key={c} className={`opt${valores[`clima_${per}`] === c ? ' on' : ''}`} onClick={() => salvar({ [`clima_${per}`]: c })}>
-                <Icon nome={ICONE_CLIMA[c]} />{c}
-              </button>
-            ))}
-          </div>
-          <div className="toggle-row">
-            Praticável
-            <button className={`switch${valores[`praticavel_${per}`] ? ' on' : ''}`} role="switch" aria-checked={valores[`praticavel_${per}`]}
-              aria-label={`Praticável — ${rotulo}`} onClick={() => salvar({ [`praticavel_${per}`]: !valores[`praticavel_${per}`] })} />
-          </div>
-        </div>
-      ))}
-    </section>
-  )
-}
+// Antes de abrir o RDO de hoje, o clima aparece no padrão (Bom e praticável).
+const climaDoRdo = (rdo) => ({
+  clima_manha: rdo?.clima_manha ?? 'Bom', clima_tarde: rdo?.clima_tarde ?? 'Bom',
+  praticavel_manha: rdo?.praticavel_manha ?? true, praticavel_tarde: rdo?.praticavel_tarde ?? true,
+})
 
 // Equipamento que não está no depósito (nem cadastrado): entra direto nesta obra.
 function NovoEquipamento({ salvo }) {
@@ -157,7 +134,7 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
       ]} />
       <div className="cols" style={{ marginTop: 12 }}>
         <div>
-          <BlocoClima rdo={rdo} salvar={salvarClima} />
+          <BlocoClima valores={climaDoRdo(rdo)} mudar={salvarClima} />
           <section className="block">
             <div className="block-h"><h3>Equipamentos</h3><span className="count">{equips.data.length} na obra</span></div>
             {equips.data.length === 0 && <p className="t-muted">Nenhum equipamento nesta obra.</p>}

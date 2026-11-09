@@ -285,6 +285,14 @@ select.field{appearance:none;background-image:linear-gradient(45deg,transparent 
 .fotos-dia img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:var(--card-2)}
 .fotos-dia figcaption{font-size:13px;color:var(--muted);margin-top:4px}
 .so-impressao{display:none}
+/* Resumo de vários diários: a tabela rola dentro do bloco no celular, a página não. */
+.resumo-rolagem{overflow-x:auto;margin:0 -4px;padding:0 4px;scrollbar-color:var(--line) transparent}
+.tabela-resumo{width:100%;min-width:640px;border-collapse:collapse;font-size:15px}
+.tabela-resumo th{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:0 8px 8px 0;white-space:nowrap}
+.tabela-resumo td{padding:8px 8px 8px 0;border-top:1px solid var(--line);vertical-align:top}
+.tabela-resumo td.num{white-space:nowrap;font-variant-numeric:tabular-nums}
+.tabela-resumo td.ocorr{font-size:14px;min-width:200px}
+.tabela-resumo td b{white-space:nowrap}
 
 /* Imprimir um diário: só o dia, em fundo branco, sem menu nem botões. */
 @media print{
@@ -297,6 +305,10 @@ select.field{appearance:none;background-image:linear-gradient(45deg,transparent 
   .pill{border:1px solid currentColor;background:none !important;color:#111 !important}
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .fotos-dia{grid-template-columns:repeat(4,1fr)}
+  .resumo-rolagem{overflow:visible}
+  .tabela-resumo{min-width:0;font-size:9.5pt}
+  .tabela-resumo tr{break-inside:avoid}
+  .resumo-diarios .block{break-inside:auto}
 }
 
 /* ---------- efetivo geral (comparativo) ---------- */

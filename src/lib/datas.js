@@ -44,6 +44,11 @@ export function formatarDataLonga(iso) {
   return `${DIAS[d.getDay()]} · ${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`
 }
 
+// "Sáb 31/10"
+export function formatarDiaCurto(iso) {
+  return `${DIAS[paraData(iso).getDay()].slice(0, 3)} ${formatarDiaMes(iso)}`
+}
+
 // "30/10 às 17:42"
 export function formatarMomento(instante) {
   const d = new Date(instante)

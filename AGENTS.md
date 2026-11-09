@@ -203,6 +203,7 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   meio, sobra um arquivo solto, sem estrago); ao tirar uma foto da frente, apagar o pedido ou receber de novo,
   grava a tabela e depois apaga o arquivo (caiu no meio, idem). No RDO, "Tirar da obra" (equipamento lançado por
   engano) apaga a linha do dia e depois manda para o depósito: se cair no meio, ele continua na obra e repetir completa.
+  Em Diários, "Corrigir este dia" grava o dia, depois o efetivo, depois as frentes: se cair no meio, salvar de novo completa.
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

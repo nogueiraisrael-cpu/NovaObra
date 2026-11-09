@@ -14,6 +14,8 @@ export const CLIMAS = ['Bom', 'Nublado', 'Chuva leve', 'Chuva forte']
 export const SITUACOES_EFETIVO = ['Presente', 'Falta', 'Atestado', 'Deslocado', 'Veio de outra obra']
 // As quatro que o engenheiro marca com um toque; "Veio de outra obra" o app põe sozinho.
 export const SITUACOES_EFETIVO_TOQUE = ['Presente', 'Falta', 'Atestado', 'Deslocado']
+// As que se corrigem num dia que já passou (aba Diários): deslocamento mexe na outra obra do mesmo dia.
+export const SITUACOES_EFETIVO_CORRIGIVEIS = SITUACOES_EFETIVO_TOQUE.filter((s) => s !== 'Deslocado')
 
 export const SITUACOES_EQUIPAMENTO_DIA = ['Operando', 'Parado', 'Quebrado']
 export const SITUACOES_EQUIPAMENTO = ['Na obra', 'No conserto', 'No depósito']

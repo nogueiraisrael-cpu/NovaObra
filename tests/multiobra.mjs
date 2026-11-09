@@ -42,6 +42,8 @@ conferir('diários da Serra são só da Serra', diariosSerra.every((r) => r.obra
 conferir('diários da UBS são só da UBS', diariosUbs.every((r) => r.obra_id === 'obra-ubs'), true)
 conferir('UBS tem um diário só, a Serra tem vários', [diariosUbs.length, diariosSerra.length > 1], [1, true])
 conferir('da UBS não abre diário da Serra pelo id', (await dados.obterDiario(diariosSerra[0].id)).erro, 'Diário não encontrado nesta obra.')
+conferir('da UBS não corrige diário da Serra', (await dados.corrigirDiario(diariosSerra.at(-1).id, { clima_manha: 'Bom', clima_tarde: 'Bom' })).erro, 'Diário não encontrado nesta obra.')
+conferir('resumo impresso da UBS não puxa dia da Serra', (await dados.obterDiarios(diariosSerra.map((r) => r.id))).erro, 'Escolha pelo menos um diário desta obra.')
 const diaUbs = (await dados.obterDiario(diariosUbs[0].id)).data
 conferir('efetivo do diário da UBS não tem gente da Serra',
   diaUbs.efetivo.some((l) => ['João', 'Marcos', 'Tiago', 'Paulo', 'Rafael', 'Luís', 'Bruno'].includes(l.nome)), false)

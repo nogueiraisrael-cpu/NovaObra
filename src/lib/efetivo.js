@@ -8,6 +8,9 @@ export const CONTA_COMO_PRESENCA = ['Presente', 'Veio de outra obra']
 
 export const contaComoPresenca = (situacao) => CONTA_COMO_PRESENCA.includes(situacao)
 
+// "Faltas" nos números do dia: falta e atestado juntos.
+export const contaComoFalta = (situacao) => situacao === 'Falta' || situacao === 'Atestado'
+
 // Linha de presença do funcionário em outra obra nesta data, ou null.
 export function presencaEmOutraObra(funcionarioId, obraId, linhasDoDia) {
   return linhasDoDia.find((l) =>
@@ -21,8 +24,9 @@ export function podeMarcarPresenca(funcionarioId, obraId, linhasDoDia) {
   return outra ? { ok: false, obraId: outra.obra_id } : { ok: true, obraId: null }
 }
 
-export function mensagemTrava(nomeFuncionario, nomeObra) {
-  return `${nomeFuncionario} já está presente hoje na obra ${nomeObra}`
+// `quando`: "hoje" no RDO do dia; "em 05/11" ao corrigir um dia que já passou.
+export function mensagemTrava(nomeFuncionario, nomeObra, quando = 'hoje') {
+  return `${nomeFuncionario} já está presente ${quando} na obra ${nomeObra}`
 }
 
 // Monta a lista do efetivo de uma obra num dia.
@@ -67,7 +71,7 @@ export function resumoEfetivo(lista) {
   return {
     total: lista.length,
     presentes: lista.filter((i) => contaComoPresenca(i.situacao)).length,
-    faltas: lista.filter((i) => i.situacao === 'Falta' || i.situacao === 'Atestado').length,
+    faltas: lista.filter((i) => contaComoFalta(i.situacao)).length,
     deslocados: lista.filter((i) => i.situacao === 'Deslocado').length,
   }
 }

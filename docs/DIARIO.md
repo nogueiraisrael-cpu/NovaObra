@@ -240,3 +240,7 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 07/11/2026 · No ar · Trocar de obra e abrir cada módulo no link público (Israel).
 - 07/11/2026 · No ar · Funcionário criado no celular pelo link público ficou gravado na obra certa (conferido no banco) (Israel).
 - 07/11/2026 · No ar · Ctrl+F5 no link público volta logado, sem tela em branco (Israel).
+- 09/11/2026 · Diários · Corrigir dia anterior: clima, praticável e ocorrências gravam com acento, continuam depois do F5, e o diário segue "Fechado" com o mesmo carimbo (Claude, Obra de Teste, desfeito).
+- 09/11/2026 · Diários · Corrigir dia anterior: Falta↔Presente muda o efetivo e a equipe da frente (quem falta sai da equipe), texto da frente corrigido, tudo depois do F5 (Claude, Serra 30/10, desfeito).
+- 09/11/2026 · Diários · Deslocado aparece só com o selo e "não se corrige aqui"; o diário de hoje não tem "Corrigir este dia"; Cancelar não grava nada (Claude).
+- 09/11/2026 · Diários · Imprimir resumo: dias soltos, Limpar trava o botão, números e frentes batem com os diários, tabela rola só dentro do bloco; numa segunda abre com a semana passada (Claude).

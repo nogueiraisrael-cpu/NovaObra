@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
 import { textosDasObras } from '../lib/dados.js'
 import { inicialDoNome } from '../lib/login.js'
+import { CLIMAS } from '../lib/listas.js'
 
 // ---------- ícones (SVG do preview.html) ----------
 const ICONES = {
@@ -40,6 +41,34 @@ export function Icon({ nome, ...resto }) {
 export const ICONE_CLIMA = { 'Bom': 'sol', 'Nublado': 'nublado', 'Chuva leve': 'chuva', 'Chuva forte': 'chuvaf' }
 export const COR_EFETIVO = { Presente: 'ok', Falta: 'bad', Atestado: 'warn', Deslocado: 'info', 'Veio de outra obra': 'info' }
 export const COR_EQUIP = { Operando: 'ok', Parado: 'warn', Quebrado: 'bad' }
+// Clima da manhã e da tarde, com o "Praticável" de cada um. `valores` tem os quatro campos do
+// RDO (clima_manha, clima_tarde, praticavel_manha, praticavel_tarde); `mudar` recebe só o que mudou.
+export function BlocoClima({ valores, mudar }) {
+  return (
+    <section className="block">
+      <div className="block-h"><h3>Clima</h3></div>
+      {[['manha', 'Manhã'], ['tarde', 'Tarde']].map(([per, rotulo]) => (
+        <div key={per}>
+          <div className="period">{rotulo}</div>
+          <div className="opts">
+            {CLIMAS.map((c) => (
+              <button key={c} className={`opt${valores[`clima_${per}`] === c ? ' on' : ''}`} onClick={() => mudar({ [`clima_${per}`]: c })}>
+                <Icon nome={ICONE_CLIMA[c]} />{c}
+              </button>
+            ))}
+          </div>
+          <div className="toggle-row">
+            Praticável
+            <button className={`switch${valores[`praticavel_${per}`] ? ' on' : ''}`} role="switch" aria-checked={valores[`praticavel_${per}`]}
+              aria-label={`Praticável — ${rotulo}`} onClick={() => mudar({ [`praticavel_${per}`]: !valores[`praticavel_${per}`] })} />
+          </div>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+export const COR_SITUACAO_DIARIO ={ 'Fechado': 'ok', 'Em andamento': 'warn', 'Não fechado': 'bad' }
 export const COR_FRENTE_DIA = { 'Em execução': 'ok', 'Parada': 'bad', 'Concluída': 'info' }
 // Restrições do Médio prazo: cada tipo com ícone e cor próprios (as cores em index.css, .tipo-*).
 export const TIPO_RESTRICAO = {

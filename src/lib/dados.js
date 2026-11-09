@@ -11,11 +11,11 @@
 //
 // O LOGIN é o Supabase Auth; no banco dos testes, as pessoas vêm dos dados de exemplo.
 import { supabase } from './supabase.js'
-import { hojeISO, somarDias } from './datas.js'
+import { hojeISO, somarDias, formatarDiaMes } from './datas.js'
 import { montarEfetivo, podeMarcarPresenca, mensagemTrava, contaComoPresenca } from './efetivo.js'
 import { aplicarFechamento, validarPreenchimento, validarFrente } from './frentes.js'
 import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo, motivoParaNaoApagarObra, OBRA_COM_LANCAMENTOS } from './obras.js'
-import { ordenarDiarios, resumirDiario } from './diarios.js'
+import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
 import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido } from './materiais.js'
 import {
@@ -391,9 +391,9 @@ const rdoDeHoje = (obraId) => um('rdos', { obra_id: obraId, data: hoje() })
 // O efetivo de hoje de TODAS as obras: a trava "presente em duas obras" lê as outras de propósito.
 // O admin lê a tabela; o gerente, que não vê as outras obras, pela função efetivo_do_dia
 // (migration -20), que entrega só quem está em qual obra.
-const linhasDoDia = async () => (authReal() && !veTodasAsObras(usuario)
-  ? resposta(await supabase.rpc('efetivo_do_dia', { dia: hoje() }))
-  : ler('rdo_efetivo', { data: hoje() }))
+const linhasDoDia = async (dia = hoje()) => (authReal() && !veTodasAsObras(usuario)
+  ? resposta(await supabase.rpc('efetivo_do_dia', { dia }))
+  : ler('rdo_efetivo', { data: dia }))
 const equipamentosNaObra = (obraId) => ler('equipamentos', { situacao: 'Na obra', obra_id: obraId })
 
 async function efetivoDaObraHoje(obraId) {
@@ -711,12 +711,13 @@ export const fecharRdo = () => executar(async () => {
 // Diários (histórico dos RDOs da obra atual, só leitura)
 // ---------------------------------------------------------------------------
 
-async function linhasDosRdos(ids) {
+// `comFotos: false` (resumo impresso): conta as fotos, mas não pede o endereço de cada uma.
+async function linhasDosRdos(ids, { comFotos = true } = {}) {
   if (!ids.length) return { efetivo: [], frentes: [], fotos: [] }
   const [efetivo, frentes, fotos] = await Promise.all([
     ler('rdo_efetivo', { rdo_id: ids }), ler('rdo_frentes', { rdo_id: ids }), ler('fotos', { rdo_id: ids }),
   ])
-  return { efetivo, frentes, fotos: await comEndereco(fotos, 'caminho', 'url') }
+  return { efetivo, frentes, fotos: comFotos ? await comEndereco(fotos, 'caminho', 'url') : fotos }
 }
 const doRdo = (linhas, rdoId) => ({
   efetivo: linhas.efetivo.filter((l) => l.rdo_id === rdoId),
@@ -733,45 +734,100 @@ export const listarDiarios = () => executar(async () => {
   }))
 })
 
-// O dia inteiro, já com os nomes, para a leitura e a impressão.
+// Os dias inteiros, já com os nomes, para a leitura, a correção e a impressão.
+// `rdos` já vêm filtrados pela obra de quem chamou.
+async function montarDiarios(obraId, rdos, opcoes) {
+  if (!rdos.length) return []
+  const ids = rdos.map((r) => r.id)
+  const [linhas, funcionarios, equipamentos, frentesDaObra, rdoEquip, nomes] = await Promise.all([
+    linhasDosRdos(ids, opcoes), ler('funcionarios'), ler('equipamentos'), ler('frentes_servico', { obra_id: obraId }),
+    ler('rdo_equipamentos', { rdo_id: ids }), nomesDasObras(),
+  ])
+  const equipe = linhas.frentes.length ? await ler('rdo_frente_equipe', { rdo_frente_id: linhas.frentes.map((rf) => rf.id) }) : []
+  const nomeFunc = (id) => funcionarios.find((f) => f.id === id)
+  return rdos.map((rdo) => {
+    const dele = doRdo(linhas, rdo.id)
+    const efetivo = dele.efetivo.map((l) => {
+      const f = nomeFunc(l.funcionario_id)
+      return {
+        id: l.id, funcionario_id: l.funcionario_id, nome: f?.nome ?? 'Funcionário removido', funcao: f?.funcao ?? '', situacao: l.situacao,
+        obra_destino_nome: l.obra_destino_id ? nomes.get(l.obra_destino_id) ?? 'outra obra' : null,
+      }
+    }).sort(porNome)
+    const equipDoDia = rdoEquip.filter((x) => x.rdo_id === rdo.id).map((x) => {
+      const e = equipamentos.find((y) => y.id === x.equipamento_id)
+      return { id: x.id, nome: e?.nome ?? 'Equipamento removido', codigo: e?.codigo ?? null, situacao: x.situacao, observacao: x.observacao }
+    }).sort(porNome)
+    const frentes = dele.frentes.map((rf) => {
+      const fs = frentesDaObra.find((y) => y.id === rf.frente_id)
+      const daEquipe = equipe.filter((q) => q.rdo_frente_id === rf.id)
+      return {
+        id: rf.id, frente_id: rf.frente_id, nome: fs?.nome ?? 'Frente removida', etapa: fs?.etapa ?? '', executor: fs?.executor ?? '', empreiteiro: fs?.empreiteiro ?? null,
+        situacao: rf.situacao, motivo_parada: rf.motivo_parada, descricao: rf.descricao,
+        equipe: daEquipe.map((q) => nomeFunc(q.funcionario_id)?.nome).filter(Boolean),
+        equipe_ids: daEquipe.map((q) => q.funcionario_id),
+        fotos: dele.fotos.filter((ft) => ft.rdo_frente_id === rf.id),
+      }
+    }).sort(porNome)
+    // Foto do dia que não está presa a nenhuma frente: aparece num bloco próprio.
+    const idsFrentes = new Set(dele.frentes.map((rf) => rf.id))
+    return {
+      ...rdo, ...resumirDiario(dele),
+      criado_por_nome: nomeDoPerfil(rdo.criado_por), fechado_por_nome: nomeDoPerfil(rdo.fechado_por),
+      efetivo, equipamentos: equipDoDia, frentes,
+      fotos_soltas: dele.fotos.filter((ft) => !idsFrentes.has(ft.rdo_frente_id)),
+    }
+  })
+}
+
 export const obterDiario = (rdoId) => executar(async () => {
   const obraId = obraAtual()
   const rdo = (await ler('rdos', { obra_id: obraId })).find((r) => r.id === rdoId)
   if (!rdo) return falha('Diário não encontrado nesta obra.')
-  const [linhas, funcionarios, equipamentos, frentesDaObra, rdoEquip, nomes] = await Promise.all([
-    linhasDosRdos([rdo.id]), ler('funcionarios'), ler('equipamentos'), ler('frentes_servico', { obra_id: obraId }),
-    ler('rdo_equipamentos', { rdo_id: rdo.id }), nomesDasObras(),
-  ])
-  const equipe = linhas.frentes.length ? await ler('rdo_frente_equipe', { rdo_frente_id: linhas.frentes.map((rf) => rf.id) }) : []
-  const nomeFunc = (id) => funcionarios.find((f) => f.id === id)
-  const efetivo = linhas.efetivo.map((l) => {
-    const f = nomeFunc(l.funcionario_id)
-    return {
-      id: l.id, nome: f?.nome ?? 'Funcionário removido', funcao: f?.funcao ?? '', situacao: l.situacao,
-      obra_destino_nome: l.obra_destino_id ? nomes.get(l.obra_destino_id) ?? 'outra obra' : null,
+  return ok((await montarDiarios(obraId, [rdo]))[0])
+})
+
+// Vários dias para o resumo impresso, sem as fotos. Id de outra obra é ignorado.
+export const obterDiarios = (rdoIds) => executar(async () => {
+  const obraId = obraAtual()
+  const pedidos = new Set(rdoIds)
+  const rdos = (await ler('rdos', { obra_id: obraId })).filter((r) => pedidos.has(r.id))
+  if (!rdos.length) return falha('Escolha pelo menos um diário desta obra.')
+  return ok(await montarDiarios(obraId, rdos, { comFotos: false }))
+})
+
+// Corrige um dia que já passou (fechado ou não): clima, ocorrências, texto e equipe das
+// frentes, e Presente/Falta/Atestado do efetivo. O de hoje se corrige na aba Hoje.
+// Várias gravações, não atômicas: repetir a mesma correção completa o que faltou.
+export const corrigirDiario = (rdoId, pedido) => executar(async () => {
+  if (!posso('diario.editar')) return falha('Seu perfil não corrige diário.')
+  const obraId = obraAtual()
+  const rdo = await um('rdos', { id: rdoId, obra_id: obraId })
+  if (!rdo) return falha('Diário não encontrado nesta obra.')
+  if (!podeCorrigirNoHistorico(rdo, hoje())) return falha('O diário de hoje se corrige na aba Hoje.')
+  const [linhas, rfs] = await Promise.all([ler('rdo_efetivo', { rdo_id: rdo.id }), ler('rdo_frentes', { rdo_id: rdo.id })])
+  const equipe = rfs.length ? await ler('rdo_frente_equipe', { rdo_frente_id: rfs.map((rf) => rf.id) }) : []
+  const equipeAtual = Object.fromEntries(rfs.map((rf) => [rf.id, equipe.filter((q) => q.rdo_frente_id === rf.id).map((q) => q.funcionario_id)]))
+  const plano = planejarCorrecao({ linhas, frentes: rfs, equipeAtual, pedido })
+  if (plano.erro) return falha(plano.erro)
+  // A trava de duas obras vale também para o dia que passou: confere antes de gravar qualquer coisa.
+  if (plano.viraramPresenca.length) {
+    const [doDia, funcionarios, nomes] = await Promise.all([linhasDoDia(rdo.data), ler('funcionarios'), nomesDasObras()])
+    for (const id of plano.viraramPresenca) {
+      const trava = podeMarcarPresenca(id, obraId, doDia)
+      const nome = funcionarios.find((f) => f.id === id)?.nome ?? 'Funcionário'
+      if (!trava.ok) return falha(mensagemTrava(nome, nomes.get(trava.obraId) ?? 'outra obra', `em ${formatarDiaMes(rdo.data)}`))
     }
-  }).sort(porNome)
-  const equipDoDia = rdoEquip.map((x) => {
-    const e = equipamentos.find((y) => y.id === x.equipamento_id)
-    return { id: x.id, nome: e?.nome ?? 'Equipamento removido', codigo: e?.codigo ?? null, situacao: x.situacao, observacao: x.observacao }
-  }).sort(porNome)
-  const frentes = linhas.frentes.map((rf) => {
-    const fs = frentesDaObra.find((y) => y.id === rf.frente_id)
-    return {
-      id: rf.id, nome: fs?.nome ?? 'Frente removida', etapa: fs?.etapa ?? '', executor: fs?.executor ?? '', empreiteiro: fs?.empreiteiro ?? null,
-      situacao: rf.situacao, motivo_parada: rf.motivo_parada, descricao: rf.descricao,
-      equipe: equipe.filter((q) => q.rdo_frente_id === rf.id).map((q) => nomeFunc(q.funcionario_id)?.nome).filter(Boolean),
-      fotos: linhas.fotos.filter((ft) => ft.rdo_frente_id === rf.id),
-    }
-  }).sort(porNome)
-  // Foto do dia que não está presa a nenhuma frente: aparece num bloco próprio.
-  const idsFrentes = new Set(linhas.frentes.map((rf) => rf.id))
-  return ok({
-    ...rdo, ...resumirDiario(linhas),
-    criado_por_nome: nomeDoPerfil(rdo.criado_por), fechado_por_nome: nomeDoPerfil(rdo.fechado_por),
-    efetivo, equipamentos: equipDoDia, frentes,
-    fotos_soltas: linhas.fotos.filter((ft) => !idsFrentes.has(ft.rdo_frente_id)),
-  })
+  }
+  await gravar('rdos', { id: rdo.id, obra_id: obraId }, plano.rdo)
+  for (const l of plano.efetivo) await gravar('rdo_efetivo', { id: l.id, obra_id: obraId }, { situacao: l.situacao })
+  for (const f of plano.frentes) {
+    if (f.mudouDescricao) await gravar('rdo_frentes', { id: f.id, obra_id: obraId }, { descricao: f.descricao })
+    // Tira só quem saiu (e confere que saiu), põe só quem entrou: nunca duplica a equipe.
+    if (f.sai.length) await apagarDeVerdade('rdo_frente_equipe', { rdo_frente_id: f.id, obra_id: obraId, funcionario_id: f.sai })
+    await inserirVarios('rdo_frente_equipe', f.entra.map((id) => ({ rdo_frente_id: f.id, obra_id: obraId, funcionario_id: id })))
+  }
+  return ok(true)
 })
 
 // ---------------------------------------------------------------------------

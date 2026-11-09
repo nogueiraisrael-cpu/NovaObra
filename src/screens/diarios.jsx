@@ -1,18 +1,20 @@
 // Diários — histórico dos RDOs da obra atual, do mais novo para o mais antigo.
-// Só leitura: lançar e corrigir o de hoje é na aba Hoje. Tocar num dia abre o
-// dia inteiro, com o botão Imprimir (versão limpa pelo navegador).
+// Lançar e corrigir o de hoje é na aba Hoje; o dia que já passou se corrige aqui
+// ("Corrigir este dia"). Tocar num dia abre o dia inteiro, com o botão Imprimir;
+// "Imprimir resumo" junta vários dias numa tabela.
 import { useState } from 'react'
-import { listarDiarios, obterDiario } from '../lib/dados.js'
+import { listarDiarios, obterDiario, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
-import { situacaoDiario, textoClima, textoResponsavel } from '../lib/diarios.js'
+import { situacaoDiario, textoClima, textoResponsavel, podeCorrigirNoHistorico } from '../lib/diarios.js'
 import { rotuloExecutor } from '../lib/frentes.js'
 import { hojeISO, formatarDataLonga } from '../lib/datas.js'
 import {
-  Carregando, ErroCarga, Icon, Pill, Stats, Vazio, ICONE_CLIMA, COR_EFETIVO, COR_EQUIP, COR_FRENTE_DIA,
+  Carregando, ErroCarga, Icon, Pill, Stats, Vazio, ICONE_CLIMA, COR_EFETIVO, COR_EQUIP, COR_FRENTE_DIA, COR_SITUACAO_DIARIO,
 } from '../components/index.jsx'
+import CorrigirDiario from './corrigirDiario.jsx'
+import ResumoDiarios from './resumoDiarios.jsx'
 
-const COR_SITUACAO_DIARIO = { 'Fechado': 'ok', 'Em andamento': 'warn', 'Não fechado': 'bad' }
 const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`
 
 function Miniaturas({ fotos }) {
@@ -51,6 +53,7 @@ function CartaoDiario({ r, hoje, abrir }) {
 function DiaDoDiario({ id, voltar }) {
   const { obra } = useObra()
   const dia = useDados(() => obterDiario(id), [id])
+  const [corrigindo, setCorrigindo] = useState(false)
   const hoje = hojeISO()
 
   if (dia.carregando) return <Carregando />
@@ -65,6 +68,11 @@ function DiaDoDiario({ id, voltar }) {
 
   const d = dia.data
   const situacao = situacaoDiario(d, hoje)
+  const podeCorrigir = podeCorrigirNoHistorico(d, hoje) && posso('diario.editar')
+  if (corrigindo) {
+    return <CorrigirDiario d={d} cancelar={() => setCorrigindo(false)}
+      salvo={async () => { await dia.recarregar(); setCorrigindo(false); window.scrollTo(0, 0) }} />
+  }
 
   return (
     <div className="diario-dia">
@@ -164,6 +172,11 @@ function DiaDoDiario({ id, voltar }) {
       )}
 
       <div className="cta nao-imprimir">
+        {podeCorrigir && (
+          <button className="btn btn-primary btn-full" style={{ marginBottom: 10 }} onClick={() => { setCorrigindo(true); window.scrollTo(0, 0) }}>
+            Corrigir este dia
+          </button>
+        )}
         <button className="btn btn-ghost btn-full" onClick={() => window.print()}>Imprimir</button>
         {d.data === hoje && <div className="hint" style={{ textAlign: 'center' }}>Para corrigir o diário de hoje, use a aba Hoje.</div>}
       </div>
@@ -174,10 +187,12 @@ function DiaDoDiario({ id, voltar }) {
 export default function Diarios({ irParaHoje }) {
   const lista = useDados(listarDiarios)
   const [aberto, setAberto] = useState(null)
+  const [resumo, setResumo] = useState(false)
   const hoje = hojeISO()
 
   function abrir(id) { setAberto(id); window.scrollTo(0, 0) }
 
+  if (resumo && lista.data?.length) return <div style={{ marginTop: 8 }}><ResumoDiarios diarios={lista.data} voltar={() => setResumo(false)} /></div>
   if (aberto) return <div style={{ marginTop: 8 }}><DiaDoDiario id={aberto} voltar={() => { setAberto(null); lista.recarregar() }} /></div>
 
   if (lista.carregando) return <div style={{ marginTop: 16 }}><Carregando /></div>
@@ -194,7 +209,13 @@ export default function Diarios({ irParaHoje }) {
 
   return (
     <>
-      <div className="sec"><h2>Diários</h2><span className="t-muted">{plural(lista.data.length, 'dia', 'dias')}</span></div>
+      <div className="sec">
+        <h2>Diários</h2>
+        <span className="row-wrap">
+          <span className="t-muted">{plural(lista.data.length, 'dia', 'dias')}</span>
+          <button className="btn btn-ghost" onClick={() => { setResumo(true); window.scrollTo(0, 0) }}>Imprimir resumo</button>
+        </span>
+      </div>
       <div className="list two">{lista.data.map((r) => <CartaoDiario key={r.id} r={r} hoje={hoje} abrir={abrir} />)}</div>
     </>
   )
