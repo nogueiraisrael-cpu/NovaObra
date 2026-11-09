@@ -1,7 +1,7 @@
 // Corrigir um diário de dia que já passou (aba Diários). Só a tela: quem confere e decide o
 // que muda é planejarCorrecao (src/lib/diarios.js), chamada por corrigirDiario em dados.js.
 import { useState } from 'react'
-import { corrigirDiario } from '../lib/dados.js'
+import { corrigirDiario, fecharDiaAnterior } from '../lib/dados.js'
 import { efetivoCorrigivel, presentesNaCorrecao } from '../lib/diarios.js'
 import { formatarDataLonga } from '../lib/datas.js'
 import { SITUACOES_EFETIVO_CORRIGIVEIS } from '../lib/listas.js'
@@ -17,10 +17,11 @@ function formularioDe(d) {
   }
 }
 
-export default function CorrigirDiario({ d, cancelar, salvo }) {
+// `podeFechar`: o dia ficou "Não fechado" e a pessoa pode fechar diário.
+export default function CorrigirDiario({ d, podeFechar, cancelar, salvo }) {
   const toast = useToast()
   const [f, setF] = useState(() => formularioDe(d))
-  const [salvando, setSalvando] = useState(false)
+  const [acao, setAcao] = useState(null) // null, 'salvar' ou 'fechar': o que está gravando agora
   const [erro, setErro] = useState(null)
 
   const presentes = presentesNaCorrecao(d.efetivo, f.efetivo)
@@ -30,14 +31,20 @@ export default function CorrigirDiario({ d, cancelar, salvo }) {
     mudarFrente(frenteId, { equipe: atual.includes(funcionarioId) ? atual.filter((x) => x !== funcionarioId) : [...atual, funcionarioId] })
   }
 
-  async function salvar() {
-    if (salvando) return
-    setSalvando(true)
+  // `eFechar`: depois de corrigir, fecha o dia que tinha ficado "Não fechado". Se a correção
+  // entrou e o fechamento não, tocar de novo refaz os dois sem estrago.
+  async function salvar(eFechar = false) {
+    if (acao) return
+    setAcao(eFechar ? 'fechar' : 'salvar')
     setErro(null)
     const r = await corrigirDiario(d.id, f)
-    setSalvando(false)
-    if (r.erro) return setErro(r.erro)
-    toast('Diário corrigido')
+    if (r.erro) { setAcao(null); return setErro(r.erro) }
+    if (eFechar) {
+      const fechou = await fecharDiaAnterior(d.id)
+      if (fechou.erro) { setAcao(null); return setErro(`A correção foi salva, mas o diário não fechou: ${fechou.erro} Toque de novo para fechar.`) }
+    }
+    setAcao(null)
+    toast(eFechar ? 'Diário corrigido e fechado' : 'Diário corrigido')
     salvo()
   }
 
@@ -107,12 +114,22 @@ export default function CorrigirDiario({ d, cancelar, salvo }) {
           </section>
         ))}
       </div>
-      <p className="hint" style={{ marginTop: 10 }}>A situação de cada frente (Parada, Concluída) não muda por aqui: ela mexe nos dias seguintes.</p>
+      <p className="hint" style={{ marginTop: 10 }}>
+        A situação de cada frente (Parada, Concluída) não se corrige por aqui: ela mexe nos dias seguintes.
+        {podeFechar && ' Ao fechar o dia, ela passa para a lista de frentes da obra, menos onde um diário fechado mais novo já decidiu.'}
+      </p>
 
       {erro && <div className="err">{erro}</div>}
-      <div className="cta row-wrap">
-        <button className="btn btn-ghost" onClick={cancelar} disabled={salvando}>Cancelar</button>
-        <button className="btn btn-primary" style={{ flex: 1 }} onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar correção'}</button>
+      {podeFechar && (
+        <button className="btn btn-primary btn-full" style={{ marginTop: 20 }} onClick={() => salvar(true)} disabled={Boolean(acao)}>
+          {acao === 'fechar' ? 'Salvando e fechando…' : 'Salvar e fechar o dia'}
+        </button>
+      )}
+      <div className={podeFechar ? 'row-wrap' : 'cta row-wrap'} style={podeFechar ? { marginTop: 10 } : undefined}>
+        <button className="btn btn-ghost" onClick={cancelar} disabled={Boolean(acao)}>Cancelar</button>
+        <button className={`btn ${podeFechar ? 'btn-ghost' : 'btn-primary'}`} style={{ flex: 1 }} onClick={() => salvar()} disabled={Boolean(acao)}>
+          {acao === 'salvar' ? 'Salvando…' : podeFechar ? 'Só salvar, sem fechar' : 'Salvar correção'}
+        </button>
       </div>
     </div>
   )

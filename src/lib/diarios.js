@@ -46,6 +46,8 @@ export function textoClima(rdo) {
 
 export const efetivoCorrigivel = (situacao) => SITUACOES_EFETIVO_CORRIGIVEIS.includes(situacao)
 export const podeCorrigirNoHistorico = (rdo, hoje) => rdo.data < hoje
+// Fechar atrasado: só o dia que já passou e ficou sem fechar ("Não fechado").
+export const podeFecharNoHistorico = (rdo, hoje) => situacaoDiario(rdo, hoje) === 'Não fechado'
 
 // As linhas do efetivo que contam como presença com as situações escolhidas na correção
 // (`situacoes`: { [linhaId]: situacao }). Só elas podem estar na equipe das frentes.

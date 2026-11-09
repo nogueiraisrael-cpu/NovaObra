@@ -144,5 +144,34 @@ conferir('trava: presente em outra obra naquele dia', travado.erro, `${cicero.no
 conferir('e nada foi gravado', (await dados.obterDiario('rdo-ubs-ontem')).data.clima_manha !== 'Chuva leve', true)
 conferir('Atestado no lugar da Falta passa', (await dados.corrigirDiario('rdo-ubs-ontem', { ...pedidoBase, efetivo: { [cicero.id]: 'Atestado' } })).erro, null)
 
+// ---- Fechar dia anterior que ficou "Não fechado" ----
+reiniciarMock(dados)
+await dados.entrar('eng@novaobra.test', 'x')
+dados.definirObraAtual('obra-ubs')
+const antesUbs = (await dados.obterDiario('rdo-ubs-ontem')).data
+conferir('o de ontem da UBS está aberto', antesUbs.status, 'Em andamento')
+const fechou = await dados.fecharDiaAnterior('rdo-ubs-ontem')
+const depoisUbs = (await dados.obterDiario('rdo-ubs-ontem')).data
+conferir('fechar dia anterior: vira Fechado, com quem fechou', [fechou.erro, depoisUbs.status, Boolean(depoisUbs.fechado_em), depoisUbs.fechado_por_nome !== null], [null, 'Fechado', true, true])
+conferir('o efetivo daquele dia fica como foi lançado', depoisUbs.efetivo.map((l) => [l.nome, l.situacao]), antesUbs.efetivo.map((l) => [l.nome, l.situacao]))
+conferir('fechar de novo não dá erro nem muda o carimbo', [(await dados.fecharDiaAnterior('rdo-ubs-ontem')).erro, (await dados.obterDiario('rdo-ubs-ontem')).data.fechado_em], [null, depoisUbs.fechado_em])
+conferir('não fecha o de outra obra', (await dados.fecharDiaAnterior('rdo-serra-2')).erro, 'Diário não encontrado nesta obra.')
+dados.definirObraAtual('obra-serra')
+conferir('o de hoje se fecha na aba Hoje', (await dados.fecharDiaAnterior('rdo-serra-hoje')).erro, 'O diário de hoje se fecha na aba Hoje.')
+
+// Fechar atrasado um dia velho da Serra: o Reboco foi dado como Concluído nele, mas os diários
+// fechados mais novos (até anteontem) dizem Parada. A frente continua Parada.
+const bancoVelho = criarBancoMemoria()
+dados._usarBancoDeTeste(bancoVelho)
+await dados.entrar('eng@novaobra.test', 'x')
+dados.definirObraAtual('obra-serra')
+const diaVelho = somarDias(hojeISO(), -10)
+const [velho] = await bancoVelho.inserir('rdos', [{ obra_id: 'obra-serra', data: diaVelho, clima_manha: 'Bom', clima_tarde: 'Bom', praticavel_manha: true, praticavel_tarde: true, observacoes: '', status: 'Em andamento', criado_por: null }])
+await bancoVelho.inserir('rdo_frentes', [{ rdo_id: velho.id, obra_id: 'obra-serra', frente_id: 'fs-reboco', situacao: 'Concluída', motivo_parada: null, descricao: '' }])
+const rebocoAntes = (await dados.listarFrentes()).data.find((x) => x.id === 'fs-reboco')
+conferir('fechar o dia velho dá certo', (await dados.fecharDiaAnterior(velho.id)).erro, null)
+const rebocoDepois = (await dados.listarFrentes()).data.find((x) => x.id === 'fs-reboco')
+conferir('frente decidida por diário fechado mais novo não volta atrás', [rebocoDepois.situacao, rebocoDepois.motivo_parada], [rebocoAntes.situacao, rebocoAntes.motivo_parada])
+
 console.log(`${ok}/${tot} — diarios`)
 process.exit(ok === tot ? 0 : 1)

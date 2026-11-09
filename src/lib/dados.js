@@ -13,7 +13,7 @@
 import { supabase } from './supabase.js'
 import { hojeISO, somarDias, formatarDiaMes } from './datas.js'
 import { montarEfetivo, podeMarcarPresenca, mensagemTrava, contaComoPresenca } from './efetivo.js'
-import { aplicarFechamento, validarPreenchimento, validarFrente } from './frentes.js'
+import { aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento, validarFrente } from './frentes.js'
 import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo, motivoParaNaoApagarObra, OBRA_COM_LANCAMENTOS } from './obras.js'
 import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
@@ -681,6 +681,18 @@ export const resumoFechamento = () => executar(async () => {
   return ok({ ...resumirDiario({ efetivo, frentes: rfs, fotos }), equipamentos_quebrados: equips.length })
 })
 
+// Grava em frentes_servico só o que o fechamento mudou.
+async function gravarFrentesFechadas(antes, depois) {
+  const deAntes = new Map(antes.map((f) => [f.id, f]))
+  const campos = ['situacao', 'parada_desde', 'motivo_parada', 'data_inicio', 'data_conclusao']
+  for (const f of depois) {
+    const mudou = campos.filter((c) => f[c] !== deAntes.get(f.id)[c])
+    if (mudou.length) await gravar('frentes_servico', { id: f.id, obra_id: f.obra_id }, Object.fromEntries(mudou.map((c) => [c, f[c]])))
+  }
+}
+
+const fechamento = () => ({ status: 'Fechado', fechado_por: usuario?.id ?? null, fechado_em: new Date().toISOString() })
+
 // O RDO só vira "Fechado" no último passo: se a internet cair no meio, ele continua
 // aberto e fechar de novo refaz o que faltou.
 export const fecharRdo = () => executar(async () => {
@@ -690,21 +702,36 @@ export const fecharRdo = () => executar(async () => {
   const [rfs, daObra, { efetivo }] = await Promise.all([
     ler('rdo_frentes', { rdo_id: rdo.id }), ler('frentes_servico', { obra_id: obraId }), efetivoDaObraHoje(obraId),
   ])
-  const antes = new Map(daObra.map((f) => [f.id, f]))
-  const campos = ['situacao', 'parada_desde', 'motivo_parada', 'data_inicio', 'data_conclusao']
-  for (const f of aplicarFechamento(daObra, rfs, rdo.data)) {
-    const mudou = campos.filter((c) => f[c] !== antes.get(f.id)[c])
-    if (mudou.length) await gravar('frentes_servico', { id: f.id }, Object.fromEntries(mudou.map((c) => [c, f[c]])))
-  }
+  await gravarFrentesFechadas(daObra, aplicarFechamento(daObra, rfs, rdo.data))
   // Quem está no efetivo só pelo padrão (lotado depois que o RDO abriu, ou vindo
   // de outra obra) ganha linha agora: o diário fechado guarda o mesmo que a tela mostrou.
   await inserirVarios('rdo_efetivo', efetivo.filter((item) => !item.gravada).map((item) => ({
     rdo_id: rdo.id, obra_id: obraId, data: rdo.data, funcionario_id: item.funcionario.id,
     situacao: item.situacao, obra_destino_id: item.obra_destino_id,
   })))
-  return ok((await gravar('rdos', { id: rdo.id }, {
-    status: 'Fechado', fechado_por: usuario?.id ?? null, fechado_em: new Date().toISOString(),
-  }))[0])
+  return ok((await gravar('rdos', { id: rdo.id }, fechamento()))[0])
+})
+
+// Fechar atrasado um dia que já passou e ficou "Não fechado" (aba Diários). O efetivo fica
+// como foi lançado (o de hoje não serve para aquele dia). A situação das frentes só muda onde
+// nenhum diário fechado mais novo já decidiu por elas. Como o de hoje, marca "Fechado" por último.
+export const fecharDiaAnterior = (rdoId) => executar(async () => {
+  if (!posso('diario.fechar')) return falha('Seu perfil não fecha diário.')
+  const obraId = obraAtual()
+  const rdo = await um('rdos', { id: rdoId, obra_id: obraId })
+  if (!rdo) return falha('Diário não encontrado nesta obra.')
+  if (!podeCorrigirNoHistorico(rdo, hoje())) return falha('O diário de hoje se fecha na aba Hoje.')
+  if (rdo.status === 'Fechado') return ok(rdo)
+  // As frentes da obra inteira, filtradas aqui: uma lista de ids de um ano de diários não
+  // cabe no endereço do pedido ao banco.
+  const [daObraRfs, daObra, rdos] = await Promise.all([
+    ler('rdo_frentes', { obra_id: obraId }), ler('frentes_servico', { obra_id: obraId }), ler('rdos', { obra_id: obraId, status: 'Fechado' }),
+  ])
+  const maisNovos = new Set(rdos.filter((r) => r.data > rdo.data).map((r) => r.id))
+  const rfs = daObraRfs.filter((rf) => rf.rdo_id === rdo.id)
+  const decididas = daObraRfs.filter((rf) => maisNovos.has(rf.rdo_id)).map((rf) => rf.frente_id)
+  await gravarFrentesFechadas(daObra, aplicarFechamentoAtrasado(daObra, rfs, rdo.data, decididas))
+  return ok((await gravar('rdos', { id: rdo.id, obra_id: obraId }, fechamento()))[0])
 })
 
 // ---------------------------------------------------------------------------

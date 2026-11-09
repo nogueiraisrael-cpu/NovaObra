@@ -3,14 +3,14 @@
 // ("Corrigir este dia"). Tocar num dia abre o dia inteiro, com o botão Imprimir;
 // "Imprimir resumo" junta vários dias numa tabela.
 import { useState } from 'react'
-import { listarDiarios, obterDiario, posso } from '../lib/dados.js'
+import { listarDiarios, obterDiario, fecharDiaAnterior, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
-import { situacaoDiario, textoClima, textoResponsavel, podeCorrigirNoHistorico } from '../lib/diarios.js'
+import { situacaoDiario, textoClima, textoResponsavel, podeCorrigirNoHistorico, podeFecharNoHistorico } from '../lib/diarios.js'
 import { rotuloExecutor } from '../lib/frentes.js'
-import { hojeISO, formatarDataLonga } from '../lib/datas.js'
+import { hojeISO, formatarDataLonga, formatarDiaMes } from '../lib/datas.js'
 import {
-  Carregando, ErroCarga, Icon, Pill, Stats, Vazio, ICONE_CLIMA, COR_EFETIVO, COR_EQUIP, COR_FRENTE_DIA, COR_SITUACAO_DIARIO,
+  Carregando, ErroCarga, Icon, Pill, Stats, Vazio, useToast, ICONE_CLIMA, COR_EFETIVO, COR_EQUIP, COR_FRENTE_DIA, COR_SITUACAO_DIARIO,
 } from '../components/index.jsx'
 import CorrigirDiario from './corrigirDiario.jsx'
 import ResumoDiarios from './resumoDiarios.jsx'
@@ -50,6 +50,38 @@ function CartaoDiario({ r, hoje, abrir }) {
   )
 }
 
+// Fechar atrasado um dia que ficou "Não fechado", com uma confirmação antes.
+function FecharDia({ d, fechado }) {
+  const toast = useToast()
+  const [confirmar, setConfirmar] = useState(false)
+  const [fechando, setFechando] = useState(false)
+  const [erro, setErro] = useState(null)
+  async function fechar() {
+    if (fechando) return
+    setFechando(true)
+    setErro(null)
+    const r = await fecharDiaAnterior(d.id)
+    setFechando(false)
+    if (r.erro) return setErro(r.erro)
+    toast(`Diário de ${formatarDiaMes(d.data)} fechado`)
+    fechado()
+  }
+  if (!confirmar) {
+    return <button className="btn btn-primary btn-full" style={{ marginBottom: 10 }} onClick={() => setConfirmar(true)}>Fechar este dia</button>
+  }
+  return (
+    <div className="note" style={{ textAlign: 'left', marginBottom: 10 }}>
+      Fechar o diário de {formatarDataLonga(d.data)}? Ele fica como está agora: {d.presentes} presentes de {d.total}, {plural(d.frentes.length, 'frente preenchida', 'frentes preenchidas')}.
+      Se precisar mudar algo antes, toque em <b>Corrigir este dia</b>.
+      {erro && <div className="err">{erro}</div>}
+      <div className="row-wrap" style={{ marginTop: 8 }}>
+        <button className="btn btn-ghost" onClick={() => setConfirmar(false)} disabled={fechando}>Cancelar</button>
+        <button className="btn btn-primary" onClick={fechar} disabled={fechando}>{fechando ? 'Fechando…' : 'Sim, fechar'}</button>
+      </div>
+    </div>
+  )
+}
+
 function DiaDoDiario({ id, voltar }) {
   const { obra } = useObra()
   const dia = useDados(() => obterDiario(id), [id])
@@ -69,8 +101,9 @@ function DiaDoDiario({ id, voltar }) {
   const d = dia.data
   const situacao = situacaoDiario(d, hoje)
   const podeCorrigir = podeCorrigirNoHistorico(d, hoje) && posso('diario.editar')
+  const podeFechar = podeFecharNoHistorico(d, hoje) && posso('diario.fechar')
   if (corrigindo) {
-    return <CorrigirDiario d={d} cancelar={() => setCorrigindo(false)}
+    return <CorrigirDiario d={d} podeFechar={podeFechar} cancelar={() => setCorrigindo(false)}
       salvo={async () => { await dia.recarregar(); setCorrigindo(false); window.scrollTo(0, 0) }} />
   }
 
@@ -172,6 +205,7 @@ function DiaDoDiario({ id, voltar }) {
       )}
 
       <div className="cta nao-imprimir">
+        {podeFechar && <FecharDia d={d} fechado={dia.recarregar} />}
         {podeCorrigir && (
           <button className="btn btn-primary btn-full" style={{ marginBottom: 10 }} onClick={() => { setCorrigindo(true); window.scrollTo(0, 0) }}>
             Corrigir este dia

@@ -244,3 +244,4 @@ Testada pelo Claude no navegador do app, com o banco de verdade, a pedido do don
 - 09/11/2026 · Diários · Corrigir dia anterior: Falta↔Presente muda o efetivo e a equipe da frente (quem falta sai da equipe), texto da frente corrigido, tudo depois do F5 (Claude, Serra 30/10, desfeito).
 - 09/11/2026 · Diários · Deslocado aparece só com o selo e "não se corrige aqui"; o diário de hoje não tem "Corrigir este dia"; Cancelar não grava nada (Claude).
 - 09/11/2026 · Diários · Imprimir resumo: dias soltos, Limpar trava o botão, números e frentes batem com os diários, tabela rola só dentro do bloco; numa segunda abre com a semana passada (Claude).
+- 09/11/2026 · Diários · Fechar dia anterior "Não fechado": 07/11 da Serra fechado pela tela, selo Fechado com quem e quando, continua depois do F5; a correção mostra "Salvar e fechar o dia" (Claude, com ok do Israel).

@@ -64,3 +64,17 @@ export function aplicarFechamento(frentes, rdoFrentes, dataRdo) {
     return f
   })
 }
+
+// Fechar atrasado um dia que já passou (aba Diários). A situação da frente é a do último dia
+// fechado: frente lançada num diário fechado DEPOIS deste não muda de situação (o dia mais novo
+// já decidiu por ela); só puxa o início para trás, se ela já trabalhava neste dia.
+// `decididasDepois`: ids das frentes com registro em diário fechado mais novo que `dataRdo`.
+export function aplicarFechamentoAtrasado(frentes, rdoFrentes, dataRdo, decididasDepois) {
+  const depois = new Set(decididasDepois)
+  const livres = aplicarFechamento(frentes, rdoFrentes.filter((rf) => !depois.has(rf.frente_id)), dataRdo)
+  const trabalhou = new Set(rdoFrentes.filter((rf) => rf.situacao !== 'Parada').map((rf) => rf.frente_id))
+  return livres.map((f) => {
+    if (!depois.has(f.id) || !trabalhou.has(f.id) || (f.data_inicio && f.data_inicio <= dataRdo)) return f
+    return { ...f, data_inicio: dataRdo }
+  })
+}

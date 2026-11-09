@@ -1,5 +1,5 @@
 // Frentes de serviço: "parada há N dias", ordem da lista e o processo 1 (fechar o RDO).
-import { diasParada, separarFrentes, aplicarFechamento, validarPreenchimento } from '../src/lib/frentes.js'
+import { diasParada, separarFrentes, aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento } from '../src/lib/frentes.js'
 
 let ok = 0
 let tot = 0
@@ -38,6 +38,18 @@ conferir('frente que continua parada mantém a data antiga', depois.y.parada_des
 conferir('frente que voltou limpa parada_desde', [depois.z.situacao, depois.z.parada_desde], ['Em execução', null])
 conferir('frente concluída grava a data', [depois.w.situacao, depois.w.data_conclusao], ['Concluída', hoje])
 conferir('frente sem registro no dia não muda', aplicarFechamento([f('q', 'Q', 'Parada', '2026-10-01')], [], hoje)[0].parada_desde, '2026-10-01')
+
+// Fechar atrasado um dia que passou: frente decidida por um dia fechado mais novo não volta atrás.
+const obraFr = [
+  { ...f('x', 'Reboco', 'Concluída'), data_inicio: '2026-10-28', data_conclusao: '2026-10-30' },
+  f('y', 'Pintura', 'Não iniciada'),
+]
+const doDiaVelho = [{ frente_id: 'x', situacao: 'Em execução', motivo_parada: null }, { frente_id: 'y', situacao: 'Parada', motivo_parada: 'Chuva' }]
+const atrasado = aplicarFechamentoAtrasado(obraFr, doDiaVelho, '2026-10-26', ['x'])
+conferir('frente fechada depois continua Concluída, só o início vai para trás', [atrasado[0].situacao, atrasado[0].data_inicio, atrasado[0].data_conclusao], ['Concluída', '2026-10-26', '2026-10-30'])
+conferir('frente sem dia mais novo segue o dia fechado agora', [atrasado[1].situacao, atrasado[1].parada_desde, atrasado[1].motivo_parada], ['Parada', '2026-10-26', 'Chuva'])
+conferir('sem dia mais novo é igual ao fechamento normal', aplicarFechamentoAtrasado(obraFr, doDiaVelho, '2026-10-26', []), aplicarFechamento(obraFr, doDiaVelho, '2026-10-26'))
+conferir('início mais antigo não é empurrado para frente', aplicarFechamentoAtrasado(obraFr, doDiaVelho, '2026-10-29', ['x'])[0].data_inicio, '2026-10-28')
 
 console.log(`${ok}/${tot} — frentes`)
 process.exit(ok === tot ? 0 : 1)
