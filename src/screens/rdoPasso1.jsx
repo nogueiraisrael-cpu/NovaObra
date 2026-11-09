@@ -3,7 +3,7 @@ import { useState } from 'react'
 import {
   listarEfetivoHoje, marcarEfetivo, listarFuncionariosParaTrazer, trazerFuncionario, devolverFuncionario,
   listarDestinosDeslocamento, listarEquipamentosHoje, marcarEquipamentoDia, listarEquipamentos,
-  mandarEquipamentoParaObra, salvarRdo,
+  mandarEquipamentoParaObra, salvarRdo, salvarEquipamento, tirarEquipamentoDoRdo,
 } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { resumoEfetivo } from '../lib/efetivo.js'
@@ -39,6 +39,34 @@ function BlocoClima({ rdo, salvar }) {
   )
 }
 
+// Equipamento que não está no depósito (nem cadastrado): entra direto nesta obra.
+function NovoEquipamento({ salvo }) {
+  const [e, setE] = useState({ nome: '', codigo: '' })
+  const [erro, setErro] = useState(null)
+  const [salvando, setSalvando] = useState(false)
+  async function salvar() {
+    if (salvando) return
+    setSalvando(true)
+    const r = await salvarEquipamento({ ...e, nesta_obra: true })
+    setSalvando(false)
+    if (r.erro) return setErro(r.erro)
+    salvo(r.data)
+  }
+  return (
+    <div style={{ marginTop: 20 }}>
+      <div className="eyebrow">Não está na lista?</div>
+      <label className="label" htmlFor="rdo-eq-nome">Nome do equipamento</label>
+      <input id="rdo-eq-nome" className="field" placeholder="Ex.: Vibrador de imersão" value={e.nome} onChange={(x) => setE({ ...e, nome: x.target.value })} />
+      <label className="label" htmlFor="rdo-eq-cod">Código / patrimônio (opcional)</label>
+      <input id="rdo-eq-cod" className="field" placeholder="Ex.: VB-01" value={e.codigo} onChange={(x) => setE({ ...e, codigo: x.target.value })} />
+      {erro && <div className="err">{erro}</div>}
+      <button className="btn btn-primary btn-full" style={{ marginTop: 12 }} onClick={salvar} disabled={salvando}>
+        {salvando ? 'Salvando…' : 'Cadastrar e pôr nesta obra'}
+      </button>
+    </div>
+  )
+}
+
 export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
   const toast = useToast()
   const efetivo = useDados(listarEfetivoHoje)
@@ -46,6 +74,8 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
   const [gaveta, setGaveta] = useState(null) // { tipo: 'destino'|'trazer'|'equip', ... }
   const [opcoes, setOpcoes] = useState([])
   const [obs, setObs] = useState(rdo?.observacoes ?? '')
+  const [tirar, setTirar] = useState(null) // id do equipamento que pede confirmação para sair do RDO
+  const [tirando, setTirando] = useState(false)
 
   async function depoisDe(promessa, ...recarregar) {
     const { erro } = await promessa
@@ -99,6 +129,20 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
     if (await depoisDe(mandarEquipamentoParaObra(e.id), equips)) toast(`${e.nome} chegou na obra`)
   }
 
+  async function cadastrouEquip(e) {
+    setGaveta(null)
+    await equips.recarregar()
+    toast(`${e.nome} cadastrado nesta obra`)
+  }
+
+  async function tirarEquip(e) {
+    if (tirando) return
+    setTirando(true)
+    if (await depoisDe(tirarEquipamentoDoRdo(e.id), equips)) toast(`${e.nome} saiu do RDO e voltou para o depósito`)
+    setTirar(null)
+    setTirando(false)
+  }
+
   if (efetivo.carregando || equips.carregando) return <Carregando />
   if (efetivo.erro || equips.erro) return <ErroCarga erro={efetivo.erro || equips.erro} tentar={() => { efetivo.recarregar(); equips.recarregar() }} />
 
@@ -131,6 +175,18 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
                     placeholder="Observação (opcional)" defaultValue={x.observacao}
                     onBlur={(e) => e.target.value !== x.observacao && depoisDe(marcarEquipamentoDia(x.equipamento.id, x.situacao, e.target.value), equips)} />
                 )}
+                {x.chegou_hoje && (tirar === x.equipamento.id ? (
+                  <div className="note" style={{ marginTop: 8, textAlign: 'left' }}>
+                    Tirar {x.equipamento.nome} do RDO de hoje? Ele volta para o depósito.
+                    {rdo?.status === 'Fechado' && ' O diário de hoje já foi fechado: a linha dele sai do diário.'}
+                    <div className="row-wrap" style={{ marginTop: 8 }}>
+                      <button className="btn btn-ghost" onClick={() => setTirar(null)} disabled={tirando}>Cancelar</button>
+                      <button className="btn btn-danger" onClick={() => tirarEquip(x.equipamento)} disabled={tirando}>{tirando ? 'Tirando…' : 'Sim, tirar'}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="link-insumo" style={{ marginTop: 8 }} onClick={() => setTirar(x.equipamento.id)}>Lançado por engano? Tirar da obra</button>
+                ))}
               </div>
             ))}
             <button className="add" onClick={abrirEquip}>+ Equipamento chegou na obra</button>
@@ -211,6 +267,7 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
             <button key={e.id} className="pick" onClick={() => chegouEquip(e)}><div><b>{e.nome}</b><span>{e.codigo}</span></div></button>
           ))}
         </div>
+        {gaveta?.tipo === 'equip' && <NovoEquipamento salvo={cadastrouEquip} />}
         <div className="cta"><button className="btn btn-ghost btn-full" onClick={() => setGaveta(null)}>Cancelar</button></div>
       </Gaveta>
     </>

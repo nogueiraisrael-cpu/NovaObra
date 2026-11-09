@@ -562,7 +562,8 @@ export const listarEquipamentosHoje = () => executar(async () => {
   const linhas = rdo ? await ler('rdo_equipamentos', { rdo_id: rdo.id }) : []
   return ok(equipamentos.sort(porNome).map((e) => {
     const linha = linhas.find((x) => x.equipamento_id === e.id)
-    return { equipamento: e, situacao: linha?.situacao ?? 'Operando', observacao: linha?.observacao ?? '' }
+    // Só o que chegou hoje pode sair como "lançado por engano": o que está aqui há dias sai pela tela Equipamentos.
+    return { equipamento: e, situacao: linha?.situacao ?? 'Operando', observacao: linha?.observacao ?? '', chegou_hoje: e.situacao_desde === hoje() }
   }))
 })
 
@@ -800,6 +801,14 @@ export const listarEquipamentos = () => executar(async () => {
 
 export const salvarEquipamento = ({ nome, codigo, nesta_obra }) => executar(async () => {
   if (!nome?.trim()) return falha('Informe o nome do equipamento.')
+  // Código repetido é quase sempre o mesmo equipamento cadastrado duas vezes (clique duplo, ou
+  // cadastrado pelo RDO e de novo pela tela Equipamentos).
+  // Compara sem diferenciar maiúscula ("vb-01" = "VB-01"). A frase não diz o nome nem a obra do
+  // outro: ele pode estar em outra obra, e esta tela não mostra dado de outra obra.
+  const alvo = codigo?.trim().toLowerCase()
+  if (alvo && (await ler('equipamentos')).some((x) => x.codigo?.trim().toLowerCase() === alvo)) {
+    return falha(`Já existe um equipamento com o código ${codigo.trim()}.`)
+  }
   return ok(await inserir('equipamentos', {
     nome: nome.trim(), codigo: codigo?.trim() || null,
     situacao: nesta_obra ? 'Na obra' : 'No depósito', obra_id: nesta_obra ? obraAtual() : null, situacao_desde: hoje(),
@@ -820,10 +829,28 @@ export const mandarEquipamentoParaObra = (equipamentoId) => executar(async () =>
   return falha(`${atual.nome} não está no depósito (${atual.situacao.toLowerCase()}).`)
 })
 
+// Dono único da ida para o depósito. Muda 0 linhas se o equipamento não está na obra (ou a regra recusou).
+const levarAoDeposito = async (equipamentoId, obraId) => (await atualizar('equipamentos', { id: equipamentoId, obra_id: obraId },
+  { situacao: 'No depósito', obra_id: null, situacao_desde: hoje() }))[0]
+
 export const mandarEquipamentoParaDeposito = (equipamentoId) => executar(async () => {
-  const [e] = await atualizar('equipamentos', { id: equipamentoId, obra_id: obraAtual() },
-    { situacao: 'No depósito', obra_id: null, situacao_desde: hoje() })
+  const e = await levarAoDeposito(equipamentoId, obraAtual())
   return e ? ok(e) : falha('Equipamento não está nesta obra.')
+})
+
+// "Lançado por engano" no RDO de hoje: apaga a linha do dia e devolve o equipamento ao depósito.
+// Só para o que chegou hoje: o que está na obra há dias tem dia de verdade, e sai pela tela Equipamentos.
+// Apaga a linha primeiro: se a internet cair no meio, o equipamento continua na obra e repetir completa.
+export const tirarEquipamentoDoRdo = (equipamentoId) => executar(async () => {
+  const obraId = obraAtual()
+  const atual = await um('equipamentos', { id: equipamentoId, situacao: 'Na obra', obra_id: obraId })
+  if (!atual) return falha('Equipamento não está nesta obra.')
+  if (atual.situacao_desde !== hoje()) return falha(`${atual.nome} está na obra desde antes de hoje. Para mandar ao depósito, use a tela Equipamentos.`)
+  const rdo = await rdoDeHoje(obraId)
+  // A linha pode não existir (chegou depois de o RDO abrir): "não achei" é esperado aqui.
+  if (rdo) await apagar('rdo_equipamentos', { rdo_id: rdo.id, equipamento_id: equipamentoId })
+  const e = await levarAoDeposito(equipamentoId, obraId)
+  return e ? ok(e) : falha('Não foi gravado: o equipamento continua na obra. Tente de novo.')
 })
 
 // ---------------------------------------------------------------------------

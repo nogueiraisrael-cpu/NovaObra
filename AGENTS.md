@@ -201,7 +201,8 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   obras (se falhar no meio, a função apaga o login); virar Engenheiro grava o perfil e depois apaga a lista de
   obras, e bloquear grava a situação e depois trava o login: se cair no meio, repetir completa. Foto: sobe o arquivo e só depois grava o registro (caiu no
   meio, sobra um arquivo solto, sem estrago); ao tirar uma foto da frente, apagar o pedido ou receber de novo,
-  grava a tabela e depois apaga o arquivo (caiu no meio, idem).
+  grava a tabela e depois apaga o arquivo (caiu no meio, idem). No RDO, "Tirar da obra" (equipamento lançado por
+  engano) apaga a linha do dia e depois manda para o depósito: se cair no meio, ele continua na obra e repetir completa.
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

@@ -75,6 +75,7 @@ dados.definirObraAtual('obra-ubs')
 conferir('da UBS não puxa a betoneira que está na Serra', (await dados.mandarEquipamentoParaObra('e-betoneira')).erro,
   'Betoneira 400 L está na obra Casa Alto da Serra 4. Mande para o depósito de lá primeiro.')
 conferir('da UBS não marca o dia da betoneira da Serra', (await dados.marcarEquipamentoDia('e-betoneira', 'Quebrado')).erro, 'Equipamento não está nesta obra.')
+conferir('da UBS não tira do RDO a betoneira da Serra', (await dados.tirarEquipamentoDoRdo('e-betoneira')).erro, 'Equipamento não está nesta obra.')
 dados.definirObraAtual('obra-serra')
 conferir('e a betoneira continua na Serra', (await dados.listarEquipamentos()).data.naObra.some((e) => e.id === 'e-betoneira'), true)
 
