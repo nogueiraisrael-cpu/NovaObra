@@ -193,7 +193,8 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
   concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
-  a coluna e depois a movimentação de estoque: voltar a coluna e avançar de novo completa. No Planejamento,
+  a coluna e depois a movimentação de estoque: voltar a coluna e avançar de novo completa. Pedido com material escrito
+  à mão grava o material na lista e depois o pedido: se cair no meio, o material fica na lista e repetir reaproveita. No Planejamento,
   repetir o mesmo toque completa (mover para a mesma coluna, lançar o mesmo avanço); na importação
   "substituir", as novas entram antes de as antigas serem arquivadas: se cair no meio, arquive as antigas na EAP. "Trocar planilha" apaga as linhas da medição e grava as novas: se cair
   no meio, a medição fica sem linhas, e trocar de novo completa. Importar medição grava o cabeçalho e as linhas; se as

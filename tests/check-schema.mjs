@@ -96,6 +96,8 @@ await d.obterHistoricoInsumo(insumo.id)
 await d.desfazerBaixa(baixa.data.id)
 await d.salvarMinimo(insumo.id, '3')
 // Só pedido em Solicitar se apaga: o de cima já foi entregue.
+// Material escrito à mão: grava no catálogo (nome, unidade, categoria, ativo).
+await d.salvarPedido({ manual: true, material_nome: 'Conferência', unidade: 'un', categoria: 'Acabamento', quantidade: '1', frente: 'Conferência', prioridade: 'Normal' })
 const desistido = await d.salvarPedido({ material_id: 'mat-areia', quantidade: '1', frente: 'Conferência', prioridade: 'Normal' })
 await d.apagarPedido(desistido.data.id)
 await d.listarPlanejamento()

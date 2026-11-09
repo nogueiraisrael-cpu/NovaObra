@@ -33,6 +33,7 @@ export const UNICOS = {
   rdo_frentes: [{ nome: 'rdo_frentes_uma_por_frente', colunas: ['rdo_id', 'frente_id'] }],
   rdo_frente_equipe: [{ nome: 'rdo_frente_equipe_uma_vez', colunas: ['rdo_frente_id', 'funcionario_id'] }],
   insumos: [{ nome: 'insumos_um_por_material', colunas: ['obra_id', 'material_id'] }],
+  materiais: [{ nome: 'materiais_nome_key', colunas: ['nome'] }],
   semana_atividades: [{ nome: 'semana_atividades_uma_por_semana', colunas: ['atividade_id', 'semana'] }],
   // Como no Postgres, linha sem pedido (baixa manual) não conta para a trava.
   movimentos_estoque: [{ nome: 'movimentos_um_por_pedido', colunas: ['pedido_id', 'tipo'], vale: (l) => l.pedido_id != null }],

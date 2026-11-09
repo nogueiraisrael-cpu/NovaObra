@@ -2,6 +2,7 @@
 import {
   proximoStatus, statusAnterior, lerQuantidade, quantidadeComUnidade, novoPedido, pedeFormulario, foiRecebido, filtrarQuantidade, diasNaColuna, leadTime, estaAtrasado,
   chegaEstaSemana, recebidoComProblema, contadores, montarQuadro, validarNovoPedido, validarMovimento, aplicarMovimento, podeExcluirPedido,
+  acharNoCatalogo, normalizarNomeMaterial, pedidoComCatalogo, materialDoPedido, decidirMaterialEscrito,
 } from '../src/lib/materiais.js'
 
 let ok = 0
@@ -76,6 +77,24 @@ conferir('atrasado no topo da coluna Comprado', quadro.Comprado[0].id, '3')
 conferir('novo pedido vazio: avisa cada campo', Object.keys(validarNovoPedido({ material_id: '', quantidade: '', frente: ' ', prioridade: 'Normal' })), ['material_id', 'quantidade', 'frente'])
 conferir('quantidade zero é recusada', validarNovoPedido({ material_id: 'm', quantidade: '0', frente: 'F', prioridade: 'Normal' }).quantidade, 'Quantidade tem que ser um número maior que zero.')
 conferir('novo pedido completo passa', validarNovoPedido({ material_id: 'm', quantidade: '50', frente: 'Reboco', prioridade: 'Crítico' }), {})
+
+// Material escrito à mão (09/11/2026): nome, unidade e categoria no lugar da lista.
+const manual = { manual: true, material_nome: '', unidade: '', categoria: '', quantidade: '5', frente: 'F', prioridade: 'Normal' }
+conferir('escrito à mão vazio: pede nome, unidade e categoria (não a lista)', Object.keys(validarNovoPedido(manual)), ['material_nome', 'unidade', 'categoria'])
+conferir('escrito à mão completo passa', validarNovoPedido({ ...manual, material_nome: 'Tubo PVC 150', unidade: 'barra', categoria: 'Instalações' }), {})
+conferir('categoria fora da lista é recusada', validarNovoPedido({ ...manual, material_nome: 'X', unidade: 'un', categoria: 'Outros' }).categoria, 'Escolha a categoria.')
+conferir('unidade comprida é recusada', validarNovoPedido({ ...manual, material_nome: 'X', unidade: 'saco de cinquenta quilos', categoria: 'Acabamento' }).unidade, 'Unidade muito longa (até 20 letras).')
+conferir('nome igual sem acento, maiúscula ou espaço', normalizarNomeMaterial('  Areia   MÉDIA '), 'areia media')
+const cat = [{ id: 'a', nome: 'Areia média', unidade: 'm³', categoria: 'Material grosso', ativo: true }, { id: 'v', nome: 'Verniz', unidade: 'lata', categoria: 'Acabamento', ativo: false }]
+conferir('acha no catálogo pelo nome', [acharNoCatalogo(cat, 'areia media')?.id, acharNoCatalogo(cat, 'Brita'), acharNoCatalogo(cat, '  ')], ['a', null, null])
+conferir('escrito igual a um da lista vira a escolha dele (sem pedir unidade)', pedidoComCatalogo({ ...manual, material_nome: 'AREIA MEDIA' }, cat),
+  { ...manual, material_nome: 'AREIA MEDIA', manual: false, material_id: 'a' })
+conferir('desativado não vira escolha (o banco avisa)', pedidoComCatalogo({ ...manual, material_nome: 'verniz' }, cat).manual, true)
+conferir('cartão provisório mostra o material escrito', materialDoPedido({ ...manual, material_nome: ' Tubo  PVC ', unidade: ' barra ', categoria: 'Instalações' }, cat),
+  { nome: 'Tubo PVC', unidade: 'barra', categoria: 'Instalações' })
+conferir('material da lista que não existe: nada (não quebra)', materialDoPedido({ material_id: 'zz' }, cat), null)
+conferir('no banco: sem igual cria; ativo com a mesma unidade usa', [decidirMaterialEscrito(null, { unidade: 'un' }), decidirMaterialEscrito(cat[0], { unidade: ' M³ ' }).usar?.id], [{ criar: true }, 'a'])
+conferir('no banco: outra unidade ou desativado é recusado', [Boolean(decidirMaterialEscrito(cat[0], { unidade: 'kg' }).erro), Boolean(decidirMaterialEscrito(cat[1], { unidade: 'lata' }).erro)], [true, true])
 
 conferir('não pula coluna', validarMovimento(p('x', 'Solicitar'), 'Comprado', { fornecedor: 'F', previsao_entrega: hoje }, hoje).status, 'O pedido anda uma coluna por vez.')
 conferir('comprado sem fornecedor nem previsão', Object.keys(validarMovimento(p('x', 'Em cotação'), 'Comprado', {}, hoje)), ['fornecedor', 'previsao_entrega'])

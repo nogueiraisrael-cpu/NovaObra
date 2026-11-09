@@ -17,7 +17,7 @@ import { aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento, val
 import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo, motivoParaNaoApagarObra, OBRA_COM_LANCAMENTOS } from './obras.js'
 import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
-import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido } from './materiais.js'
+import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido, acharNoCatalogo, limparNomeMaterial, decidirMaterialEscrito } from './materiais.js'
 import {
   montarEstoque, saldoDe, validarBaixa, lerMinimo, validarMinimo, efeitoNoEstoque, saidaDoQueSobrou, bloqueioNoEstoque, ordenarHistorico,
 } from './estoque.js'
@@ -969,15 +969,46 @@ export const listarQuadroMateriais = () => executar(async () => {
   })
 })
 
+// Material escrito à mão no pedido: se o catálogo já tem um com o mesmo nome (sem contar acento
+// nem maiúscula), usa ele; senão entra no catálogo (quadro: a equipe cria material) e o próximo
+// pedido já acha na lista. Se o pedido falhar depois, o material fica no catálogo, sem estrago:
+// tentar de novo reaproveita. A trava do banco (nome único) só pega o nome idêntico: dois
+// aparelhos gravando "Tubo PVC" e "tubo pvc" no mesmo instante criariam os dois.
+// Devolve { material, criou } ou { erro }.
+async function acharOuCriarMaterial(dados) {
+  const achar = async () => acharNoCatalogo(await ler('materiais'), dados.material_nome)
+  const decisao = decidirMaterialEscrito(await achar(), dados)
+  if (!decisao.criar) return decisao.erro ? decisao : { material: decisao.usar, criou: false }
+  try {
+    const material = await inserir('materiais', {
+      nome: limparNomeMaterial(dados.material_nome), unidade: dados.unidade.trim(), categoria: dados.categoria, ativo: true,
+    })
+    return { material, criou: true }
+  } catch (e) {
+    // Dois aparelhos criando o mesmo nome ao mesmo tempo: o banco recusa o segundo (nome único).
+    if (e.code !== '23505') throw e
+    const outra = decidirMaterialEscrito(await achar(), dados)
+    if (outra.criar) throw e
+    return outra.erro ? outra : { material: outra.usar, criou: false }
+  }
+}
+
+// Devolve o pedido gravado e, quando o material foi escrito à mão, se ele entrou agora na lista.
 export const salvarPedido = (dados) => executar(async () => {
   // A obra lida no toque vale até o fim, mesmo que o seletor mude enquanto o banco responde.
   const obraId = obraAtual()
   const erro = Object.values(validarNovoPedido(dados))[0]
   if (erro) return falha(erro)
-  const material = await um('materiais', { id: dados.material_id, ativo: true })
-  if (!material) return falha('Material não encontrado no catálogo.')
-  const novo = await inserir('pedidos_material', { ...novoPedido(dados, hoje()), obra_id: obraId, criado_por: usuario?.id ?? null })
-  return ok(comMaterial(novo, [material]))
+  if (dados.manual && !posso('catalogo.criar')) return falha('Sem permissão para incluir material na lista.')
+  const achado = dados.manual
+    ? await acharOuCriarMaterial(dados)
+    : { material: await um('materiais', { id: dados.material_id, ativo: true }), criou: false }
+  if (achado.erro) return falha(achado.erro)
+  if (!achado.material) return falha('Material não encontrado no catálogo.')
+  const novo = await inserir('pedidos_material', {
+    ...novoPedido({ ...dados, material_id: achado.material.id }, hoje()), obra_id: obraId, criado_por: usuario?.id ?? null,
+  })
+  return ok({ ...comMaterial(novo, [achado.material]), materialNovo: achado.criou })
 })
 
 // Mudar de coluna grava o pedido (status + histórico + o que a coluna pede) e, quando

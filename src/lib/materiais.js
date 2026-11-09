@@ -3,7 +3,7 @@
 // Cada pedido é um lote ("50 sacos de cimento") que anda pelas colunas de
 // STATUS_PEDIDO. Toda mudança de coluna entra no histórico { status, data };
 // é dele que saem o "há N dias nesta coluna" e o lead time.
-import { STATUS_PEDIDO, PRIORIDADES_PEDIDO } from './listas.js'
+import { STATUS_PEDIDO, PRIORIDADES_PEDIDO, CATEGORIAS_MATERIAL } from './listas.js'
 import { diasEntre, somarDias } from './datas.js'
 
 export const proximoStatus = (status) => STATUS_PEDIDO[STATUS_PEDIDO.indexOf(status) + 1] ?? null
@@ -87,10 +87,60 @@ export function montarQuadro(pedidos, hoje) {
     .sort((a, b) => (peso(a) - peso(b)) || (diasNaColuna(b, hoje) - diasNaColuna(a, hoje)))]))
 }
 
+// Material escrito à mão no pedido: "Tubo  PVC 100" e "tubo pvc 100" são o mesmo. Sem acento,
+// sem maiúscula e sem espaço sobrando, para não nascer um material repetido no catálogo.
+export const normalizarNomeMaterial = (nome) =>
+  String(nome ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+// O nome como vai para o catálogo: do jeito que a pessoa escreveu, só sem espaço sobrando.
+export const limparNomeMaterial = (nome) => String(nome ?? '').trim().replace(/\s+/g, ' ')
+
+// Material do catálogo com o mesmo nome (ativo ou não), ou null.
+export function acharNoCatalogo(catalogo, nome) {
+  const alvo = normalizarNomeMaterial(nome)
+  return alvo ? catalogo.find((m) => normalizarNomeMaterial(m.nome) === alvo) ?? null : null
+}
+
+// Escrito à mão com o nome de um material ativo da lista: vira a escolha desse material
+// (unidade e categoria são as dele). Os outros casos seguem como vieram.
+export function pedidoComCatalogo(pedido, catalogo) {
+  if (!pedido.manual) return pedido
+  const m = acharNoCatalogo(catalogo, pedido.material_nome)
+  return m?.ativo ? { ...pedido, manual: false, material_id: m.id } : pedido
+}
+
+// O material do pedido como o cartão mostra: o da lista, ou o escrito à mão (null se nenhum).
+export function materialDoPedido(pedido, catalogo) {
+  const m = pedido.manual
+    ? { nome: limparNomeMaterial(pedido.material_nome), unidade: String(pedido.unidade ?? '').trim(), categoria: pedido.categoria }
+    : catalogo.find((x) => x.id === pedido.material_id)
+  return m ? { nome: m.nome, unidade: m.unidade, categoria: m.categoria } : null
+}
+
+// No banco, o material escrito pode já existir (outro aparelho criou depois de a tela abrir).
+// Devolve { usar } com o existente, { criar: true }, ou { erro } quando reaproveitar mudaria o
+// sentido do pedido: desativado não volta por aqui, e unidade diferente trocaria a quantidade.
+export function decidirMaterialEscrito(existente, { unidade }) {
+  if (!existente) return { criar: true }
+  if (!existente.ativo) return { erro: `"${existente.nome}" foi desativado da lista de materiais. Escreva outro nome ou escolha da lista.` }
+  if (normalizarNomeMaterial(existente.unidade) !== normalizarNomeMaterial(unidade)) {
+    return { erro: `"${existente.nome}" já está na lista, medido em ${existente.unidade}. Escolha da lista e confira a quantidade.` }
+  }
+  return { usar: existente }
+}
+
 // Novo pedido: devolve { campo: mensagem } para cada campo com problema ({} = pode gravar).
-export function validarNovoPedido({ material_id, quantidade, frente, prioridade }) {
+// Com `manual`, o material vem escrito (nome, unidade, categoria) em vez de escolhido na lista.
+export function validarNovoPedido({ manual, material_id, material_nome, unidade, categoria, quantidade, frente, prioridade }) {
   const erros = {}
-  if (!material_id) erros.material_id = 'Escolha o material.'
+  if (manual) {
+    const nome = limparNomeMaterial(material_nome)
+    if (!nome) erros.material_nome = 'Escreva o nome do material.'
+    else if (nome.length > 80) erros.material_nome = 'Nome muito longo (até 80 letras).'
+    if (!unidade?.trim()) erros.unidade = 'Informe a unidade (ex.: saco, m³, un).'
+    else if (unidade.trim().length > 20) erros.unidade = 'Unidade muito longa (até 20 letras).'
+    if (!CATEGORIAS_MATERIAL.includes(categoria)) erros.categoria = 'Escolha a categoria.'
+  } else if (!material_id) erros.material_id = 'Escolha o material.'
   if (quantidade === '' || quantidade == null) erros.quantidade = 'Informe a quantidade.'
   else if (lerQuantidade(quantidade) === null) erros.quantidade = 'Quantidade tem que ser um número maior que zero.'
   if (!frente?.trim()) erros.frente = 'Informe a frente onde o material vai ser usado.'

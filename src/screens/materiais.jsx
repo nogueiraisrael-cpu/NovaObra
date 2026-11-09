@@ -8,7 +8,7 @@ import { useDados } from '../lib/useDados.js'
 import {
   proximoStatus, statusAnterior, diasNaColuna, leadTime, estaAtrasado, recebidoComProblema, foiRecebido, contadores, montarQuadro,
   validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, pedeFormulario, filtrarQuantidade, quantidadeComUnidade, lerQuantidade,
-  podeExcluirPedido,
+  podeExcluirPedido, pedidoComCatalogo, materialDoPedido,
 } from '../lib/materiais.js'
 import { ajustarLinha, contarCriticos, efeitoNoEstoque, lerMinimo } from '../lib/estoque.js'
 import { PRIORIDADES_PEDIDO, CATEGORIAS_MATERIAL, STATUS_PEDIDO } from '../lib/listas.js'
@@ -37,35 +37,74 @@ function SimNao({ id, valor, mudar }) {
 
 // ---------- novo pedido: material, quantidade, frente e prioridade. Só isso. ----------
 function FormNovoPedido({ catalogo, frentes, fechar, salvar }) {
-  const [f, setF] = useState({ material_id: '', quantidade: '', frente: '', prioridade: 'Normal' })
+  const [f, setF] = useState({
+    manual: false, material_id: '', material_nome: '', unidade: '', categoria: '', quantidade: '', frente: '', prioridade: 'Normal',
+  })
   const [tocados, setTocados] = useState({})
   const [tentou, setTentou] = useState(false)
-  const erros = validarNovoPedido(f)
+  // Escrito à mão com o nome de um que já está na lista: o pedido usa o da lista (com a unidade dele).
+  const pedido = pedidoComCatalogo(f, catalogo)
+  const material = materialDoPedido(pedido, catalogo)
+  const jaExiste = f.manual && !pedido.manual ? material : null
+  const erros = validarNovoPedido(pedido)
   const mostrar = (campo) => (tentou || tocados[campo]) && erros[campo]
   const tocar = (campo) => setTocados((t) => ({ ...t, [campo]: true }))
-  const unidade = catalogo.find((m) => m.id === f.material_id)?.unidade
+  const unidade = material?.unidade
+  const unidades = [...new Set(catalogo.map((m) => m.unidade))].sort()
 
   function enviar() {
     setTentou(true)
     if (Object.keys(erros).length) return
-    salvar(f)
+    salvar(pedido)
   }
 
   return (
     <>
       <div className="eyebrow">Novo pedido</div>
       <h2>Pedir material</h2>
-      <label className="label" htmlFor="np-material">Material</label>
-      <select id="np-material" className="field" value={f.material_id}
-        onChange={(e) => { setF({ ...f, material_id: e.target.value }); tocar('material_id') }} onBlur={() => tocar('material_id')}>
-        <option value="">Escolha…</option>
-        {CATEGORIAS_MATERIAL.map((c) => (
-          <optgroup key={c} label={c}>
-            {catalogo.filter((m) => m.categoria === c).map((m) => <option key={m.id} value={m.id}>{m.nome} ({m.unidade})</option>)}
-          </optgroup>
-        ))}
-      </select>
-      <ErroCampo erro={mostrar('material_id')} />
+      {f.manual ? (
+        <>
+          <label className="label" htmlFor="np-nome">Material</label>
+          <input id="np-nome" className="field" autoComplete="off" maxLength={80} placeholder="Ex.: Tubo PVC 100 mm"
+            value={f.material_nome} onChange={(e) => setF({ ...f, material_nome: e.target.value })} onBlur={() => tocar('material_nome')} />
+          <ErroCampo erro={mostrar('material_nome')} />
+          {jaExiste ? (
+            <div className="hint">Já está na lista: {jaExiste.nome} ({jaExiste.unidade}). O pedido usa esse.</div>
+          ) : (
+            <>
+              <label className="label" htmlFor="np-unidade">Unidade</label>
+              <input id="np-unidade" className="field" list="np-unidades" autoComplete="off" maxLength={20} placeholder="Ex.: saco, m³, un"
+                value={f.unidade} onChange={(e) => setF({ ...f, unidade: e.target.value })} onBlur={() => tocar('unidade')} />
+              <datalist id="np-unidades">{unidades.map((x) => <option key={x} value={x} />)}</datalist>
+              <ErroCampo erro={mostrar('unidade')} />
+              <div className="label" id="np-categoria">Categoria</div>
+              <div className="seg three" role="group" aria-labelledby="np-categoria">
+                {CATEGORIAS_MATERIAL.map((x) => (
+                  <button key={x} className={f.categoria === x ? 'info' : ''} onClick={() => { setF({ ...f, categoria: x }); tocar('categoria') }}>{x}</button>
+                ))}
+              </div>
+              <ErroCampo erro={mostrar('categoria')} />
+              <div className="hint">O material entra na lista e fica para os próximos pedidos.</div>
+            </>
+          )}
+          <button className="link-insumo" onClick={() => setF({ ...f, manual: false })}>Escolher da lista</button>
+        </>
+      ) : (
+        <>
+          <label className="label" htmlFor="np-material">Material</label>
+          <select id="np-material" className="field" value={f.material_id}
+            onChange={(e) => { setF({ ...f, material_id: e.target.value }); tocar('material_id') }} onBlur={() => tocar('material_id')}>
+            <option value="">Escolha…</option>
+            {CATEGORIAS_MATERIAL.map((c) => (
+              <optgroup key={c} label={c}>
+                {catalogo.filter((m) => m.categoria === c).map((m) => <option key={m.id} value={m.id}>{m.nome} ({m.unidade})</option>)}
+              </optgroup>
+            ))}
+          </select>
+          <ErroCampo erro={mostrar('material_id')} />
+          {posso('catalogo.criar') && <button className="link-insumo" onClick={() => setF({ ...f, manual: true })}>Não está na lista? Escrever à mão</button>}
+        </>
+      )}
       <label className="label" htmlFor="np-qtd">Quantidade{unidade ? ` (${unidade})` : ''}</label>
       <input id="np-qtd" className="field" inputMode="decimal" autoComplete="off" placeholder="Ex.: 50"
         value={f.quantidade} onChange={(e) => setF({ ...f, quantidade: filtrarQuantidade(e.target.value) })} onBlur={() => tocar('quantidade')} />
@@ -320,6 +359,7 @@ export default function Materiais() {
   const quadro = useDados(listarQuadroMateriais)
   const [pedidos, setPedidos] = useState(null) // cópias locais, para o otimista
   const [estoque, setEstoque] = useState(null)
+  const [catalogoNovo, setCatalogoNovo] = useState(null) // depois de um material escrito à mão entrar na lista
   // {tipo:'novo'} | {tipo:'mover', pedido, novo} | {tipo:'detalhes', pedido} | {tipo:'baixa'} | {tipo:'insumo', id}
   const [gaveta, setGaveta] = useState(null)
   const [vista, setVista] = useState('Pedidos')
@@ -334,6 +374,7 @@ export default function Materiais() {
     await quadro.recarregar()
     setPedidos(null)
     setEstoque(null)
+    setCatalogoNovo(null)
   }
 
   // Busca de novo sem sair da tela: depois de uma gravação recusada, e depois de um pedido
@@ -343,6 +384,7 @@ export default function Materiais() {
     if (!data) return
     setPedidos(data.pedidos)
     setEstoque(data.estoque)
+    setCatalogoNovo(data.catalogo)
   }
 
   if (quadro.carregando) return <Carregando />
@@ -350,7 +392,8 @@ export default function Materiais() {
 
   const lista = pedidos ?? quadro.data.pedidos
   const insumos = estoque ?? quadro.data.estoque
-  const { catalogo, frentes } = quadro.data
+  const catalogo = catalogoNovo ?? quadro.data.catalogo
+  const { frentes } = quadro.data
   const mudarLista = (fn) => setPedidos((atual) => fn(atual ?? quadro.data.pedidos))
   const trocar = (id, novo) => mudarLista((l) => l.map((p) => (p.id === id ? novo : p)))
   const mudarInsumo = (id, fn) => setEstoque((atual) => (atual ?? quadro.data.estoque).map((l) => (l.id === id ? fn(l) : l)))
@@ -358,10 +401,9 @@ export default function Materiais() {
   const insumoAberto = gaveta?.tipo === 'insumo' ? insumos.find((l) => l.id === gaveta.id) : null
 
   async function criar(f) {
-    const material = catalogo.find((m) => m.id === f.material_id)
     const temp = {
       ...novoPedido(f, hoje), id: `tmp-${Date.now()}`, gravando: true,
-      material: { nome: material.nome, unidade: material.unidade, categoria: material.categoria },
+      material: materialDoPedido(f, catalogo),
     }
     setGaveta(null)
     mudarLista((l) => [...l, temp])
@@ -370,8 +412,10 @@ export default function Materiais() {
       mudarLista((l) => l.filter((p) => p.id !== temp.id))
       return toast(`Pedido não foi salvo: ${erro}`, 'bad')
     }
-    trocar(temp.id, data)
-    toast('Pedido criado em Solicitar')
+    const { materialNovo, ...salvo } = data
+    trocar(temp.id, salvo)
+    toast(materialNovo ? 'Pedido criado em Solicitar e material incluído na lista' : 'Pedido criado em Solicitar')
+    if (f.manual) atualizarQuieto()
   }
 
   async function mover(p, novo, extras = {}) {
