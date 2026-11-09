@@ -69,6 +69,10 @@ export function criarBancoMemoria(hoje) {
       anotar(tabela, filtros)
       return copia(db[tabela].filter((l) => casa(l, filtros)))
     },
+    async existe(tabela, filtros) {
+      anotar(tabela, { id: null, ...filtros })
+      return db[tabela].some((l) => casa(l, filtros))
+    },
     async inserir(tabela, linhas) {
       linhas.forEach((l) => anotar(tabela, l))
       const novas = linhas.map((l) => ({ id: crypto.randomUUID(), created_at: new Date().toISOString(), ...l }))

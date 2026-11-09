@@ -5,8 +5,8 @@
 // de lançamento usa obraAtual() por dentro; as telas NUNCA passam obra_id.
 // Assim nenhuma tela consegue esquecer o filtro.
 //
-// As regras abaixo conversam com o banco por quatro verbos (ler, inserir,
-// atualizar, apagar). Quem atende é o Supabase; nos testes, um banco em memória
+// As regras abaixo conversam com o banco por cinco verbos (ler, inserir,
+// atualizar, apagar, existe). Quem atende é o Supabase; nos testes, um banco em memória
 // (tests/apoio/bancoMemoria.js) que os próprios testes encaixam aqui.
 //
 // O LOGIN é o Supabase Auth; no banco dos testes, as pessoas vêm dos dados de exemplo.
@@ -14,7 +14,7 @@ import { supabase } from './supabase.js'
 import { hojeISO, somarDias } from './datas.js'
 import { montarEfetivo, podeMarcarPresenca, mensagemTrava, contaComoPresenca } from './efetivo.js'
 import { aplicarFechamento, validarPreenchimento, validarFrente } from './frentes.js'
-import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo } from './obras.js'
+import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo, motivoParaNaoApagarObra, OBRA_COM_LANCAMENTOS } from './obras.js'
 import { ordenarDiarios, resumirDiario } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
 import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido } from './materiais.js'
@@ -81,6 +81,10 @@ const bancoSupabase = {
   async apagar(tabela, filtros) {
     return resposta(await filtrar(supabase.from(tabela).delete(), filtros).select())
   },
+  // "Tem pelo menos um?" sem trazer a tabela inteira (apagar obra pergunta isso a 19 tabelas).
+  async existe(tabela, filtros) {
+    return resposta(await filtrar(supabase.from(tabela).select('id'), filtros).limit(1)).length > 0
+  },
   // Contas: a função admin-usuarios (chave de serviço só no servidor). A frase de recusa vem dela.
   async admin(acao, dados) {
     const { data, error } = await supabase.functions.invoke('admin-usuarios', { body: { acao, ...dados } })
@@ -93,7 +97,7 @@ const bancoSupabase = {
 const semBanco = {
   async ler() { throw new Error('Banco não configurado: falta o arquivo .env.local com a URL e a chave do Supabase.') },
 }
-semBanco.inserir = semBanco.atualizar = semBanco.apagar = semBanco.admin = semBanco.ler
+semBanco.inserir = semBanco.atualizar = semBanco.apagar = semBanco.existe = semBanco.admin = semBanco.ler
 
 let banco = supabase ? bancoSupabase : semBanco
 let perfis = []
@@ -126,6 +130,7 @@ function traduzirErro(e) {
   if (e.code === '23505' && /medicoes_um_numero/.test(e.message)) return 'Já existe medição com esse número. Use outro número.'
   if (e.code === '23505') return 'Isso já está gravado (registro repetido).'
   if (e.code === '23514') return 'O banco recusou um valor fora da lista permitida.'
+  if (e.code === '23503' && /on table "obras"/.test(e.message)) return OBRA_COM_LANCAMENTOS
   if (e.code === '23503') return 'Este registro aponta para algo que não existe mais.'
   if (e.code === '42501') return 'Sem permissão para gravar aqui.'
   if (e.code === 'nao_gravou') return 'Não foi gravado: você não tem permissão aqui, ou este registro mudou. Recarregue a tela e confira.'
@@ -144,6 +149,7 @@ async function executar(fn) {
 
 const ler = (tabela, filtros) => banco.ler(tabela, filtros)
 const um = async (tabela, filtros) => (await banco.ler(tabela, filtros))[0] ?? null
+const existe = (tabela, filtros) => banco.existe(tabela, filtros)
 // Alterar ou apagar sem filtro mexeria na tabela inteira: recusado aqui, para os dois bancos.
 const atualizar = (tabela, filtros, campos) => { exigirFiltro(filtros); return banco.atualizar(tabela, filtros, campos) }
 const apagar = (tabela, filtros) => { exigirFiltro(filtros); return banco.apagar(tabela, filtros) }
@@ -358,6 +364,22 @@ export const salvarObra = (dados) => executar(async () => {
   }
   if (obra.id) return ok((await gravar('obras', { id: obra.id }, campos))[0])
   return ok(await inserir('obras', campos))
+})
+
+// Quadro (obra.apagar): só o Engenheiro, e só obra sem nada lançado. Aqui se pergunta antes para
+// dizer O QUE a obra tem; a trava de verdade é o banco (nenhuma ligação com obras apaga em
+// cascata, só a lista de acesso em membros, migration -24).
+export const apagarObra = (id) => executar(async () => {
+  if (!posso('obra.apagar')) return falha('Só o Engenheiro apaga obra.')
+  const perguntas = [
+    ...TABELAS_DA_OBRA.map((t) => [t, { obra_id: id }]),
+    ['funcionarios', { obra_id: id }], ['equipamentos', { obra_id: id }], ['rdo_efetivo', { obra_destino_id: id }],
+  ]
+  const tem = await Promise.all(perguntas.map(([t, f]) => existe(t, f)))
+  const motivo = motivoParaNaoApagarObra(perguntas.filter((_, i) => tem[i]).map(([t]) => t))
+  if (motivo) return falha(motivo)
+  await apagarDeVerdade('obras', { id })
+  return ok(true)
 })
 
 // ---------------------------------------------------------------------------

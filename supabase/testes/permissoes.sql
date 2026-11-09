@@ -107,6 +107,8 @@ begin
   insert into _r values ('gerente não muda o catálogo', n = 0);
   update public.obras set nome = nome where id = ubs; get diagnostics n = row_count;
   insert into _r values ('gerente não edita a obra', n = 0);
+  delete from public.obras where id = ubs; get diagnostics n = row_count;
+  insert into _r values ('gerente não apaga a obra', n = 0);
   begin
     insert into public.membros (obra_id, profile_id) values (serra, ger);
     insert into _r values ('gerente não se libera em outra obra', false);
@@ -142,6 +144,19 @@ begin
   select count(*) into n from public.profiles; insert into _r values ('engenheiro vê todos os perfis', n >= 5);
   update public.obras set nome = nome where id = ubs; get diagnostics n = row_count;
   insert into _r values ('engenheiro edita a obra', n = 1);
+  begin
+    delete from public.obras where id = ubs;
+    insert into _r values ('nem o engenheiro apaga obra com lançamentos', false);
+  exception when foreign_key_violation then insert into _r values ('nem o engenheiro apaga obra com lançamentos', true); end;
+  declare vazia uuid; begin
+    insert into public.obras (nome, codigo, tipo, cidade, data_inicio, situacao)
+      values ('Obra vazia T', 'VAZIA-T', 'Licitação', 'Natal', '2026-01-10', 'Em andamento') returning id into vazia;
+    insert into public.membros (obra_id, profile_id) values (vazia, ger);
+    delete from public.obras where id = vazia; get diagnostics n = row_count;
+    insert into _r values ('engenheiro apaga obra vazia', n = 1);
+    select count(*) into n from public.membros where obra_id = vazia;
+    insert into _r values ('a lista de acesso da obra apagada vai junto', n = 0);
+  end;
   delete from public.rdos where status = 'Fechado'; get diagnostics n = row_count;
   insert into _r values ('nem o engenheiro apaga diário fechado', n = 0);
   begin

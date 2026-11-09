@@ -48,6 +48,8 @@ await d.listarResumoObras()
 await d.listarQuadroEfetivo()
 const nova = await d.salvarObra({ nome: 'Obra de conferência', codigo: 'conf', tipo: 'Licitação', cidade: 'Natal', data_inicio: '2026-01-10', situacao: 'Em andamento' })
 await d.salvarObra({ ...nova.data, nome: 'Obra de conferência 2' })
+const descartavel = await d.salvarObra({ nome: 'Obra para apagar', codigo: 'apagar', tipo: 'Licitação', cidade: 'Natal', data_inicio: '2026-01-10', situacao: 'Em andamento' })
+await d.apagarObra(descartavel.data.id)
 for (const obra of ['obra-ubs', 'obra-serra']) {
   d.definirObraAtual(obra)
   await d.obterRdoHoje()

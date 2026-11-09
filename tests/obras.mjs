@@ -1,5 +1,7 @@
 // Entidade OBRA: validação, obra inicial (a guardada) e ordem do comparativo.
-import { escolherObraInicial, validarObra, ordenarResumo, normalizarCodigo, cobraRdoDeOntem } from '../src/lib/obras.js'
+import { escolherObraInicial, validarObra, ordenarResumo, normalizarCodigo, cobraRdoDeOntem, motivoParaNaoApagarObra } from '../src/lib/obras.js'
+import * as dados from '../src/lib/dados.js'
+import { reiniciarMock } from './apoio/bancoMemoria.js'
 
 let ok = 0
 let tot = 0
@@ -37,6 +39,26 @@ conferir('feriado não cobra', cobraRdoDeOntem(andando, undefined, '2026-11-02')
 conferir('obra que começou hoje não cobra ontem', cobraRdoDeOntem({ ...andando, data_inicio: '2026-11-07' }, undefined, '2026-11-06'), false)
 conferir('obra concluída não cobra', cobraRdoDeOntem({ ...andando, situacao: 'Concluída' }, undefined, '2026-11-06'), false)
 conferir('sem calendário vale seg a sex: sábado não cobra',cobraRdoDeOntem({ situacao: 'Em andamento' }, undefined, '2026-11-07'), false)
+
+// APAGAR OBRA (quadro obra.apagar): só o Engenheiro, só obra sem nada lançado.
+conferir('obra vazia pode apagar', motivoParaNaoApagarObra([]), null)
+conferir('a frase diz o que a obra tem, sem repetir', motivoParaNaoApagarObra(['rdos', 'fotos', 'pedidos_material', 'funcionarios']),
+  'Esta obra não pode ser apagada: já tem diários, pedidos de material e funcionários lotados nela. Só se apaga obra sem nada lançado. Para tirá-la do dia a dia, marque a situação como Concluída.')
+const semNome = [...dados.TABELAS_DA_OBRA, 'funcionarios', 'equipamentos']
+  .filter((t) => motivoParaNaoApagarObra([t]).includes('já tem lançamentos'))
+conferir('toda tabela que prende a obra tem nome na frase (tabela nova entra em O_QUE_PRENDE)', semNome, [])
+
+reiniciarMock(dados)
+await dados.entrar('eng@novaobra.test', 'x')
+const vazia = (await dados.salvarObra({ nome: 'Obra vazia', codigo: 'vazia', tipo: 'Licitação', cidade: 'Natal', data_inicio: '2026-01-10', situacao: 'Em andamento' })).data
+conferir('obra com lançamentos é recusada, dizendo o quê', /^Esta obra não pode ser apagada: já tem .*diários/.test((await dados.apagarObra('obra-ubs')).erro), true)
+conferir('a obra recusada continua lá', (await dados.listarObras()).data.some((o) => o.id === 'obra-ubs'), true)
+await dados.entrar('helena@novaobra.test', 'x')
+conferir('cliente não apaga obra', (await dados.apagarObra(vazia.id)).erro, 'Só o Engenheiro apaga obra.')
+await dados.entrar('eng@novaobra.test', 'x')
+conferir('engenheiro apaga obra vazia', (await dados.apagarObra(vazia.id)).erro, null)
+conferir('a obra apagada sumiu da lista', (await dados.listarObras()).data.some((o) => o.id === vazia.id), false)
+conferir('apagar de novo avisa que não achou', Boolean((await dados.apagarObra(vazia.id)).erro), true)
 
 console.log(`${ok}/${tot} — obras`)
 process.exit(ok === tot ? 0 : 1)

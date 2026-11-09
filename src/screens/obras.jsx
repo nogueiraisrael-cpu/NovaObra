@@ -1,7 +1,7 @@
 // COMPARATIVO ENTRE OBRAS — a única tela que mostra várias obras juntas.
 // Tocar num cartão escolhe a obra e abre o RDO de hoje dela.
 import { useState } from 'react'
-import { listarResumoObras, salvarObra, posso, textosDasObras } from '../lib/dados.js'
+import { listarResumoObras, salvarObra, apagarObra, posso, textosDasObras } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
 import { ordenarResumo, separarPorSituacao } from '../lib/obras.js'
@@ -49,10 +49,20 @@ function CartaoObra({ r, atual, abrir, editar }) {
 
 const VAZIA = { nome: '', codigo: '', tipo: 'Alto padrão', endereco: '', cidade: '', cliente: '', numero_contrato: '', data_inicio: '', data_meta_entrega: '', situacao: 'Em andamento' }
 
-function FormObra({ inicial, fechar, salvo }) {
+function FormObra({ inicial, fechar, salvo, apagada }) {
   const [o, setO] = useState({ ...VAZIA, ...inicial })
   const [erro, setErro] = useState(null)
   const [salvando, setSalvando] = useState(false)
+  const [confirmarApagar, setConfirmarApagar] = useState(false)
+
+  async function apagar() {
+    setSalvando(true)
+    const { erro: falhou } = await apagarObra(inicial.id)
+    setSalvando(false)
+    setConfirmarApagar(false)
+    if (falhou) return setErro(falhou)
+    apagada()
+  }
   const campo = (k) => ({ value: o[k] ?? '', onChange: (e) => setO({ ...o, [k]: e.target.value }) })
 
   async function salvar() {
@@ -109,6 +119,18 @@ function FormObra({ inicial, fechar, salvo }) {
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
         <button className="btn btn-primary" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar'}</button>
       </div>
+      {inicial?.id && posso('obra.apagar') && (confirmarApagar
+        ? (
+          <div className="note" style={{ marginTop: 24 }}>
+            <b>Apagar a obra {inicial.nome}?</b> Isto não se desfaz. Só funciona se a obra não tiver nada lançado.
+            <div className="sheet-actions">
+              <button className="btn btn-ghost" onClick={() => setConfirmarApagar(false)} disabled={salvando}>Não apagar</button>
+              <button className="btn btn-danger" onClick={apagar} disabled={salvando}>{salvando ? 'Apagando…' : 'Apagar de vez'}</button>
+            </div>
+          </div>
+        )
+        : <button className="link t-bad" style={{ marginTop: 24, fontSize: 15, fontWeight: 700, minHeight: 44 }}
+          onClick={() => { setErro(null); setConfirmarApagar(true) }}>Apagar obra</button>)}
     </>
   )
 }
@@ -128,13 +150,21 @@ export default function Obras({ abrirObra }) {
     recarregar()
   }
 
+  async function aoApagar() {
+    setForm(null)
+    toast('Obra apagada')
+    // Se era a obra atual, ela some da lista e o contexto escolhe outra (escolherObraInicial).
+    await recarregarObras()
+    recarregar()
+  }
+
   const cabecalho = (
     <Cabecalho eyebrow={formatarDataLonga(hojeISO())} titulo="Obras" sub={textosDasObras().comparativo}
       acao={posso('obra.criar') && <button className="btn btn-ghost" onClick={() => setForm({})}>+ Nova obra</button>} />
   )
   const gaveta = (
     <Gaveta aberta={form !== null} fechar={() => setForm(null)} rotulo="Cadastro de obra">
-      {form !== null && <FormObra inicial={form} fechar={() => setForm(null)} salvo={aoSalvar} />}
+      {form !== null && <FormObra inicial={form} fechar={() => setForm(null)} salvo={aoSalvar} apagada={aoApagar} />}
     </Gaveta>
   )
 

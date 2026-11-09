@@ -42,6 +42,27 @@ export function escolherObraInicial(obras, idGuardado) {
   return andamento?.id ?? obras[0]?.id ?? null
 }
 
+// Quadro (obra.apagar): só se apaga obra sem nada lançado. Recebe as tabelas onde a obra
+// tem algum registro e devolve a frase do porquê não, ou null se pode apagar.
+const O_QUE_PRENDE = {
+  rdos: 'diários', rdo_efetivo: 'diários', rdo_equipamentos: 'diários', rdo_frentes: 'diários',
+  rdo_frente_equipe: 'diários', fotos: 'diários', frentes_servico: 'frentes de serviço',
+  pedidos_material: 'pedidos de material', insumos: 'estoque', movimentos_estoque: 'estoque',
+  atividades: 'planejamento', restricoes: 'planejamento', semana_atividades: 'planejamento', subtarefas: 'planejamento',
+  medicoes: 'medições', medicao_itens: 'medições',
+  funcionarios: 'funcionários lotados nela', equipamentos: 'equipamentos lotados nela',
+}
+
+const naoApaga = (lista) => `Esta obra não pode ser apagada: já tem ${lista}. Só se apaga obra sem nada lançado. Para tirá-la do dia a dia, marque a situação como Concluída.`
+// Quando só o banco sabe (recusou com 23503) e não diz o quê.
+export const OBRA_COM_LANCAMENTOS = naoApaga('lançamentos')
+
+export function motivoParaNaoApagarObra(tabelasComRegistro) {
+  const itens = [...new Set(tabelasComRegistro.map((t) => O_QUE_PRENDE[t] ?? 'lançamentos'))]
+  if (!itens.length) return null
+  return naoApaga(itens.length === 1 ? itens[0] : `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}`)
+}
+
 export function validarObra(o) {
   if (!o.nome?.trim()) return 'Dê um nome à obra.'
   if (!o.codigo?.trim()) return 'Dê um código ou apelido curto (ex.: SERRA4).'

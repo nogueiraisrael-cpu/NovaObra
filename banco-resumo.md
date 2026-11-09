@@ -15,7 +15,7 @@ grava só nas obras liberadas para ele em `membros`; não vê Medições; não a
 funcionário, equipamento, material do catálogo nem baixa manual de estoque; apaga pedido só em "Solicitar".
 Funcionários e equipamentos ele vê todos (só nome e função), porque o efetivo do dia mostra quem veio de outra
 obra, mas só muda os das obras dele e os sem obra. Nem o Engenheiro apaga diário fechado ou com fotos. O **Cliente** (v1.1) só vê as obras dele, nenhum lançamento ainda. O teste
-`supabase/testes/permissoes.sql` confere 49 casos (último resultado: 49 de 49). A trava "presente em duas obras" do
+`supabase/testes/permissoes.sql` confere 53 casos (último resultado: 53 de 53, em 09/11/2026). A trava "presente em duas obras" do
 gerente lê as outras obras pela função `efetivo_do_dia` (só quem está em qual obra no dia).
 
 ## O que ainda falta
@@ -39,7 +39,7 @@ Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `mo
 | Tabela | O que guarda | Uma linha é… |
 |---|---|---|
 | `profiles` | Cada login: nome, e-mail, perfil (`admin_master`, `gerente`, `cliente`; vazio enquanto pendente) e situação (`pendente`, `ativo`, `bloqueado`). Nasce sozinha no cadastro: **o primeiro cadastro vira admin_master ativo**; os outros, pendentes. Ninguém muda o próprio perfil ou situação, e só o admin ativo muda os dos outros (gatilho no banco) | uma pessoa com login |
-| `membros` | Quais obras o gerente e o cliente veem (o admin vê todas). Só o admin mexe | uma pessoa liberada numa obra |
+| `membros` | Quais obras o gerente e o cliente veem (o admin vê todas). Só o admin mexe. Some junto quando a obra é apagada (migration -24) | uma pessoa liberada numa obra |
 | `obras` | Cada obra: nome, código curto (único), tipo, cidade, cliente, contrato, datas, situação, e o calendário do Planejamento (`dias_trabalho`: 0 = domingo … 6 = sábado; `feriados`) | uma obra |
 | `funcionarios` | O efetivo. Nome, função e a obra onde está lotado (pode ficar sem obra) | uma pessoa da equipe (não tem login) |
 | `equipamentos` | Betoneira, andaime etc.: onde está (na obra, no conserto, no depósito) e desde quando | um equipamento |
@@ -69,6 +69,8 @@ Mesmo que a tela erre, o banco recusa:
   motivo de parada etc. Um valor diferente é recusado, nunca gravado pela metade.
 - **Um diário por obra por dia.**
 - **Trava de duas obras:** o mesmo funcionário só fica presente em uma obra por dia.
+- **Obra só se apaga vazia:** nenhuma tabela apaga em cascata junto com a obra (só `membros`), então o banco
+  recusa apagar obra com qualquer lançamento ou com funcionário/equipamento lotado nela.
 - **Nada pendurado na obra errada:** a linha de efetivo, de equipamento ou de frente tem que ser da
   mesma obra do diário dela; a foto tem que ser da mesma obra do diário e da frente.
 - **Pedido coerente:** quantidade maior que zero; frente preenchida; de Comprado em diante exige fornecedor e

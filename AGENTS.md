@@ -93,8 +93,8 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
 - **Não → `src/screens/*.jsx`.** Estado de interface, layout, o que se toca. A tela **pede a
   decisão à lib**; não decide.
 - `src/lib/dados.js` — **única porta do banco**, e o único arquivo que chama `supabase.from(...)`
-  (o `check-schema` reprova outro). As regras falam com o banco por quatro verbos (ler, inserir,
-  atualizar, apagar); quem atende é o Supabase, sempre. Nos testes, um banco em memória
+  (o `check-schema` reprova outro). As regras falam com o banco por cinco verbos (ler, inserir,
+  atualizar, apagar, e `existe` para "tem pelo menos um?"); quem atende é o Supabase, sempre. Nos testes, um banco em memória
   (`tests/apoio/bancoMemoria.js`) entra no lugar por `_usarBancoDeTeste`; nada em `src/` importa
   dado de exemplo. O login é o Supabase Auth desde 03/11/2026 (regras puras em `src/lib/login.js`);
   no banco dos testes, as pessoas vêm dos dados de exemplo e qualquer senha serve. O agente nunca cria conta nem digita senha:
