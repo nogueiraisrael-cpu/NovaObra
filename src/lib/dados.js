@@ -625,6 +625,7 @@ export const obterPreenchimento = (frenteId) => executar(async () => {
   const presentes = efetivo.filter((i) => contaComoPresenca(i.situacao)).map((i) => ({
     id: i.funcionario.id,
     nome: i.funcionario.nome,
+    funcao: i.funcionario.funcao,
     tambem_em: rfs
       .filter((x) => x.frente_id !== frenteId && equipe.some((q) => q.rdo_frente_id === x.id && q.funcionario_id === i.funcionario.id))
       .map((x) => nomeDaFrente(x.frente_id)),

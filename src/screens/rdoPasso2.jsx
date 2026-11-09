@@ -155,7 +155,7 @@ function PreencherFrente({ inicial, fechar, salvo }) {
           <div className="chips">
             {inicial.presentes.map((x) => (
               <button key={x.id} className={`chip${p.equipe.has(x.id) ? ' on' : ''}`} onClick={() => alternar(x.id)}>
-                {x.nome}{x.tambem_em.length > 0 && <small>também em: {x.tambem_em.join(', ')}</small>}
+                {x.nome}{x.funcao && <span className="funcao"> · {x.funcao}</span>}{x.tambem_em.length > 0 && <small>também em: {x.tambem_em.join(', ')}</small>}
               </button>
             ))}
           </div>

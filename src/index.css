@@ -239,6 +239,7 @@ select.field{appearance:none;background-image:linear-gradient(45deg,transparent 
 .chip{min-height:46px;padding:0 16px;border-radius:999px;background:var(--card-2);font-weight:600;font-size:15px;border:1.5px solid transparent;color:#D3DCE0}
 .chip.on{border-color:var(--accent);background:rgba(0,163,180,.18);color:var(--text)}
 .chip small{color:var(--warn);font-weight:600;margin-left:4px}
+.chip .funcao{color:var(--muted);font-weight:500}
 .photo-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .thumb{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;background:var(--card-2)}

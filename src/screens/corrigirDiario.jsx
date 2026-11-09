@@ -107,7 +107,7 @@ export default function CorrigirDiario({ d, podeFechar, cancelar, salvo }) {
               <div className="chips">
                 {presentes.map((l) => (
                   <button key={l.funcionario_id} className={`chip${f.frentes[fr.id].equipe.includes(l.funcionario_id) ? ' on' : ''}`}
-                    onClick={() => alternarEquipe(fr.id, l.funcionario_id)}>{l.nome}</button>
+                    onClick={() => alternarEquipe(fr.id, l.funcionario_id)}>{l.nome}{l.funcao && <span className="funcao"> · {l.funcao}</span>}</button>
                 ))}
               </div>
             )}
