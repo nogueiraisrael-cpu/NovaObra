@@ -40,6 +40,44 @@ export function rotuloExecutor(frente) {
   return frente.executor === 'Terceirizado' ? `Terceirizado — ${frente.empreiteiro}` : 'Equipe própria'
 }
 
+// A situação que a frente ganha num dia em que ninguém escolheu outra: a que ela já tem;
+// a que nunca começou passa a "Em execução" (pôr gente nela é começá-la).
+export const situacaoPadraoDoDia = (frente) => (frente.situacao === 'Não iniciada' ? 'Em execução' : frente.situacao)
+
+// ---- Equipe que continua de um dia para o outro (decisão do Israel, 10/11/2026) ----
+// A frente em execução começa o dia com a equipe do último lançamento dela, sem ninguém tocar.
+// O último lançamento é procurado só nos diários mais novos da obra: frente que ficou este
+// tanto de diários sem ser lançada não puxa mais ninguém.
+export const DIARIOS_PARA_HERDAR = 7
+
+// Os diários da obra anteriores a hoje onde se procura o último lançamento, do mais novo ao mais velho.
+export function diariosParaHerdar(rdos, hoje) {
+  return rdos.filter((r) => r.data < hoje).sort((a, b) => b.data.localeCompare(a.data)).slice(0, DIARIOS_PARA_HERDAR)
+}
+
+// Para cada frente que herda equipe, o lançamento de onde ela vem (frente_id → linha de rdo_frentes).
+// Herda quem: hoje começaria "Em execução" (`situacaoPadraoDoDia`: inclui a "Não iniciada" que
+// foi lançada num dia que ficou sem fechar), ainda não foi lançada hoje, e no último lançamento
+// estava "Em execução". Frente parada ou concluída começa o dia sem ninguém.
+// `anteriores` = diariosParaHerdar(...); `rdoFrentes` = os lançamentos desses diários.
+export function lancamentosHerdados(frentes, anteriores, rdoFrentes, lancadasHoje) {
+  const dataDo = new Map(anteriores.map((r) => [r.id, r.data]))
+  const hoje = new Set(lancadasHoje)
+  const ultimo = new Map()
+  for (const rf of rdoFrentes) {
+    const data = dataDo.get(rf.rdo_id)
+    if (!data) continue
+    const atual = ultimo.get(rf.frente_id)
+    if (!atual || data > dataDo.get(atual.rdo_id)) ultimo.set(rf.frente_id, rf)
+  }
+  const herdados = new Map()
+  for (const f of frentes) {
+    const rf = ultimo.get(f.id)
+    if (situacaoPadraoDoDia(f) === 'Em execução' && !hoje.has(f.id) && rf?.situacao === 'Em execução') herdados.set(f.id, rf)
+  }
+  return herdados
+}
+
 // Processo 1 — ao fechar o RDO, atualizar as frentes da obra.
 // Devolve as frentes novas; as que não têm registro no dia ficam como estão.
 export function aplicarFechamento(frentes, rdoFrentes, dataRdo) {

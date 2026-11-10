@@ -1,5 +1,8 @@
 // Frentes de serviço: "parada há N dias", ordem da lista e o processo 1 (fechar o RDO).
-import { diasParada, separarFrentes, aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento } from '../src/lib/frentes.js'
+import {
+  diasParada, separarFrentes, aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento,
+  situacaoPadraoDoDia, diariosParaHerdar, lancamentosHerdados, DIARIOS_PARA_HERDAR,
+} from '../src/lib/frentes.js'
 
 let ok = 0
 let tot = 0
@@ -50,6 +53,35 @@ conferir('frente fechada depois continua Concluída, só o início vai para trá
 conferir('frente sem dia mais novo segue o dia fechado agora', [atrasado[1].situacao, atrasado[1].parada_desde, atrasado[1].motivo_parada], ['Parada', '2026-10-26', 'Chuva'])
 conferir('sem dia mais novo é igual ao fechamento normal', aplicarFechamentoAtrasado(obraFr, doDiaVelho, '2026-10-26', []), aplicarFechamento(obraFr, doDiaVelho, '2026-10-26'))
 conferir('início mais antigo não é empurrado para frente', aplicarFechamentoAtrasado(obraFr, doDiaVelho, '2026-10-29', ['x'])[0].data_inicio, '2026-10-28')
+
+// Equipe que continua de um dia para o outro
+conferir('não iniciada começa o dia em execução', situacaoPadraoDoDia(f('a', 'A', 'Não iniciada')), 'Em execução')
+conferir('parada continua parada', situacaoPadraoDoDia(f('a', 'A', 'Parada', '2026-10-20')), 'Parada')
+const dias = Array.from({ length: 9 }, (_, i) => ({ id: `r${i}`, data: `2026-10-${String(22 + i).padStart(2, '0')}` })) // 22 a 30
+dias.push({ id: 'rhoje', data: hoje })
+const paraHerdar = diariosParaHerdar(dias, hoje)
+conferir('procura só nos 7 diários mais novos antes de hoje', paraHerdar.map((r) => r.id), ['r8', 'r7', 'r6', 'r5', 'r4', 'r3', 'r2'])
+conferir('o limite é o da constante', paraHerdar.length, DIARIOS_PARA_HERDAR)
+const frentesH = [f('x', 'X', 'Em execução'), f('y', 'Y', 'Em execução'), f('z', 'Z', 'Parada', '2026-10-29'), f('w', 'W', 'Em execução'), f('v', 'V', 'Em execução'), f('u', 'U', 'Em execução')]
+const lancs = [
+  { id: 'x-velho', rdo_id: 'r6', frente_id: 'x', situacao: 'Em execução' },
+  { id: 'x-novo', rdo_id: 'r8', frente_id: 'x', situacao: 'Em execução' },
+  { id: 'y-parou', rdo_id: 'r8', frente_id: 'y', situacao: 'Parada' },
+  { id: 'y-antes', rdo_id: 'r7', frente_id: 'y', situacao: 'Em execução' },
+  { id: 'z-exec', rdo_id: 'r8', frente_id: 'z', situacao: 'Em execução' },
+  { id: 'w-exec', rdo_id: 'r8', frente_id: 'w', situacao: 'Em execução' },
+  { id: 'v-antigo', rdo_id: 'r0', frente_id: 'v', situacao: 'Em execução' },
+  { id: 'u-pulou', rdo_id: 'r5', frente_id: 'u', situacao: 'Em execução' },
+]
+const herd = lancamentosHerdados(frentesH, paraHerdar, lancs, ['w'])
+conferir('herda do lançamento mais novo', herd.get('x')?.id, 'x-novo')
+conferir('frente parada no último lançamento não herda', herd.has('y'), false)
+conferir('frente que hoje está parada não herda', herd.has('z'), false)
+conferir('frente já lançada hoje não herda', herd.has('w'), false)
+conferir('lançamento fora dos 7 diários não conta', herd.has('v'), false)
+// Ontem ficou sem fechar: a frente lançada "Em execução" continua "Não iniciada" no cadastro, e herda mesmo assim.
+conferir('não iniciada lançada num dia sem fechar herda', lancamentosHerdados([f('n', 'N', 'Não iniciada')], paraHerdar, [{ id: 'n1', rdo_id: 'r8', frente_id: 'n', situacao: 'Em execução' }], []).get('n')?.id, 'n1')
+conferir('dia pulado no meio não quebra: vale o último lançamento dela', herd.get('u')?.id, 'u-pulou')
 
 console.log(`${ok}/${tot} — frentes`)
 process.exit(ok === tot ? 0 : 1)

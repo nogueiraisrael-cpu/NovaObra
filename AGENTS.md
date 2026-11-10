@@ -205,8 +205,16 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   grava a tabela e depois apaga o arquivo (caiu no meio, idem). No RDO, "Tirar da obra" (equipamento lançado por
   engano) apaga a linha do dia e depois manda para o depósito: se cair no meio, ele continua na obra e repetir completa.
   Em Diários, "Corrigir este dia" grava o dia, depois o efetivo, depois as frentes: se cair no meio, salvar de novo completa.
+  No passo 2, tirar ou incluir alguém pelo cartão de uma frente ainda não lançada hoje grava o lançamento e depois a
+  equipe: se a equipe falhar, o `dados.js` desfaz o lançamento (`lancarFrente`), e repetir o toque completa. Fechar o
+  RDO faz o mesmo para cada frente com equipe herdada (ver abaixo), antes de marcar "Fechado": repetir completa as que faltaram.
   "Fechar este dia" (dia anterior "Não fechado") grava as frentes e marca "Fechado" por último: repetir completa. Ele não
   muda a situação de frente que um diário fechado mais novo já decidiu (`aplicarFechamentoAtrasado`).
+- **A equipe da frente continua de um dia para o outro e "vale sozinha"** (decisão do Israel, 10/11/2026): frente em
+  execução sem lançamento hoje mostra a equipe do último lançamento dela (`lancamentosHerdados`, nos 7 diários mais
+  novos), só com quem está presente hoje. Essa equipe **não está gravada** até alguém mexer na frente ou fechar o RDO
+  (`equipesDeHoje` em `dados.js`): quem lê `rdo_frente_equipe` direto num diário de hoje ainda aberto não a enxerga, e
+  dia que fica "Não fechado" não a guarda.
 - **Saldo de estoque não é coluna:** é a soma de `movimentos_estoque`. O banco recusa (trigger, migration -07)
   qualquer gravação que deixe um insumo negativo; o app confere antes só para dar a frase certa.
 

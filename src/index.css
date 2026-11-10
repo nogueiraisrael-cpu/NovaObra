@@ -134,6 +134,12 @@ button.item:hover{border-color:var(--slate)}
 .item-top > div{min-width:0}
 .item h3{font-size:19px;font-weight:700;line-height:1.25}
 .item-top > svg{color:var(--slate);width:24px;height:24px;flex:none;margin-top:2px}
+/* Cartão da frente: o toque de cima abre "Preencher frente"; embaixo, a equipe de hoje. */
+.item-abrir{display:block;width:100%;text-align:left}
+.item-equipe{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.item-equipe .chips{margin-top:10px}
+.item-equipe .chip:disabled{opacity:.55}
+.chip .tirar{margin-left:10px;font-size:20px;line-height:1;color:var(--muted)}
 .meta{color:var(--muted);font-size:15px;margin-top:4px}
 .lines{margin-top:12px;display:grid;gap:6px}
 .line{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600}

@@ -1,30 +1,75 @@
-// RDO passo 2 — frentes de serviço, gaveta "Preencher frente" e Fechar RDO (v1.0).
+// RDO passo 2 — frentes de serviço (com a equipe no cartão), gavetas "Preencher frente" e
+// "Incluir na equipe", e Fechar RDO (v1.0).
 import { useEffect, useRef, useState } from 'react'
-import { listarFrentes, salvarFrente, obterPreenchimento, salvarPreenchimento, resumoFechamento, fecharRdo, uploadFoto } from '../lib/dados.js'
+import {
+  listarFrentes, salvarFrente, obterPreenchimento, salvarPreenchimento, mudarEquipeDaFrente, resumoFechamento, fecharRdo, uploadFoto,
+} from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { diasParada, separarFrentes, rotuloExecutor } from '../lib/frentes.js'
 import { ETAPAS, EXECUTORES, SITUACOES_FRENTE_DIA, MOTIVOS_PARADA } from '../lib/listas.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
 import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, COR_FRENTE_DIA } from '../components/index.jsx'
 
-function CartaoFrente({ f, hoje, abrir }) {
+// O cartão tem duas partes: em cima, o toque que abre "Preencher frente"; embaixo, a equipe de
+// hoje, onde cada toque já salva (tirar com o ×, incluir com "+ Funcionário").
+function CartaoFrente({ f, hoje, abrir, tirar, incluir, ocupado }) {
   const dias = diasParada(f, hoje)
   const parada = f.situacao === 'Parada'
   return (
-    <button className={`item${parada ? ' alert' : ''}`} onClick={() => abrir(f.id)}>
-      <div className="item-top">
-        <div><h3>{f.nome}</h3><div className="meta">{f.etapa}</div><div className="meta">{rotuloExecutor(f)}</div></div>
-        {f.preenchida_hoje ? <span className="check" title="Preenchida hoje"><Icon nome="check" /></span> : <Icon nome="chev" />}
+    <div className={`item${parada ? ' alert' : ''}`}>
+      <button className="item-abrir" onClick={() => abrir(f.id)}>
+        <div className="item-top">
+          <div><h3>{f.nome}</h3><div className="meta">{f.etapa}</div><div className="meta">{rotuloExecutor(f)}</div></div>
+          {f.preenchida_hoje ? <span className="check" title="Preenchida hoje"><Icon nome="check" /></span> : <Icon nome="chev" />}
+        </div>
+        <div className="row-wrap" style={{ marginTop: 14 }}>
+          {parada ? <Pill cor="bad">Parada há {dias} {dias === 1 ? 'dia' : 'dias'}</Pill>
+            : f.situacao === 'Em execução' ? <Pill cor="ok">Em execução</Pill> : <Pill>Não iniciada</Pill>}
+          {parada && <span className="t-bad" style={{ fontWeight: 600, fontSize: 16 }}>{f.motivo_parada}</span>}
+          {f.preenchida_hoje && f.situacao_hoje !== f.situacao && <span className="t-info" style={{ fontSize: 15, fontWeight: 600 }}>Hoje: {f.situacao_hoje}</span>}
+          {!f.preenchida_hoje && f.situacao === 'Em execução' && (
+            <span className="t-warn" style={{ fontSize: 15, fontWeight: 600 }}>{f.equipe_herdada ? 'Falta descrever o dia' : 'Falta preencher hoje'}</span>
+          )}
+        </div>
+      </button>
+      <div className="item-equipe">
+        <div className="meta">
+          {f.equipe.length === 0 ? 'Ninguém nesta frente hoje'
+            : `${f.equipe.length} ${f.equipe.length === 1 ? 'pessoa' : 'pessoas'} hoje${f.equipe_herdada ? ' · a mesma equipe do último diário' : ''}`}
+        </div>
+        <div className="chips">
+          {f.equipe.map((x) => (
+            <button key={x.id} className="chip on" disabled={ocupado} aria-label={`Tirar ${x.nome} de ${f.nome}`} onClick={() => tirar(f, x)}>
+              {x.nome}{x.funcao && <span className="funcao"> · {x.funcao}</span>}<span className="tirar" aria-hidden="true">×</span>
+            </button>
+          ))}
+          <button className="chip" disabled={ocupado} aria-label={`Incluir funcionário em ${f.nome}`} onClick={() => incluir(f.id)}>+ Funcionário</button>
+        </div>
       </div>
-      <div className="row-wrap" style={{ marginTop: 14 }}>
-        {parada ? <Pill cor="bad">Parada há {dias} {dias === 1 ? 'dia' : 'dias'}</Pill>
-          : f.situacao === 'Em execução' ? <Pill cor="ok">Em execução</Pill> : <Pill>Não iniciada</Pill>}
-        {parada && <span className="t-bad" style={{ fontWeight: 600, fontSize: 16 }}>{f.motivo_parada}</span>}
-        {f.preenchida_hoje && f.situacao_hoje !== f.situacao && <span className="t-info" style={{ fontSize: 15, fontWeight: 600 }}>Hoje: {f.situacao_hoje}</span>}
-        {f.preenchida_hoje && f.equipe_hoje > 0 && <span className="t-muted" style={{ fontSize: 15 }}>{f.equipe_hoje} {f.equipe_hoje === 1 ? 'pessoa' : 'pessoas'} hoje</span>}
-        {!f.preenchida_hoje && f.situacao === 'Em execução' && <span className="t-warn" style={{ fontSize: 15, fontWeight: 600 }}>Falta preencher hoje</span>}
+    </div>
+  )
+}
+
+// Quem está presente hoje e ainda não está nesta frente. Cada toque inclui e a lista continua aberta.
+function IncluirNaFrente({ dados, incluir, fechar, ocupado }) {
+  const naEquipe = new Set(dados.equipe)
+  const fora = dados.presentes.filter((x) => !naEquipe.has(x.id))
+  return (
+    <>
+      <div className="eyebrow">Incluir na equipe</div>
+      <h2>{dados.frente.nome}</h2>
+      <div className="sub">Só aparece quem está presente hoje. Cada toque já salva.</div>
+      <div className="pick-list" style={{ marginTop: 16 }}>
+        {dados.presentes.length === 0 && <p className="t-muted">Ninguém presente hoje. Marque o efetivo no passo 1.</p>}
+        {dados.presentes.length > 0 && fora.length === 0 && <p className="t-muted">Todos os presentes de hoje já estão nesta frente.</p>}
+        {fora.map((x) => (
+          <button key={x.id} className="pick" disabled={ocupado} onClick={() => incluir(x)}>
+            <div><b>{x.nome}</b><span>{[x.funcao, x.tambem_em.length > 0 && `também em: ${x.tambem_em.join(', ')}`].filter(Boolean).join(' · ')}</span></div>
+          </button>
+        ))}
       </div>
-    </button>
+      <div className="cta"><button className="btn btn-primary btn-full" onClick={fechar}>Pronto</button></div>
+    </>
   )
 }
 
@@ -148,7 +193,7 @@ function PreencherFrente({ inicial, fechar, salvo }) {
       <label className="label" htmlFor="pf-desc">O que foi feito hoje</label>
       <textarea id="pf-desc" className="field" style={{ minHeight: 76 }} placeholder="Ex.: chapisco e emboço 2º pavimento, 40 m²"
         value={p.descricao} onChange={(e) => setP({ ...p, descricao: e.target.value })} />
-      <div className="label">Equipe</div>
+      <div className="label">Equipe{inicial.equipe_herdada && ' (já vem a do último diário)'}</div>
       {inicial.presentes.length === 0
         ? <p className="t-muted">Ninguém presente hoje. Marque o efetivo no passo 1.</p>
         : (
@@ -215,7 +260,12 @@ function ResumoFechar({ fechar, fechado }) {
         <div className="line"><span className="dot idle" />{r.fotos} {r.fotos === 1 ? 'foto' : 'fotos'}</div>
         {r.equipamentos_quebrados > 0 && <div className="line t-warn"><span className="dot warn" />{r.equipamentos_quebrados} equipamento(s) quebrado(s)</div>}
       </div>
-      {r.frentes_preenchidas === 0 && <div className="banner warn">Nenhuma frente preenchida hoje. Fechar mesmo assim?</div>}
+      {r.frentes_herdadas > 0 && (
+        <div className="line" style={{ marginTop: 6 }}><span className="dot info" />
+          {r.frentes_herdadas} {r.frentes_herdadas === 1 ? 'frente entra' : 'frentes entram'} com a equipe do último diário, sem descrição
+        </div>
+      )}
+      {r.frentes_preenchidas === 0 && r.frentes_herdadas === 0 && <div className="banner warn">Nenhuma frente preenchida hoje. Fechar mesmo assim?</div>}
       {erro && <div className="err">{erro}</div>}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Cancelar</button>
@@ -228,14 +278,41 @@ function ResumoFechar({ fechar, fechado }) {
 export default function RdoPasso2({ aoMudarRdo, aoFechar }) {
   const toast = useToast()
   const frentes = useDados(listarFrentes)
-  const [gaveta, setGaveta] = useState(null) // {tipo:'nova'} | {tipo:'preencher', dados} | {tipo:'fechar'}
+  const [gaveta, setGaveta] = useState(null) // {tipo:'nova'} | {tipo:'preencher', dados} | {tipo:'incluir', dados} | {tipo:'fechar'}
   const [verConcluidas, setVerConcluidas] = useState(false)
+  const [ocupado, setOcupado] = useState(false)
   const hoje = hojeISO()
 
   async function abrirFrente(id) {
     const { data, erro } = await obterPreenchimento(id)
     if (erro) return toast(erro, 'bad')
     setGaveta({ tipo: 'preencher', dados: data })
+  }
+
+  // Tirar e incluir pelo cartão: grava na hora. `ocupado` segura o segundo toque até o primeiro voltar.
+  async function mudarEquipe(frenteId, pessoa, entra, aviso) {
+    if (ocupado) return false
+    setOcupado(true)
+    const { erro } = await mudarEquipeDaFrente(frenteId, pessoa.id, entra)
+    if (erro) toast(erro, 'bad')
+    else toast(aviso)
+    await frentes.recarregar()
+    aoMudarRdo()
+    setOcupado(false)
+    return !erro
+  }
+
+  async function abrirIncluir(id) {
+    const { data, erro } = await obterPreenchimento(id)
+    if (erro) return toast(erro, 'bad')
+    setGaveta({ tipo: 'incluir', dados: data })
+  }
+
+  async function incluirNaFrente(pessoa) {
+    const { frente } = gaveta.dados
+    if (!(await mudarEquipe(frente.id, pessoa, true, `${pessoa.nome} entrou em ${frente.nome}`))) return
+    const { data } = await obterPreenchimento(frente.id)
+    if (data) setGaveta((atual) => (atual?.tipo === 'incluir' ? { tipo: 'incluir', dados: data } : atual))
   }
 
   function depoisDeSalvar(msg) {
@@ -256,6 +333,9 @@ export default function RdoPasso2({ aoMudarRdo, aoFechar }) {
       </Gaveta>
       <Gaveta aberta={gaveta?.tipo === 'preencher'} fechar={() => setGaveta(null)} rotulo="Preencher frente">
         {gaveta?.tipo === 'preencher' && <PreencherFrente inicial={gaveta.dados} fechar={() => setGaveta(null)} salvo={() => depoisDeSalvar('Frente salva')} />}
+      </Gaveta>
+      <Gaveta aberta={gaveta?.tipo === 'incluir'} fechar={() => setGaveta(null)} rotulo="Incluir na equipe">
+        {gaveta?.tipo === 'incluir' && <IncluirNaFrente dados={gaveta.dados} incluir={incluirNaFrente} fechar={() => setGaveta(null)} ocupado={ocupado} />}
       </Gaveta>
       <Gaveta aberta={gaveta?.tipo === 'fechar'} fechar={() => setGaveta(null)} rotulo="Fechar RDO">
         {gaveta?.tipo === 'fechar' && <ResumoFechar fechar={() => setGaveta(null)} fechado={() => { setGaveta(null); toast('Diário de hoje fechado'); aoFechar() }} />}
@@ -282,7 +362,10 @@ export default function RdoPasso2({ aoMudarRdo, aoFechar }) {
         { valor: ativas.filter((f) => f.preenchida_hoje).length, de: ativas.length, rotulo: 'preenchidas hoje', cor: 'accent' },
       ]} />
       <div className="sec"><h2>Frentes de serviço</h2><button className="link" onClick={() => setGaveta({ tipo: 'nova' })}>+ Nova frente</button></div>
-      <div className="list two">{ativas.map((f) => <CartaoFrente key={f.id} f={f} hoje={hoje} abrir={abrirFrente} />)}</div>
+      <div className="list two">{ativas.map((f) => (
+          <CartaoFrente key={f.id} f={f} hoje={hoje} abrir={abrirFrente} incluir={abrirIncluir} ocupado={ocupado}
+            tirar={(frente, x) => mudarEquipe(frente.id, x, false, `${x.nome} saiu de ${frente.nome}`)} />
+        ))}</div>
       {concluidas.length > 0 && (
         <>
           <button className="collapsed" onClick={() => setVerConcluidas(!verConcluidas)}>

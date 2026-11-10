@@ -75,6 +75,8 @@ await d.salvarEquipamento({ nome: 'Serra circular', codigo: 'SC-1', nesta_obra: 
 const frente = await d.salvarFrente({ nome: 'Conferência', etapa: 'Alvenaria', executor: 'Terceirizado', empreiteiro: 'Fulano' })
 await d.obterPreenchimento(frente.data.id)
 await d.salvarPreenchimento('fs-revest', { situacao: 'Parada', motivo_parada: 'Chuva', descricao: 'x', equipe: ['f-joao'], fotos: [{ caminho: 'data:,', legenda: 'l' }] })
+await d.mudarEquipeDaFrente('fs-hidro', 'f-joao', true)
+await d.mudarEquipeDaFrente('fs-hidro', 'f-joao', false)
 await d.resumoFechamento()
 await d.fecharRdo()
 const dias = (await d.listarDiarios()).data

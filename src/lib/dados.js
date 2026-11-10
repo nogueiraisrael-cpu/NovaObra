@@ -13,7 +13,9 @@
 import { supabase } from './supabase.js'
 import { hojeISO, somarDias, formatarDiaMes } from './datas.js'
 import { montarEfetivo, podeMarcarPresenca, mensagemTrava, contaComoPresenca } from './efetivo.js'
-import { aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento, validarFrente } from './frentes.js'
+import {
+  aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento, validarFrente, situacaoPadraoDoDia, diariosParaHerdar, lancamentosHerdados,
+} from './frentes.js'
 import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo, motivoParaNaoApagarObra, OBRA_COM_LANCAMENTOS } from './obras.js'
 import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
@@ -584,20 +586,92 @@ export const marcarEquipamentoDia = (equipamentoId, situacao, observacao) => exe
 // Frentes de serviço (passo 2)
 // ---------------------------------------------------------------------------
 
+// A equipe de cada frente hoje (frente_id → { ids, herdada }). Frente lançada hoje: a equipe
+// gravada. Sem lançamento hoje: a do último lançamento dela (`lancamentosHerdados`), só com quem
+// está presente hoje; essa ainda não está gravada, e ganha linha ao mexer nela ou ao fechar o RDO.
+async function equipesDeHoje(obraId, frentes, rdo, efetivo) {
+  const rfs = rdo ? await ler('rdo_frentes', { rdo_id: rdo.id }) : []
+  const anteriores = diariosParaHerdar(await ler('rdos', { obra_id: obraId }), hoje())
+  const antigos = anteriores.length ? await ler('rdo_frentes', { rdo_id: anteriores.map((r) => r.id) }) : []
+  const herdados = lancamentosHerdados(frentes, anteriores, antigos, rfs.map((rf) => rf.frente_id))
+  const origens = [...rfs, ...herdados.values()].map((rf) => rf.id)
+  const equipe = origens.length ? await ler('rdo_frente_equipe', { rdo_frente_id: origens }) : []
+  const presentes = new Set(efetivo.filter((i) => contaComoPresenca(i.situacao)).map((i) => i.funcionario.id))
+  const daLinha = (rf) => equipe.filter((q) => q.rdo_frente_id === rf.id).map((q) => q.funcionario_id)
+  const porFrente = new Map(frentes.map((f) => [f.id, { ids: [], herdada: false }]))
+  for (const rf of rfs) porFrente.set(rf.frente_id, { ids: daLinha(rf), herdada: false })
+  // `herdada` só é verdade quando sobrou alguém: herdar ninguém é igual a não herdar.
+  for (const [frenteId, rf] of herdados) {
+    const ids = daLinha(rf).filter((id) => presentes.has(id))
+    porFrente.set(frenteId, { ids, herdada: ids.length > 0 })
+  }
+  return { rfs, porFrente }
+}
+
+// Grava o lançamento de hoje de uma frente que ainda não tinha: a situação padrão e a equipe dada.
+// Se a equipe não gravar, o lançamento é desfeito: frente lançada sem ninguém deixaria de herdar
+// a equipe, e repetir o toque (ou o Fechar RDO) não a traria de volta.
+async function lancarFrente(rdo, frente, equipe) {
+  const situacao = situacaoPadraoDoDia(frente)
+  const rf = await inserir('rdo_frentes', {
+    rdo_id: rdo.id, obra_id: rdo.obra_id, frente_id: frente.id, situacao,
+    motivo_parada: situacao === 'Parada' ? frente.motivo_parada : null, descricao: '',
+  })
+  try {
+    await inserirVarios('rdo_frente_equipe', equipe.map((id) => ({ rdo_frente_id: rf.id, obra_id: rdo.obra_id, funcionario_id: id })))
+  } catch (e) {
+    await apagar('rdo_frentes', { id: rf.id, obra_id: rdo.obra_id }).catch(() => {})
+    throw e
+  }
+  return rf
+}
+
 export const listarFrentes = () => executar(async () => {
   const obraId = obraAtual()
-  const [frentes, rdo] = await Promise.all([ler('frentes_servico', { obra_id: obraId }), rdoDeHoje(obraId)])
-  const rfs = rdo ? await ler('rdo_frentes', { rdo_id: rdo.id }) : []
-  const equipe = rfs.length ? await ler('rdo_frente_equipe', { rdo_frente_id: rfs.map((rf) => rf.id) }) : []
+  const [frentes, rdo, { efetivo }] = await Promise.all([ler('frentes_servico', { obra_id: obraId }), rdoDeHoje(obraId), efetivoDaObraHoje(obraId)])
+  const { rfs, porFrente } = await equipesDeHoje(obraId, frentes, rdo, efetivo)
+  const pessoa = new Map(efetivo.map((i) => [i.funcionario.id, i.funcionario]))
   return ok(frentes.map((f) => {
     const rf = rfs.find((x) => x.frente_id === f.id)
+    const { ids, herdada } = porFrente.get(f.id)
     return {
       ...f,
       preenchida_hoje: Boolean(rf),
       situacao_hoje: rf?.situacao ?? null,
-      equipe_hoje: rf ? equipe.filter((q) => q.rdo_frente_id === rf.id).length : 0,
+      // Quem saiu do efetivo depois de lançado não tem mais nome aqui: fica de fora da lista.
+      equipe: ids.filter((id) => pessoa.has(id)).map((id) => ({ id, nome: pessoa.get(id).nome, funcao: pessoa.get(id).funcao })).sort(porNome),
+      equipe_herdada: herdada,
     }
   }))
+})
+
+// Tirar ou incluir uma pessoa direto no cartão da frente. Se a frente ainda não foi lançada hoje,
+// este toque a lança: situação padrão e a equipe herdada, já com a mudança.
+export const mudarEquipeDaFrente = (frenteId, funcionarioId, entra) => executar(async () => {
+  const obraId = obraAtual()
+  const [frentes, { efetivo }] = await Promise.all([ler('frentes_servico', { obra_id: obraId }), efetivoDaObraHoje(obraId)])
+  const frente = frentes.find((f) => f.id === frenteId)
+  if (!frente) return falha('Frente não encontrada nesta obra.')
+  if (frente.situacao === 'Concluída') return falha('Esta frente já foi concluída.')
+  if (entra && !efetivo.some((i) => i.funcionario.id === funcionarioId && contaComoPresenca(i.situacao))) {
+    return falha('Só quem está presente hoje pode entrar na equipe.')
+  }
+  // Olha antes de abrir o RDO: se a pessoa já está (ou já não está) como pedido, nada é gravado.
+  const antes = await equipesDeHoje(obraId, frentes, await rdoDeHoje(obraId), efetivo)
+  if (antes.porFrente.get(frenteId).ids.includes(funcionarioId) === entra) return ok(true)
+  const rdo = await garantirRdoHoje(obraId)
+  const { rfs, porFrente } = await equipesDeHoje(obraId, frentes, rdo, efetivo)
+  const atual = porFrente.get(frenteId).ids
+  const rf = rfs.find((x) => x.frente_id === frenteId)
+  if (!rf) {
+    await lancarFrente(rdo, frente, entra ? [...new Set([...atual, funcionarioId])] : atual.filter((id) => id !== funcionarioId))
+  } else if (!entra) {
+    // Outro aparelho pode ter tirado a pessoa neste meio-tempo: aí não há o que apagar, e está certo.
+    if (atual.includes(funcionarioId)) await apagarDeVerdade('rdo_frente_equipe', { rdo_frente_id: rf.id, funcionario_id: funcionarioId })
+  } else if (!atual.includes(funcionarioId)) {
+    await inserir('rdo_frente_equipe', { rdo_frente_id: rf.id, obra_id: obraId, funcionario_id: funcionarioId })
+  }
+  return ok(true)
 })
 
 export const salvarFrente = (dados) => executar(async () => {
@@ -616,26 +690,25 @@ export const obterPreenchimento = (frenteId) => executar(async () => {
   const [frentes, rdo, { efetivo }] = await Promise.all([ler('frentes_servico', { obra_id: obraId }), rdoDeHoje(obraId), efetivoDaObraHoje(obraId)])
   const frente = frentes.find((f) => f.id === frenteId)
   if (!frente) return falha('Frente não encontrada nesta obra.')
-  const rfs = rdo ? await ler('rdo_frentes', { rdo_id: rdo.id }) : []
-  const [equipe, fotos] = rfs.length
-    ? await Promise.all([ler('rdo_frente_equipe', { rdo_frente_id: rfs.map((x) => x.id) }), ler('fotos', { rdo_id: rdo.id })])
-    : [[], []]
+  const { rfs, porFrente } = await equipesDeHoje(obraId, frentes, rdo, efetivo)
   const rf = rfs.find((x) => x.frente_id === frenteId)
-  const nomeDaFrente = (id) => frentes.find((f) => f.id === id)?.nome
+  const fotos = rf ? await ler('fotos', { rdo_id: rdo.id }) : []
   const presentes = efetivo.filter((i) => contaComoPresenca(i.situacao)).map((i) => ({
     id: i.funcionario.id,
     nome: i.funcionario.nome,
     funcao: i.funcionario.funcao,
-    tambem_em: rfs
-      .filter((x) => x.frente_id !== frenteId && equipe.some((q) => q.rdo_frente_id === x.id && q.funcionario_id === i.funcionario.id))
-      .map((x) => nomeDaFrente(x.frente_id)),
+    tambem_em: frentes
+      .filter((f) => f.id !== frenteId && porFrente.get(f.id).ids.includes(i.funcionario.id))
+      .map((f) => f.nome),
   }))
   return ok({
     frente,
-    situacao: rf?.situacao ?? (frente.situacao === 'Não iniciada' ? 'Em execução' : frente.situacao),
+    situacao: rf?.situacao ?? situacaoPadraoDoDia(frente),
     motivo_parada: rf?.motivo_parada ?? frente.motivo_parada ?? null,
     descricao: rf?.descricao ?? '',
-    equipe: rf ? equipe.filter((q) => q.rdo_frente_id === rf.id).map((q) => q.funcionario_id) : [],
+    // Sem lançamento hoje, já vem marcada a equipe do último diário.
+    equipe: porFrente.get(frenteId).ids,
+    equipe_herdada: porFrente.get(frenteId).herdada,
     fotos: rf ? await comEndereco(fotos.filter((ft) => ft.rdo_frente_id === rf.id), 'caminho', 'url') : [],
     presentes,
   })
@@ -675,11 +748,18 @@ export const salvarPreenchimento = (frenteId, { situacao, motivo_parada, descric
 
 export const resumoFechamento = () => executar(async () => {
   const obraId = obraAtual()
-  const [rdo, { efetivo }] = await Promise.all([rdoDeHoje(obraId), efetivoDaObraHoje(obraId)])
-  const [rfs, fotos, equips] = rdo
-    ? await Promise.all([ler('rdo_frentes', { rdo_id: rdo.id }), ler('fotos', { rdo_id: rdo.id }), ler('rdo_equipamentos', { rdo_id: rdo.id, situacao: 'Quebrado' })])
-    : [[], [], []]
-  return ok({ ...resumirDiario({ efetivo, frentes: rfs, fotos }), equipamentos_quebrados: equips.length })
+  const [rdo, { efetivo }, daObra] = await Promise.all([rdoDeHoje(obraId), efetivoDaObraHoje(obraId), ler('frentes_servico', { obra_id: obraId })])
+  const [{ rfs, porFrente }, fotos, equips] = await Promise.all([
+    equipesDeHoje(obraId, daObra, rdo, efetivo),
+    rdo ? ler('fotos', { rdo_id: rdo.id }) : [],
+    rdo ? ler('rdo_equipamentos', { rdo_id: rdo.id, situacao: 'Quebrado' }) : [],
+  ])
+  return ok({
+    ...resumirDiario({ efetivo, frentes: rfs, fotos }),
+    equipamentos_quebrados: equips.length,
+    // Frentes em que ninguém mexeu e que entram no diário, ao fechar, com a equipe do último diário.
+    frentes_herdadas: [...porFrente.values()].filter((e) => e.herdada).length,
+  })
 })
 
 // Grava em frentes_servico só o que o fechamento mudou.
@@ -700,9 +780,13 @@ export const fecharRdo = () => executar(async () => {
   const obraId = obraAtual()
   const rdo = await garantirRdoHoje(obraId)
   if (!rdo.clima_manha || !rdo.clima_tarde) return falha('Preencha o clima da manhã e da tarde antes de fechar.')
-  const [rfs, daObra, { efetivo }] = await Promise.all([
-    ler('rdo_frentes', { rdo_id: rdo.id }), ler('frentes_servico', { obra_id: obraId }), efetivoDaObraHoje(obraId),
-  ])
+  const [daObra, { efetivo }] = await Promise.all([ler('frentes_servico', { obra_id: obraId }), efetivoDaObraHoje(obraId)])
+  // A equipe que a frente herdou do último diário e ninguém mexeu vale sozinha: ganha linha agora.
+  const { rfs, porFrente } = await equipesDeHoje(obraId, daObra, rdo, efetivo)
+  for (const f of daObra) {
+    const { ids, herdada } = porFrente.get(f.id)
+    if (herdada) rfs.push(await lancarFrente(rdo, f, ids))
+  }
   await gravarFrentesFechadas(daObra, aplicarFechamento(daObra, rfs, rdo.data))
   // Quem está no efetivo só pelo padrão (lotado depois que o RDO abriu, ou vindo
   // de outra obra) ganha linha agora: o diário fechado guarda o mesmo que a tela mostrou.
