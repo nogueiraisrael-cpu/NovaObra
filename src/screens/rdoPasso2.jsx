@@ -5,25 +5,26 @@ import {
   listarFrentes, salvarFrente, obterPreenchimento, salvarPreenchimento, mudarEquipeDaFrente, resumoFechamento, fecharRdo, uploadFoto,
 } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
-import { diasParada, separarFrentes, rotuloExecutor } from '../lib/frentes.js'
+import { diasParada, rotuloParada, separarFrentes, rotuloExecutor } from '../lib/frentes.js'
 import { ETAPAS, EXECUTORES, SITUACOES_FRENTE_DIA, MOTIVOS_PARADA } from '../lib/listas.js'
 import { hojeISO, formatarData } from '../lib/datas.js'
 import { Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast, COR_FRENTE_DIA } from '../components/index.jsx'
 
 // O cartão tem duas partes: em cima, o toque que abre "Preencher frente"; embaixo, a equipe de
 // hoje, onde cada toque já salva (tirar com o ×, incluir com "+ Funcionário").
-function CartaoFrente({ f, hoje, abrir, tirar, incluir, ocupado }) {
+// `destaque`: a frente escolhida no quadro "frentes paradas" do comparativo ganha a borda e a tela rola até ela.
+function CartaoFrente({ f, hoje, abrir, tirar, incluir, ocupado, destaque }) {
   const dias = diasParada(f, hoje)
   const parada = f.situacao === 'Parada'
   return (
-    <div className={`item${parada ? ' alert' : ''}`}>
+    <div className={`item${parada ? ' alert' : ''}${destaque ? ' current' : ''}`} data-destaque={destaque ? '' : undefined}>
       <button className="item-abrir" onClick={() => abrir(f.id)}>
         <div className="item-top">
           <div><h3>{f.nome}</h3><div className="meta">{f.etapa}</div><div className="meta">{rotuloExecutor(f)}</div></div>
           {f.preenchida_hoje ? <span className="check" title="Preenchida hoje"><Icon nome="check" /></span> : <Icon nome="chev" />}
         </div>
         <div className="row-wrap" style={{ marginTop: 14 }}>
-          {parada ? <Pill cor="bad">Parada há {dias} {dias === 1 ? 'dia' : 'dias'}</Pill>
+          {parada ? <Pill cor="bad">{rotuloParada(dias)}</Pill>
             : f.situacao === 'Em execução' ? <Pill cor="ok">Em execução</Pill> : <Pill>Não iniciada</Pill>}
           {parada && <span className="t-bad" style={{ fontWeight: 600, fontSize: 16 }}>{f.motivo_parada}</span>}
           {f.preenchida_hoje && f.situacao_hoje !== f.situacao && <span className="t-info" style={{ fontSize: 15, fontWeight: 600 }}>Hoje: {f.situacao_hoje}</span>}
@@ -275,9 +276,14 @@ function ResumoFechar({ fechar, fechado }) {
   )
 }
 
-export default function RdoPasso2({ aoMudarRdo, aoFechar }) {
+export default function RdoPasso2({ aoMudarRdo, aoFechar, frenteDestaque }) {
   const toast = useToast()
   const frentes = useDados(listarFrentes)
+  const lista = useRef(null)
+  // Uma vez, quando a lista termina de carregar: rola até a frente que veio do comparativo.
+  useEffect(() => {
+    if (!frentes.carregando) lista.current?.querySelector('[data-destaque]')?.scrollIntoView({ block: 'center' })
+  }, [frentes.carregando])
   const [gaveta, setGaveta] = useState(null) // {tipo:'nova'} | {tipo:'preencher', dados} | {tipo:'incluir', dados} | {tipo:'fechar'}
   const [verConcluidas, setVerConcluidas] = useState(false)
   const [ocupado, setOcupado] = useState(false)
@@ -362,8 +368,8 @@ export default function RdoPasso2({ aoMudarRdo, aoFechar }) {
         { valor: ativas.filter((f) => f.preenchida_hoje).length, de: ativas.length, rotulo: 'preenchidas hoje', cor: 'accent' },
       ]} />
       <div className="sec"><h2>Frentes de serviço</h2><button className="link" onClick={() => setGaveta({ tipo: 'nova' })}>+ Nova frente</button></div>
-      <div className="list two">{ativas.map((f) => (
-          <CartaoFrente key={f.id} f={f} hoje={hoje} abrir={abrirFrente} incluir={abrirIncluir} ocupado={ocupado}
+      <div className="list two" ref={lista}>{ativas.map((f) => (
+          <CartaoFrente key={f.id} f={f} hoje={hoje} abrir={abrirFrente} incluir={abrirIncluir} ocupado={ocupado} destaque={f.id === frenteDestaque}
             tirar={(frente, x) => mudarEquipe(frente.id, x, false, `${x.nome} saiu de ${frente.nome}`)} />
         ))}</div>
       {concluidas.length > 0 && (

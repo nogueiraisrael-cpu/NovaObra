@@ -103,6 +103,9 @@ svg{display:block}
 .stats{background:var(--card);border-radius:var(--radius);display:grid;grid-template-columns:repeat(3,1fr);padding:20px 4px}
 .stat{padding:0 14px;border-left:1px solid var(--line);min-width:0}
 .stat:first-child{border-left:0}
+button.stat{text-align:left}
+button.stat .l{color:var(--accent-text);font-weight:600}
+button.stat .l::after{content:' ›'}
 .stat .n{font-size:44px;font-weight:800;line-height:1;letter-spacing:-.03em}
 .stat .n small{font-size:24px;color:var(--muted)}
 .stat .l{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.25}

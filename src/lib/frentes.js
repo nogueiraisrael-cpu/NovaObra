@@ -7,6 +7,11 @@ export function diasParada(frente, hoje) {
   return Math.max(0, diasEntre(frente.parada_desde, hoje))
 }
 
+// O texto do cartão e da lista do comparativo. Sem a data da parada, só "Parada".
+export function rotuloParada(dias) {
+  return dias == null ? 'Parada' : `Parada há ${dias} ${dias === 1 ? 'dia' : 'dias'}`
+}
+
 const ORDEM_SITUACAO = { 'Parada': 0, 'Em execução': 1, 'Não iniciada': 2 }
 
 // Paradas primeiro (mais dias no topo), depois em execução, depois não iniciadas.

@@ -1,10 +1,12 @@
 // COMPARATIVO ENTRE OBRAS — a única tela que mostra várias obras juntas.
-// Tocar num cartão escolhe a obra e abre o RDO de hoje dela.
+// Tocar num cartão escolhe a obra e abre o RDO de hoje dela. Tocar em "frentes paradas" lista
+// as frentes paradas de todas as obras e leva até a escolhida.
 import { useState } from 'react'
 import { listarResumoObras, salvarObra, apagarObra, posso, textosDasObras } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
-import { ordenarResumo, separarPorSituacao } from '../lib/obras.js'
+import { ordenarResumo, separarPorSituacao, frentesParadasDasObras } from '../lib/obras.js'
+import { rotuloParada } from '../lib/frentes.js'
 import { SITUACOES_OBRA, TIPOS_OBRA } from '../lib/listas.js'
 import { hojeISO, formatarDataLonga, formatarData } from '../lib/datas.js'
 import { Cabecalho, Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, Vazio, useToast } from '../components/index.jsx'
@@ -141,6 +143,7 @@ export default function Obras({ abrirObra }) {
   const { data, erro, carregando, recarregar } = useDados(listarResumoObras)
   const [aba, setAba] = useState('Ativas')
   const [verParadas, setVerParadas] = useState(false)
+  const [verFrentesParadas, setVerFrentesParadas] = useState(false)
   const [form, setForm] = useState(null) // null | {} (nova) | obra (editar)
 
   async function aoSalvar(obra, nova) {
@@ -180,13 +183,14 @@ export default function Obras({ abrirObra }) {
   const { andamento, paradas, concluidas } = separarPorSituacao(ordenarResumo(data))
   const lista = aba === 'Ativas' ? andamento : concluidas
   const cartao = (r) => <CartaoObra key={r.obra.id} r={r} atual={r.obra.id === obraId} abrir={abrirObra} editar={setForm} />
+  const frentesParadas = frentesParadasDasObras(andamento, hojeISO())
 
   return (
     <>
       {cabecalho}
       <Stats itens={[
         { valor: andamento.filter((r) => r.rdo_hoje === 'Não iniciado').length, rotulo: 'diários de hoje não iniciados', cor: 'accent' },
-        { valor: andamento.reduce((s, r) => s + r.frentes_paradas, 0), rotulo: 'frentes paradas', cor: 'bad' },
+        { valor: frentesParadas.length, rotulo: 'frentes paradas', cor: 'bad', aoTocar: frentesParadas.length ? () => setVerFrentesParadas(true) : undefined },
         { valor: andamento.filter((r) => r.rdo_ontem_nao_fechado).length, rotulo: 'RDOs de ontem não fechados', cor: 'warn' },
       ]} />
       <div className="tabs">
@@ -207,6 +211,23 @@ export default function Obras({ abrirObra }) {
           {verParadas && <div className="list two" style={{ marginTop: 12 }}>{paradas.map(cartao)}</div>}
         </>
       )}
+      <Gaveta aberta={verFrentesParadas} fechar={() => setVerFrentesParadas(false)} rotulo="Frentes paradas">
+        <div className="eyebrow">Frentes paradas</div>
+        <h2>Qual frente você quer abrir?</h2>
+        <div className="sub">Abre a obra, no passo das frentes de hoje, com a frente marcada.</div>
+        <div className="pick-list" style={{ marginTop: 16 }}>
+          {frentesParadas.map((f) => (
+            <button key={f.frente_id} className="pick" onClick={() => abrirObra(f.obra_id, { passo: 2, frente: f.frente_id })}>
+              <div>
+                <b>{f.nome}</b>
+                <span>{f.obra_nome} · {rotuloParada(f.dias)}{f.motivo ? ` · ${f.motivo}` : ''}</span>
+              </div>
+              <Icon nome="chev" style={{ width: 22 }} />
+            </button>
+          ))}
+        </div>
+        <div className="cta"><button className="btn btn-ghost btn-full" onClick={() => setVerFrentesParadas(false)}>Cancelar</button></div>
+      </Gaveta>
       {gaveta}
     </>
   )

@@ -39,9 +39,10 @@ export default function AppEngenheiro({ perfil, aoSair }) {
     setRoute((r) => ({ screen: r.screen, params: {} }))
     window.scrollTo(0, 0)
   }
-  function abrirObra(id) {
+  // `params` leva direto a um ponto da obra (ex.: { passo: 2, frente } para uma frente parada).
+  function abrirObra(id, params) {
     if (id !== obraId) trocarObra(id)
-    goto('obra')
+    goto('obra', params)
   }
 
   // O menu e as telas seguem o "Ver" do quadro. Tela sem permissão volta para Obras.

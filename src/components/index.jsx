@@ -93,12 +93,18 @@ export function Pill({ cor = 'idle', children }) {
 export function Stats({ itens }) {
   return (
     <section className={`stats${itens.length === 4 ? ' four' : ''}`}>
-      {itens.map((s) => (
-        <div className="stat" key={s.rotulo}>
-          <div className={`n ${s.cor ?? ''}`}>{s.valor}{s.de !== undefined && <small>/{s.de}</small>}</div>
-          <div className="l">{s.rotulo}</div>
-        </div>
-      ))}
+      {itens.map((s) => {
+        const miolo = (
+          <>
+            <div className={`n ${s.cor ?? ''}`}>{s.valor}{s.de !== undefined && <small>/{s.de}</small>}</div>
+            <div className="l">{s.rotulo}</div>
+          </>
+        )
+        // Com `aoTocar`, o número vira botão (ex.: "frentes paradas" abre a lista delas).
+        return s.aoTocar
+          ? <button className="stat" key={s.rotulo} onClick={s.aoTocar}>{miolo}</button>
+          : <div className="stat" key={s.rotulo}>{miolo}</div>
+      })}
     </section>
   )
 }

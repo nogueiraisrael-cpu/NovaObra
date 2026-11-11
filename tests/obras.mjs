@@ -1,7 +1,9 @@
 // Entidade OBRA: validação, obra inicial (a guardada) e ordem do comparativo.
-import { escolherObraInicial, validarObra, ordenarResumo, normalizarCodigo, cobraRdoDeOntem, motivoParaNaoApagarObra } from '../src/lib/obras.js'
+import { escolherObraInicial, validarObra, ordenarResumo, normalizarCodigo, cobraRdoDeOntem, motivoParaNaoApagarObra, frentesParadasDasObras } from '../src/lib/obras.js'
 import * as dados from '../src/lib/dados.js'
 import { reiniciarMock } from './apoio/bancoMemoria.js'
+import { hojeISO } from '../src/lib/datas.js'
+import { rotuloParada } from '../src/lib/frentes.js'
 
 let ok = 0
 let tot = 0
@@ -59,6 +61,26 @@ await dados.entrar('eng@novaobra.test', 'x')
 conferir('engenheiro apaga obra vazia', (await dados.apagarObra(vazia.id)).erro, null)
 conferir('a obra apagada sumiu da lista', (await dados.listarObras()).data.some((o) => o.id === vazia.id), false)
 conferir('apagar de novo avisa que não achou', Boolean((await dados.apagarObra(vazia.id)).erro), true)
+
+// Quadro "frentes paradas" do comparativo: a lista de todas as obras, a mais antiga no topo.
+reiniciarMock(dados)
+await dados.entrar('eng@novaobra.test', 'x')
+const resumoObras = (await dados.listarResumoObras()).data
+const hojeTeste = hojeISO()
+const paradasTodas = frentesParadasDasObras(resumoObras, hojeTeste)
+conferir('lista as paradas das duas obras, a mais antiga primeiro',
+  paradasTodas.map((p) => [p.obra_id, p.frente_id, p.dias, p.motivo]),
+  [['obra-ubs', 'fs-ubs-agua', 9, 'Aguardando projeto'], ['obra-serra', 'fs-reboco', 6, 'Falta de material'],
+    ['obra-ubs', 'fs-ubs-alv', 4, 'Falta de mão de obra'], ['obra-serra', 'fs-imper', 2, 'Chuva']])
+conferir('o total bate com o número de cada cartão', paradasTodas.length, resumoObras.reduce((s, x) => s + x.frentes_paradas, 0))
+conferir('cada linha leva o nome da obra dela', paradasTodas.find((p) => p.frente_id === 'fs-reboco').obra_nome, 'Casa Alto da Serra 4')
+conferir('frente parada sem data não ganha "0 dias" e vai para o fim',
+  frentesParadasDasObras([{ obra: { id: 'o', nome: 'O' }, paradas: [
+    { id: 'a', nome: 'A', situacao: 'Parada', parada_desde: null, motivo_parada: 'Chuva' },
+    { id: 'b', nome: 'B', situacao: 'Parada', parada_desde: hojeTeste, motivo_parada: 'Chuva' }] }], hojeTeste).map((p) => [p.frente_id, p.dias]),
+  [['a', null], ['b', 0]])
+conferir('texto da parada: singular, plural e sem data', [rotuloParada(1), rotuloParada(3), rotuloParada(null)], ['Parada há 1 dia', 'Parada há 3 dias', 'Parada'])
+conferir('sem frente parada, lista vazia', frentesParadasDasObras([{ obra: { id: 'o', nome: 'O' }, paradas: [] }], hojeTeste), [])
 
 console.log(`${ok}/${tot} — obras`)
 process.exit(ok === tot ? 0 : 1)

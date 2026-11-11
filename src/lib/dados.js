@@ -337,10 +337,13 @@ export const listarResumoObras = () => executar(async () => {
   return ok(obras.map((o) => {
     const rdoHoje = rdosHoje.find((r) => r.obra_id === o.id)
     const rdoOntem = rdos.find((r) => r.obra_id === o.id && r.data === ontem)
+    const daObra = paradas.filter((f) => f.obra_id === o.id)
     return {
       obra: o,
       rdo_hoje: statusRdoHoje(rdoHoje),
-      frentes_paradas: paradas.filter((f) => f.obra_id === o.id).length,
+      frentes_paradas: daObra.length,
+      // Para o quadro "frentes paradas" do comparativo abrir a lista e levar até a frente.
+      paradas: daObra.map((f) => ({ id: f.id, nome: f.nome, situacao: f.situacao, parada_desde: f.parada_desde, motivo_parada: f.motivo_parada })),
       equipamentos_quebrados: rdoHoje ? quebrados.filter((x) => x.rdo_id === rdoHoje.id).length : 0,
       rdo_ontem_nao_fechado: cobraRdoDeOntem(o, rdoOntem, ontem),
     }

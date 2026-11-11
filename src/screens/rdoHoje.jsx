@@ -8,7 +8,8 @@ import RdoPasso2 from './rdoPasso2.jsx'
 
 const PASSOS = [[1, 'Efetivo e clima'], [2, 'Frentes']]
 
-export default function RdoHoje({ passo, irParaPasso, aoFechar }) {
+// `frente`: quem chegou pelo quadro "frentes paradas" do comparativo traz a frente a destacar no passo 2.
+export default function RdoHoje({ passo, frente, irParaPasso, aoFechar }) {
   const rdo = useDados(obterRdoHoje)
   const fechado = rdo.data?.status === 'Fechado'
 
@@ -32,7 +33,7 @@ export default function RdoHoje({ passo, irParaPasso, aoFechar }) {
       )}
       {passo === 1
         ? <RdoPasso1 rdo={rdo.data} aoMudarRdo={rdo.recarregar} avancar={() => irParaPasso(2)} />
-        : <RdoPasso2 aoMudarRdo={rdo.recarregar} aoFechar={aoFechar} />}
+        : <RdoPasso2 aoMudarRdo={rdo.recarregar} aoFechar={aoFechar} frenteDestaque={frente} />}
     </>
   )
 }

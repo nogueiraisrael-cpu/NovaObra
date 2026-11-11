@@ -1,6 +1,7 @@
 // Regras da entidade OBRA. Puras.
 import { SITUACOES_OBRA, TIPOS_OBRA } from './listas.js'
 import { diasUteis, calendarioDaObra } from './planejamento.js'
+import { diasParada } from './frentes.js'
 
 // "RDO de ontem não fechado" só cobra o dia que devia ter diário: obra em andamento, já começada
 // e ontem era dia de trabalho dela (calendário e feriados). Achado de 07/11/2026: obra criada hoje
@@ -32,6 +33,16 @@ export function separarPorSituacao(resumos) {
     paradas: resumos.filter((r) => r.obra.situacao === 'Parada'),
     concluidas: resumos.filter((r) => r.obra.situacao === 'Concluída'),
   }
+}
+
+// As frentes paradas das obras do comparativo, numa lista só: a parada há mais tempo no topo.
+// `resumos` = as obras que o número do quadro conta (as em andamento).
+export function frentesParadasDasObras(resumos, hoje) {
+  return resumos
+    .flatMap((r) => r.paradas.map((f) => ({
+      obra_id: r.obra.id, obra_nome: r.obra.nome, frente_id: f.id, nome: f.nome, motivo: f.motivo_parada, dias: diasParada(f, hoje),
+    })))
+    .sort((a, b) => ((b.dias ?? 0) - (a.dias ?? 0)) || a.obra_nome.localeCompare(b.obra_nome, 'pt-BR') || a.nome.localeCompare(b.nome, 'pt-BR'))
 }
 
 // Qual obra abrir quando o app liga: a que estava guardada, se ainda existe;

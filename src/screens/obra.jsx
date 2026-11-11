@@ -34,7 +34,7 @@ export default function Obra({ goto, params }) {
       ? <div style={{ marginTop: 16 }}><Vazio icone="obras" titulo="Obra concluída"
         texto="Para lançar diário, reabra a obra em Editar obra, na tela Obras."
         acao={<button className="btn btn-ghost" onClick={() => goto('obras')}>Ir para Obras</button>} /></div>
-      : <RdoHoje passo={params.passo ?? 1} irParaPasso={(passo) => irPara({ passo })} aoFechar={() => goto('obras')} />
+      : <RdoHoje passo={params.passo ?? 1} frente={params.frente} irParaPasso={(passo) => irPara({ passo, frente: undefined })} aoFechar={() => goto('obras')} />
   }
 
   return (
