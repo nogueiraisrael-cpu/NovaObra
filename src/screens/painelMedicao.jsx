@@ -311,7 +311,7 @@ export default function PainelMedicao({ alvo, voltar }) {
 
   return (
     <div className="med-painel">
-      <div className="so-impressao">Nova Obra · {titulo} · {obra.nome} ({obra.codigo})</div>
+      <div className="so-impressao">HB ENGENHARIA · {titulo} · {obra.nome} ({obra.codigo})</div>
       <div className="med-painel-topo nao-imprimir">
         <button className="back" onClick={voltar}><Icon nome="back" />Medições</button>
         {dados.data?.medicoes.length > 0 && <button className="btn btn-ghost" onClick={() => window.print()}>Imprimir</button>}

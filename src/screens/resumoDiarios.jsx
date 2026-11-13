@@ -67,7 +67,7 @@ function Resumo({ ids, voltar }) {
   return (
     <div className="resumo-diarios">
       <button className="back nao-imprimir" onClick={voltar}><Icon nome="back" />Escolher os dias</button>
-      <div className="so-impressao">Nova Obra · Resumo dos diários · {obra.nome} ({obra.codigo}) · {obra.cidade}</div>
+      <div className="so-impressao">HB ENGENHARIA · Resumo dos diários · {obra.nome} ({obra.codigo}) · {obra.cidade}</div>
       <h2 className="dia-titulo" style={{ marginTop: 6 }}>Resumo · {periodo}</h2>
       <div className="sub">{p.totais.dias} {p.totais.dias === 1 ? 'diário' : 'diários'}{p.totais.nao_fechados ? ` · ${p.totais.nao_fechados} ainda não ${p.totais.nao_fechados === 1 ? 'fechado' : 'fechados'}` : ''}</div>
 

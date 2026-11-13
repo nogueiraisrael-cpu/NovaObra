@@ -110,7 +110,7 @@ function DiaDoDiario({ id, voltar }) {
   return (
     <div className="diario-dia">
       <button className="back nao-imprimir" onClick={voltar}><Icon nome="back" />Todos os diários</button>
-      <div className="so-impressao">Nova Obra · Diário de obra · {obra.nome} ({obra.codigo}) · {obra.cidade}</div>
+      <div className="so-impressao">HB ENGENHARIA · Diário de obra · {obra.nome} ({obra.codigo}) · {obra.cidade}</div>
       <div className="item-top" style={{ marginTop: 6 }}>
         <div>
           <h2 className="dia-titulo">{formatarDataLonga(d.data)}</h2>
