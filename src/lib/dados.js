@@ -30,7 +30,7 @@ import {
 import { validarRestricao, novoPrazo, podeMover } from './restricoes.js'
 import { validarCausa, REGISTRO_VAZIO, mudancaDeColuna, efeitoDoAvanco, camposDaSubtarefa } from './curtoPrazo.js'
 import { nomesDeEmpreiteiros, nomeDoEmpreiteiro, conferirParaGravar } from './medicoes.js'
-import { STATUS_SEMANA } from './listas.js'
+import { STATUS_SEMANA, SITUACAO_EQUIPAMENTO_CONCLUIDO } from './listas.js'
 import {
   validarEntrada, validarSenha, mensagemDoLogin, AVISO_BLOQUEADO,
 } from './login.js'
@@ -568,21 +568,34 @@ export const listarEquipamentosHoje = () => executar(async () => {
   return ok(equipamentos.sort(porNome).map((e) => {
     const linha = linhas.find((x) => x.equipamento_id === e.id)
     // Só o que chegou hoje pode sair como "lançado por engano": o que está aqui há dias sai pela tela Equipamentos.
-    return { equipamento: e, situacao: linha?.situacao ?? 'Operando', observacao: linha?.observacao ?? '', chegou_hoje: e.situacao_desde === hoje() }
+    // Linha "Concluído" de quem está na obra: a volta no mesmo dia já a regrava como Operando
+    // (mandarEquipamentoParaObra); se essa gravação caiu no meio, a tela mostra Operando do mesmo jeito.
+    const valeALinha = linha && linha.situacao !== SITUACAO_EQUIPAMENTO_CONCLUIDO
+    return {
+      equipamento: e, situacao: valeALinha ? linha.situacao : 'Operando', observacao: valeALinha ? linha.observacao ?? '' : '',
+      chegou_hoje: e.situacao_desde === hoje(),
+    }
   }))
 })
 
+// Dono único da linha do equipamento no diário de hoje: uma por equipamento, criada ou regravada.
+async function gravarEquipamentoNoDia(obraId, equipamentoId, mudancas) {
+  const rdo = await garantirRdoHoje(obraId)
+  const existente = await um('rdo_equipamentos', { rdo_id: rdo.id, equipamento_id: equipamentoId })
+  if (existente) return (await gravar('rdo_equipamentos', { id: existente.id }, mudancas))[0]
+  return inserir('rdo_equipamentos', { rdo_id: rdo.id, obra_id: obraId, equipamento_id: equipamentoId, observacao: '', ...mudancas })
+}
+
 export const marcarEquipamentoDia = (equipamentoId, situacao, observacao) => executar(async () => {
   const obraId = obraAtual()
+  // "Concluído" tira o equipamento da obra: só por concluirEquipamento, que faz as duas gravações.
+  if (situacao === SITUACAO_EQUIPAMENTO_CONCLUIDO) return falha('Para concluir o uso do equipamento, toque em Concluído e confirme.')
   // O banco só confere que o equipamento existe; quem confere que ele está NESTA obra é aqui.
   if (!(await um('equipamentos', { id: equipamentoId, situacao: 'Na obra', obra_id: obraId }))) return falha('Equipamento não está nesta obra.')
-  const rdo = await garantirRdoHoje(obraId)
   const mudancas = { situacao }
   if (observacao !== undefined) mudancas.observacao = observacao
   if (situacao === 'Operando') mudancas.observacao = ''
-  const existente = await um('rdo_equipamentos', { rdo_id: rdo.id, equipamento_id: equipamentoId })
-  if (existente) return ok((await gravar('rdo_equipamentos', { id: existente.id }, mudancas))[0])
-  return ok(await inserir('rdo_equipamentos', { rdo_id: rdo.id, obra_id: obraId, equipamento_id: equipamentoId, observacao: '', ...mudancas }))
+  return ok(await gravarEquipamentoNoDia(obraId, equipamentoId, mudancas))
 })
 
 // ---------------------------------------------------------------------------
@@ -991,7 +1004,16 @@ export const mandarEquipamentoParaObra = (equipamentoId) => executar(async () =>
   // Só sai do depósito: o que está em outra obra (ou no conserto) não é puxado sem querer.
   const [e] = await atualizar('equipamentos', { id: equipamentoId, situacao: 'No depósito' },
     { situacao: 'Na obra', obra_id: obraId, situacao_desde: hoje(), oficina: null, previsao_retorno: null, defeito: null })
-  if (e) return ok(e)
+  if (e) {
+    // Concluído hoje e de volta no mesmo dia: a linha do diário volta a Operando, para o diário dizer o que a tela mostra.
+    // "Não achei" é esperado (sem diário hoje, ou sem linha Concluído).
+    const rdo = await rdoDeHoje(obraId)
+    if (rdo) {
+      await atualizar('rdo_equipamentos', { rdo_id: rdo.id, equipamento_id: equipamentoId, situacao: SITUACAO_EQUIPAMENTO_CONCLUIDO },
+        { situacao: 'Operando', observacao: '' })
+    }
+    return ok(e)
+  }
   const atual = await um('equipamentos', { id: equipamentoId })
   if (!atual) return falha('Equipamento não encontrado.')
   if (atual.situacao === 'Na obra') {
@@ -1007,6 +1029,18 @@ const levarAoDeposito = async (equipamentoId, obraId) => (await atualizar('equip
 export const mandarEquipamentoParaDeposito = (equipamentoId) => executar(async () => {
   const e = await levarAoDeposito(equipamentoId, obraAtual())
   return e ? ok(e) : falha('Equipamento não está nesta obra.')
+})
+
+// "Concluído": o equipamento terminou o serviço nesta obra. O diário de hoje guarda a linha "Concluído" com a
+// observação (o que foi feito, quando acabou) e o equipamento volta para o depósito.
+// Grava a linha primeiro: se a internet cair no meio, ele continua na obra e repetir completa.
+export const concluirEquipamento = (equipamentoId, observacao) => executar(async () => {
+  const obraId = obraAtual()
+  const atual = await um('equipamentos', { id: equipamentoId, situacao: 'Na obra', obra_id: obraId })
+  if (!atual) return falha('Equipamento não está nesta obra.')
+  await gravarEquipamentoNoDia(obraId, equipamentoId, { situacao: SITUACAO_EQUIPAMENTO_CONCLUIDO, observacao: (observacao ?? '').trim() })
+  const e = await levarAoDeposito(equipamentoId, obraId)
+  return e ? ok(e) : falha('Não foi gravado: o equipamento continua na obra. Tente de novo.')
 })
 
 // "Lançado por engano" no RDO de hoje: apaga a linha do dia e devolve o equipamento ao depósito.

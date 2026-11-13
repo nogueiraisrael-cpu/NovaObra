@@ -48,7 +48,8 @@ begin
   exception when unique_violation then insert into _r values ('Diário: um só por obra por dia', true); end;
   begin update public.rdos set clima_manha = 'Granizo' where id = rdo; insert into _r values ('Diário: clima fora da lista é recusado', false);
   exception when check_violation then insert into _r values ('Diário: clima fora da lista é recusado', true); end;
-  select id into func from public.funcionarios where obra_id = ubs and ativo limit 1;
+  -- De preferência alguém da UBS; se a obra estiver sem ninguém lotado, serve qualquer funcionário ativo.
+  select id into func from public.funcionarios where ativo order by (obra_id = ubs) desc nulls last limit 1;
   insert into public.rdo_efetivo (rdo_id, obra_id, data, funcionario_id, situacao) values (rdo, ubs, '2030-01-07', func, 'Falta');
   begin insert into public.rdo_efetivo (rdo_id, obra_id, data, funcionario_id, situacao) values (rdo, ubs, '2030-01-07', func, 'Presente');
     insert into _r values ('Efetivo: a pessoa não repete no diário', false);
@@ -74,6 +75,12 @@ begin
   exception when check_violation then insert into _r values ('Frentes: parada sem motivo é recusada', true); end;
   begin delete from public.frentes_servico where id = v_frente; insert into _r values ('Frentes: frente que está em diário não se apaga', false);
   exception when foreign_key_violation then insert into _r values ('Frentes: frente que está em diário não se apaga', true); end;
+  select id into equip from public.equipamentos limit 1;
+  insert into public.rdo_equipamentos (rdo_id, obra_id, equipamento_id, situacao, observacao) values (rdo, ubs, equip, 'Concluído', acentos);
+  select situacao = 'Concluído' and observacao = acentos into ok from public.rdo_equipamentos where rdo_id = rdo and equipamento_id = equip;
+  insert into _r values ('Equipamentos: Concluído e a observação voltam iguais', ok);
+  begin update public.rdo_equipamentos set situacao = 'Devolvido' where rdo_id = rdo and equipamento_id = equip; insert into _r values ('Equipamentos: situação fora da lista é recusada', false);
+  exception when check_violation then insert into _r values ('Equipamentos: situação fora da lista é recusada', true); end;
   update public.rdos set status = 'Fechado', fechado_por = adm, fechado_em = now() where id = rdo; get diagnostics n = row_count;
   insert into _r values ('Fechar: o dia fecha', n = 1);
   delete from public.rdos where id = rdo; get diagnostics n = row_count;

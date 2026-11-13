@@ -139,7 +139,7 @@ function DiaDoDiario({ id, voltar }) {
             ))}
           </section>
           <section className="block">
-            <div className="block-h"><h3>Equipamentos</h3><span className="count">{d.equipamentos.length} na obra</span></div>
+            <div className="block-h"><h3>Equipamentos</h3><span className="count">{d.equipamentos.length} no dia</span></div>
             {d.equipamentos.length === 0 && <p className="t-muted">Nenhum equipamento neste dia.</p>}
             {d.equipamentos.map((e) => (
               <div className="linha-dia" key={e.id}>

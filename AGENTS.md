@@ -204,6 +204,10 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   meio, sobra um arquivo solto, sem estrago); ao tirar uma foto da frente, apagar o pedido ou receber de novo,
   grava a tabela e depois apaga o arquivo (caiu no meio, idem). No RDO, "Tirar da obra" (equipamento lançado por
   engano) apaga a linha do dia e depois manda para o depósito: se cair no meio, ele continua na obra e repetir completa.
+  "Concluído" (equipamento terminou o serviço, 13/11/2026) grava a linha "Concluído" com a observação no diário de hoje e
+  depois manda para o depósito: se cair no meio, ele continua na obra e repetir completa. Concluir abre o diário de
+  hoje se ainda não existir. Se o concluído voltar para a obra no mesmo dia, a linha volta a "Operando" (uma linha por
+  equipamento por dia: a observação da conclusão se perde).
   Em Diários, "Corrigir este dia" grava o dia, depois o efetivo, depois as frentes: se cair no meio, salvar de novo completa.
   No passo 2, tirar ou incluir alguém pelo cartão de uma frente ainda não lançada hoje grava o lançamento e depois a
   equipe: se a equipe falhar, o `dados.js` desfaz o lançamento (`lancarFrente`), e repetir o toque completa. Fechar o

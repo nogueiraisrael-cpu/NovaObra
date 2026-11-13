@@ -3,11 +3,11 @@ import { useState } from 'react'
 import {
   listarEfetivoHoje, marcarEfetivo, listarFuncionariosParaTrazer, trazerFuncionario, devolverFuncionario,
   listarDestinosDeslocamento, listarEquipamentosHoje, marcarEquipamentoDia, listarEquipamentos,
-  mandarEquipamentoParaObra, salvarRdo, salvarEquipamento, tirarEquipamentoDoRdo,
+  mandarEquipamentoParaObra, salvarRdo, salvarEquipamento, tirarEquipamentoDoRdo, concluirEquipamento,
 } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { resumoEfetivo } from '../lib/efetivo.js'
-import { SITUACOES_EFETIVO_TOQUE, SITUACOES_EQUIPAMENTO_DIA } from '../lib/listas.js'
+import { SITUACOES_EFETIVO_TOQUE, SITUACOES_EQUIPAMENTO_TOQUE, SITUACAO_EQUIPAMENTO_CONCLUIDO } from '../lib/listas.js'
 import { BlocoClima, Carregando, ErroCarga, Gaveta, Icon, Pill, Stats, useToast, COR_EFETIVO, COR_EQUIP } from '../components/index.jsx'
 
 // Antes de abrir o RDO de hoje, o clima aparece no padrão (Bom e praticável).
@@ -53,6 +53,8 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
   const [obs, setObs] = useState(rdo?.observacoes ?? '')
   const [tirar, setTirar] = useState(null) // id do equipamento que pede confirmação para sair do RDO
   const [tirando, setTirando] = useState(false)
+  const [concluir, setConcluir] = useState(null) // { id, obs }: equipamento que pede confirmação para concluir o uso
+  const [concluindo, setConcluindo] = useState(false)
 
   async function depoisDe(promessa, ...recarregar) {
     const { erro } = await promessa
@@ -120,6 +122,16 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
     setTirando(false)
   }
 
+  async function concluirEquip(e) {
+    if (concluindo) return
+    setConcluindo(true)
+    if (await depoisDe(concluirEquipamento(e.id, concluir.obs), equips)) {
+      toast(`${e.nome}: uso concluído, voltou para o depósito`)
+      setConcluir(null)
+    }
+    setConcluindo(false)
+  }
+
   if (efetivo.carregando || equips.carregando) return <Carregando />
   if (efetivo.erro || equips.erro) return <ErroCarga erro={efetivo.erro || equips.erro} tentar={() => { efetivo.recarregar(); equips.recarregar() }} />
 
@@ -141,13 +153,27 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
             {equips.data.map((x) => (
               <div className="person" key={x.equipamento.id}>
                 <div className="person-top"><b>{x.equipamento.nome}</b><span>{x.equipamento.codigo}</span></div>
-                <div className="seg three">
-                  {SITUACOES_EQUIPAMENTO_DIA.map((s) => (
-                    <button key={s} className={x.situacao === s ? COR_EQUIP[s] : ''}
-                      onClick={() => depoisDe(marcarEquipamentoDia(x.equipamento.id, s), equips)}>{s}</button>
+                <div className="seg">
+                  {SITUACOES_EQUIPAMENTO_TOQUE.map((s) => (
+                    <button key={s} className={x.situacao === s && concluir?.id !== x.equipamento.id ? COR_EQUIP[s] : ''}
+                      onClick={() => { setConcluir(null); depoisDe(marcarEquipamentoDia(x.equipamento.id, s), equips) }}>{s}</button>
                   ))}
+                  <button className={concluir?.id === x.equipamento.id ? COR_EQUIP[SITUACAO_EQUIPAMENTO_CONCLUIDO] : ''}
+                    onClick={() => setConcluir({ id: x.equipamento.id, obs: '' })}>{SITUACAO_EQUIPAMENTO_CONCLUIDO}</button>
                 </div>
-                {x.situacao !== 'Operando' && (
+                {concluir?.id === x.equipamento.id && (
+                  <div className="note" style={{ marginTop: 8, textAlign: 'left' }}>
+                    Concluir o uso de {x.equipamento.nome} nesta obra? Ele sai da obra e volta para o depósito. O diário de hoje guarda a observação.
+                    <textarea className="field" style={{ marginTop: 8 }} rows={3} aria-label={`Observação da conclusão — ${x.equipamento.nome}`}
+                      placeholder="Observação (opcional). Ex.: concretagem da laje, finalizado em 13/11"
+                      value={concluir.obs} onChange={(e) => setConcluir({ ...concluir, obs: e.target.value })} />
+                    <div className="row-wrap" style={{ marginTop: 8 }}>
+                      <button className="btn btn-ghost" onClick={() => setConcluir(null)} disabled={concluindo}>Cancelar</button>
+                      <button className="btn btn-primary" onClick={() => concluirEquip(x.equipamento)} disabled={concluindo}>{concluindo ? 'Concluindo…' : 'Concluir'}</button>
+                    </div>
+                  </div>
+                )}
+                {x.situacao !== 'Operando' && concluir?.id !== x.equipamento.id && (
                   <input className="field" style={{ marginTop: 8 }} aria-label={`Observação — ${x.equipamento.nome}`}
                     placeholder="Observação (opcional)" defaultValue={x.observacao}
                     onBlur={(e) => e.target.value !== x.observacao && depoisDe(marcarEquipamentoDia(x.equipamento.id, x.situacao, e.target.value), equips)} />

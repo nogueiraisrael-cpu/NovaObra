@@ -17,7 +17,11 @@ export const SITUACOES_EFETIVO_TOQUE = ['Presente', 'Falta', 'Atestado', 'Desloc
 // As que se corrigem num dia que já passou (aba Diários): deslocamento mexe na outra obra do mesmo dia.
 export const SITUACOES_EFETIVO_CORRIGIVEIS = SITUACOES_EFETIVO_TOQUE.filter((s) => s !== 'Deslocado')
 
-export const SITUACOES_EQUIPAMENTO_DIA = ['Operando', 'Parado', 'Quebrado']
+export const SITUACOES_EQUIPAMENTO_DIA = ['Operando', 'Parado', 'Quebrado', 'Concluído']
+// "Concluído" encerra o uso na obra: pede confirmação e observação, e o equipamento volta para o depósito.
+export const SITUACAO_EQUIPAMENTO_CONCLUIDO = 'Concluído'
+// As três que o engenheiro marca com um toque; "Concluído" abre a confirmação.
+export const SITUACOES_EQUIPAMENTO_TOQUE = SITUACOES_EQUIPAMENTO_DIA.filter((s) => s !== SITUACAO_EQUIPAMENTO_CONCLUIDO)
 export const SITUACOES_EQUIPAMENTO = ['Na obra', 'No conserto', 'No depósito']
 
 export const FUNCOES = [

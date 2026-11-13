@@ -1,7 +1,7 @@
 // Equipamentos (v1.0 simples) — os que estão na obra atual e os do depósito.
 // Equipamento em outra obra não aparece aqui (regra multi-obra). Conserto chega na v1.1.
 import { useState } from 'react'
-import { listarEquipamentos, salvarEquipamento, mandarEquipamentoParaObra, mandarEquipamentoParaDeposito } from '../lib/dados.js'
+import { listarEquipamentos, salvarEquipamento, mandarEquipamentoParaObra, mandarEquipamentoParaDeposito, concluirEquipamento } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
 import { formatarDiaMes } from '../lib/datas.js'
@@ -42,6 +42,35 @@ function FormEquipamento({ fechar, salvo }) {
   )
 }
 
+function FormConcluir({ e, fechar, concluido }) {
+  const [obs, setObs] = useState('')
+  const [erro, setErro] = useState(null)
+  const [salvando, setSalvando] = useState(false)
+  async function concluir() {
+    if (salvando) return
+    setSalvando(true)
+    const { erro: falhou } = await concluirEquipamento(e.id, obs)
+    setSalvando(false)
+    if (falhou) return setErro(falhou)
+    concluido()
+  }
+  return (
+    <>
+      <div className="eyebrow">Concluído</div>
+      <h2>Concluir o uso de {e.nome}</h2>
+      <p className="t-muted">Ele sai desta obra e volta para o depósito. O diário de hoje guarda a observação.</p>
+      <label className="label" htmlFor="eq-obs">Observação (opcional)</label>
+      <textarea id="eq-obs" className="field" rows={3} placeholder="Ex.: concretagem da laje, finalizado em 13/11"
+        value={obs} onChange={(x) => setObs(x.target.value)} />
+      {erro && <div className="err">{erro}</div>}
+      <div className="sheet-actions">
+        <button className="btn btn-ghost" onClick={fechar} disabled={salvando}>Cancelar</button>
+        <button className="btn btn-primary" onClick={concluir} disabled={salvando}>{salvando ? 'Concluindo…' : 'Concluir'}</button>
+      </div>
+    </>
+  )
+}
+
 function Cartao({ e, acao }) {
   return (
     <div className="item">
@@ -58,6 +87,7 @@ export default function Equipamentos() {
   const toast = useToast()
   const lista = useDados(listarEquipamentos)
   const [novo, setNovo] = useState(false)
+  const [concluir, setConcluir] = useState(null) // o equipamento que pede a observação para concluir o uso
   // Trava os botões enquanto grava: o segundo toque de um clique duplo virava outro pedido,
   // recusado com "está na obra..., mande para o depósito de lá primeiro" (achado de 07/11).
   const [movendo, setMovendo] = useState(false)
@@ -98,7 +128,12 @@ export default function Equipamentos() {
       <div className="sec"><h2>Nesta obra</h2><span className="t-muted" style={{ fontSize: 15 }}>{naObra.length}</span></div>
       {naObra.length
         ? <div className="list two">{naObra.map((e) => (
-          <Cartao key={e.id} e={e} acao={<button className="btn btn-ghost" disabled={movendo} onClick={() => mover(() => mandarEquipamentoParaDeposito(e.id), `${e.nome} foi para o depósito`)}>Mandar para o depósito</button>} />
+          <Cartao key={e.id} e={e} acao={(
+            <div className="row-wrap">
+              <button className="btn btn-ghost" disabled={movendo} onClick={() => mover(() => mandarEquipamentoParaDeposito(e.id), `${e.nome} foi para o depósito`)}>Mandar para o depósito</button>
+              <button className="btn btn-ghost" disabled={movendo} onClick={() => setConcluir(e)}>Concluído</button>
+            </div>
+          )} />
         ))}</div>
         : <Vazio pequeno icone="equip" titulo="Nenhum equipamento nesta obra" texto="Mande um do depósito, aqui embaixo." />}
       <div className="sec"><h2>No depósito</h2><span className="t-muted" style={{ fontSize: 15 }}>{noDeposito.length}</span></div>
@@ -109,6 +144,10 @@ export default function Equipamentos() {
         : <Vazio pequeno icone="equip" titulo="Depósito vazio" />}
       <div className="note" style={{ marginTop: 20, textAlign: 'left', fontSize: 15 }}>Conserto (oficina, defeito, previsão de retorno) chega na v1.1.</div>
       {gaveta}
+      <Gaveta aberta={!!concluir} fechar={() => setConcluir(null)} rotulo="Concluir uso do equipamento">
+        {concluir && <FormConcluir e={concluir} fechar={() => setConcluir(null)}
+          concluido={() => { toast(`${concluir.nome}: uso concluído, voltou para o depósito`); setConcluir(null); lista.recarregar() }} />}
+      </Gaveta>
     </>
   )
 }

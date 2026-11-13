@@ -46,7 +46,7 @@ Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `mo
 | `frentes_servico` | Cada frente de serviço de uma obra e a situação dela (parada desde quando, por quê) | uma frente |
 | `rdos` | O diário de uma obra em um dia: clima, se deu para trabalhar, ocorrências, aberto/fechado | uma obra num dia |
 | `rdo_efetivo` | Quem estava no dia: presente, falta, atestado, deslocado ou veio de outra obra | uma pessoa num diário |
-| `rdo_equipamentos` | Como cada equipamento passou o dia: operando, parado, quebrado | um equipamento num diário |
+| `rdo_equipamentos` | Como cada equipamento passou o dia: operando, parado, quebrado, ou concluído (terminou o serviço e saiu da obra nesse dia, com a observação) | um equipamento num diário |
 | `rdo_frentes` | O que aconteceu em cada frente no dia (e o motivo, se parou) | uma frente num diário |
 | `rdo_frente_equipe` | Quem trabalhou em qual frente naquele dia | uma pessoa numa frente num dia |
 | `fotos` | As fotos do dia, ligadas à obra, ao diário e à frente | uma foto |

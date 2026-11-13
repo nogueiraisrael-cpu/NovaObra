@@ -40,7 +40,7 @@ export function Icon({ nome, ...resto }) {
 // ---------- cor e ícone de cada situação (lançamento e histórico usam os mesmos) ----------
 export const ICONE_CLIMA = { 'Bom': 'sol', 'Nublado': 'nublado', 'Chuva leve': 'chuva', 'Chuva forte': 'chuvaf' }
 export const COR_EFETIVO = { Presente: 'ok', Falta: 'bad', Atestado: 'warn', Deslocado: 'info', 'Veio de outra obra': 'info' }
-export const COR_EQUIP = { Operando: 'ok', Parado: 'warn', Quebrado: 'bad' }
+export const COR_EQUIP = { Operando: 'ok', Parado: 'warn', Quebrado: 'bad', Concluído: 'info' }
 // Clima da manhã e da tarde, com o "Praticável" de cada um. `valores` tem os quatro campos do
 // RDO (clima_manha, clima_tarde, praticavel_manha, praticavel_tarde); `mudar` recebe só o que mudou.
 export function BlocoClima({ valores, mudar }) {

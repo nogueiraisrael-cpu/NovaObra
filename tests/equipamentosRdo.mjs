@@ -43,9 +43,29 @@ await dados.mandarEquipamentoParaObra(novo.data.id)
 const volta = (await dados.listarEquipamentosHoje()).data.find((x) => x.equipamento.id === novo.data.id)
 conferir('a linha do dia foi apagada', [volta.situacao, volta.observacao], ['Operando', ''])
 
-// Multi-obra: da UBS não se tira o que está na Serra
+// Concluído: o diário de hoje guarda a linha com a observação e o equipamento volta para o depósito
+conferir('Concluído não entra pelo toque do dia', (await dados.marcarEquipamentoDia(novo.data.id, 'Concluído')).erro,
+  'Para concluir o uso do equipamento, toque em Concluído e confirme.')
+conferir('conclui o vibrador', (await dados.concluirEquipamento(novo.data.id, '  Concretagem da laje, acabou em 13/11  ')).erro, null)
+conferir('concluído volta para o depósito', (await dados.listarEquipamentos()).data.noDeposito.some((e) => e.id === novo.data.id), true)
+conferir('e sai dos equipamentos do dia', (await naObra()).includes('Vibrador de imersão'), false)
+const linhaDoDia = async () => (await dados.obterDiario((await dados.obterRdoHoje()).data.id)).data
+  .equipamentos.filter((e) => e.nome === 'Vibrador de imersão').map((e) => [e.situacao, e.observacao])
+conferir('o diário de hoje guarda Concluído e a observação', await linhaDoDia(), [['Concluído', 'Concretagem da laje, acabou em 13/11']])
+conferir('concluir de novo diz que não está na obra', (await dados.concluirEquipamento(novo.data.id, 'x')).erro, 'Equipamento não está nesta obra.')
+// Voltou no mesmo dia: recomeça como Operando; concluir outra vez regrava a mesma linha, sem duplicar.
+await dados.mandarEquipamentoParaObra(novo.data.id)
+const deVolta = (await dados.listarEquipamentosHoje()).data.find((x) => x.equipamento.id === novo.data.id)
+conferir('de volta no mesmo dia, recomeça como Operando', [deVolta.situacao, deVolta.observacao], ['Operando', ''])
+conferir('e o diário de hoje passa a dizer Operando', await linhaDoDia(), [['Operando', '']])
+conferir('conclui de novo, sem observação', (await dados.concluirEquipamento(novo.data.id)).erro, null)
+conferir('uma linha só no diário', await linhaDoDia(), [['Concluído', '']])
+await dados.mandarEquipamentoParaObra(novo.data.id)
+
+// Multi-obra: da UBS não se tira nem se conclui o que está na Serra
 dados.definirObraAtual('obra-ubs')
 conferir('da UBS não tira a betoneira da Serra', (await dados.tirarEquipamentoDoRdo('e-betoneira')).erro, 'Equipamento não está nesta obra.')
+conferir('da UBS não conclui a betoneira da Serra', (await dados.concluirEquipamento('e-betoneira', 'x')).erro, 'Equipamento não está nesta obra.')
 dados.definirObraAtual('obra-serra')
 conferir('e a betoneira segue na Serra', (await naObra()).includes('Betoneira 400 L'), true)
 
