@@ -1,6 +1,6 @@
 {
   "app": "Nova Obra",
-  "atualizado": "2026-11-03",
+  "atualizado": "2026-11-16",
   "decidido_por": "Israel Nogueira",
   "fonte": "docs/permissoes/QUEM-PODE-O-QUE.md",
   "perfis": [
@@ -380,35 +380,36 @@
       "cliente": "só os dele"
     },
     "pranchas.ver": {
-      "assunto": "Pranchas (v1.2)",
+      "assunto": "Gestão à Vista (pranchas)",
       "acao": "Ver com o que foi executado",
       "admin_master": "pode",
       "gerente": "pode",
       "cliente": "pode"
     },
     "pranchas.criar": {
-      "assunto": "Pranchas (v1.2)",
+      "assunto": "Gestão à Vista (pranchas)",
       "acao": "Anexar PDF e desenhar",
       "admin_master": "pode",
       "gerente": "pode",
       "cliente": "·"
     },
     "pranchas.editar": {
-      "assunto": "Pranchas (v1.2)",
+      "assunto": "Gestão à Vista (pranchas)",
       "acao": "Editar o desenho",
       "admin_master": "pode",
       "gerente": "pode",
       "cliente": "·"
     },
     "pranchas.apagar": {
-      "assunto": "Pranchas (v1.2)",
-      "acao": "Apagar prancha",
+      "assunto": "Gestão à Vista (pranchas)",
+      "acao": "Apagar planta",
+      "condicao": "leva as marcações junto (como a medição)",
       "admin_master": "pode",
       "gerente": "·",
       "cliente": "·"
     },
     "pranchas.pintar": {
-      "assunto": "Pranchas (v1.2)",
+      "assunto": "Gestão à Vista (pranchas)",
       "acao": "Pintar executado e desfazer",
       "admin_master": "pode",
       "gerente": "pode",

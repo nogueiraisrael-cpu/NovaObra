@@ -21,7 +21,7 @@ const TABELAS = [
   'atividades', 'equipamentos', 'fotos', 'frentes_servico', 'funcionarios', 'insumos', 'materiais',
   'medicao_itens', 'medicoes', 'membros', 'movimentos_estoque', 'obras', 'pedidos_material', 'profiles',
   'rdo_efetivo', 'rdo_equipamentos', 'rdo_frente_equipe', 'rdo_frentes', 'rdos', 'restricoes',
-  'semana_atividades', 'subtarefas',
+  'semana_atividades', 'subtarefas', 'plantas_visuais', 'planta_etapas', 'planta_marcacoes',
 ]
 const ID_QUE_NAO_EXISTE = '00000000-0000-0000-0000-000000000000'
 

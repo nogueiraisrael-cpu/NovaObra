@@ -37,7 +37,11 @@ import {
 import { fraseDoErroInterno } from './erros.js'
 import { lerTudo } from './paginas.js'
 import { ordenarUsuarios } from './painelAdmin.js'
-import { PASTA_DE_FOTOS, VALIDADE_DO_ENDERECO, caminhoDaFoto, caminhoEhDe, estaNoStorage, mensagemDoEnvio } from './fotos.js'
+import { PASTA_DE_FOTOS, VALIDADE_DO_ENDERECO, MODULO_PLANTAS, caminhoDaFoto, caminhoDaPlanta, caminhoEhDe, estaNoStorage, mensagemDoEnvio } from './fotos.js'
+import {
+  ETAPAS_SUGERIDAS, validarPlanta, camposDaPlanta, validarEtapa, camposDaEtapa, proximaOrdemDeEtapa, trocaDeOrdemEtapa,
+  avancoDe, normalizarLote, mensagemDoEnvioDaPlanta, conferirMarcacao, limparRotulo, pedeQuantidade,
+} from './plantas.js'
 import { encolherFoto } from './imagem.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
 
@@ -45,7 +49,7 @@ import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDos
 export const TABELAS_DA_OBRA = [
   'rdos', 'rdo_efetivo', 'rdo_equipamentos', 'frentes_servico', 'rdo_frentes', 'rdo_frente_equipe', 'fotos',
   'pedidos_material', 'insumos', 'movimentos_estoque', 'atividades', 'restricoes', 'semana_atividades', 'subtarefas',
-  'medicoes', 'medicao_itens',
+  'medicoes', 'medicao_itens', 'plantas_visuais', 'planta_etapas', 'planta_marcacoes',
 ]
 
 // ---------------------------------------------------------------------------
@@ -130,6 +134,7 @@ function traduzirErro(e) {
   if (e.code === '23505' && /uma_presenca_por_dia/.test(e.message)) return 'Esse funcionário já está presente hoje em outra obra.'
   if (/saldo_negativo/.test(e.message)) return 'O estoque ficaria negativo: alguém mexeu neste insumo ao mesmo tempo. Confira o saldo e tente de novo.'
   if (e.code === '23505' && /medicoes_um_numero/.test(e.message)) return 'Já existe medição com esse número. Use outro número.'
+  if (e.code === '23505' && /planta_etapas_um_nome/.test(e.message)) return 'Já existe uma etapa com esse nome nesta obra.'
   if (e.code === '23505') return 'Isso já está gravado (registro repetido).'
   if (e.code === '23514') return 'O banco recusou um valor fora da lista permitida.'
   if (e.code === '23503' && /on table "obras"/.test(e.message)) return OBRA_COM_LANCAMENTOS
@@ -1667,6 +1672,239 @@ async function apagarArquivos(caminhos, obraId, modulo) {
   const { error } = await supabase.storage.from(PASTA_DE_FOTOS).remove(doStorage)
   if (error) console.error('[dados] arquivo de foto não apagado', error)
 }
+
+// ---------------------------------------------------------------------------
+// Gestão à Vista (aba de mesmo nome; "pranchas.*" no quadro): a planta da obra atual com o avanço
+// pintado por cima. A imagem mora no Storage em <obra_id>/plantas/ e NÃO passa por encolherFoto:
+// chega aqui já preparada pela tela (plantaImagem.js, até 4000 px). As regras puras estão em
+// plantas.js e plantaGeometria.js.
+// ---------------------------------------------------------------------------
+
+const comAutor = (linhas) => linhas.map((l) => ({ ...l, por: nomeDoPerfil(l.criado_por) }))
+const plantaDaObra = (id, obraId) => um('plantas_visuais', { id, obra_id: obraId })
+
+async function enderecoAssinado(caminho) {
+  if (!authReal() || !estaNoStorage(caminho)) return null
+  const { data, error } = await supabase.storage.from(PASTA_DE_FOTOS).createSignedUrl(caminho, VALIDADE_DO_ENDERECO)
+  if (error) console.error('[dados] endereço da planta não saiu', error)
+  return data?.signedUrl ?? null
+}
+
+// As plantas da obra (sem a camada de texto do PDF, que só o editor usa).
+export const listarPlantas = () => executar(async () => {
+  const plantas = await ler('plantas_visuais', { obra_id: obraAtual() })
+  return ok(plantas.map(({ textos, ...p }) => ({ ...p, tem_textos: Boolean(textos?.length) }))
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))))
+})
+
+// `preparada` = o que prepararPlanta (plantaImagem.js) devolveu: { blob, extensao, contentType,
+// largura, altura, textos }. Sobe o arquivo e depois grava a linha; se a linha falhar, o arquivo
+// é apagado (para o Gerente, que não apaga planta, sobra um arquivo solto, sem estrago).
+export const subirPlanta = ({ nome, pavimento, preparada }) => executar(async () => {
+  if (!posso('pranchas.criar')) return falha('Seu perfil não sobe planta.')
+  const erros = validarPlanta({ nome })
+  if (erros.nome) return falha(erros.nome)
+  if (!preparada?.largura || !preparada?.altura) return falha('A planta não foi lida. Escolha o arquivo de novo.')
+  const obraId = obraAtual()
+  const id = crypto.randomUUID()
+  // No banco dos testes as obras não têm id de verdade (uuid) e nada sobe.
+  const caminho = authReal() ? caminhoDaPlanta(obraId, id, preparada.extensao) : `${obraId}/${MODULO_PLANTAS}/${id}.${preparada.extensao}`
+  if (authReal()) {
+    const { error } = await supabase.storage.from(PASTA_DE_FOTOS).upload(caminho, preparada.blob, { contentType: preparada.contentType, upsert: false })
+    if (error) return falha(mensagemDoEnvioDaPlanta(error))
+  }
+  try {
+    const linha = await inserir('plantas_visuais', {
+      id, obra_id: obraId, ...camposDaPlanta({ nome, pavimento }), caminho_imagem: caminho,
+      largura: preparada.largura, altura: preparada.altura, textos: preparada.textos ?? null, criado_por: usuario?.id ?? null,
+    })
+    return ok(linha)
+  } catch (e) {
+    await apagarArquivos([caminho], obraId, MODULO_PLANTAS)
+    throw e
+  }
+})
+
+export const editarPlanta = (id, { nome, pavimento }) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não edita planta.')
+  const erros = validarPlanta({ nome })
+  if (erros.nome) return falha(erros.nome)
+  const [linha] = await gravar('plantas_visuais', { id, obra_id: obraAtual() }, camposDaPlanta({ nome, pavimento }))
+  return ok(linha)
+})
+
+// Quantas marcações vão junto se a planta for apagada (a tela avisa antes).
+export const contarMarcacoesDaPlanta = (id) => executar(async () =>
+  ok((await ler('planta_marcacoes', { planta_id: id, obra_id: obraAtual() })).length))
+
+// Apaga a planta, as marcações dela (decisão do Israel em 16/11/2026, igual à medição) e o arquivo.
+export const apagarPlanta = (id) => executar(async () => {
+  if (!posso('pranchas.apagar')) return falha('Só o Engenheiro apaga planta.')
+  const obraId = obraAtual()
+  const planta = await plantaDaObra(id, obraId)
+  if (!planta) return falha('Planta não encontrada nesta obra.')
+  // No Supabase, apagar a planta já leva as marcações (on delete cascade). A segunda gravação
+  // serve ao banco em memória, que não tem cascata; no Supabase não acha nada.
+  await apagarDeVerdade('plantas_visuais', { id, obra_id: obraId })
+  await apagar('planta_marcacoes', { planta_id: id, obra_id: obraId })
+  await apagarArquivos([planta.caminho_imagem], obraId, MODULO_PLANTAS)
+  return ok(true)
+})
+
+// Tudo que o editor precisa: a planta (com endereço assinado por 1 hora), as etapas da obra e as
+// marcações desta planta, com o nome de quem marcou.
+export const abrirPlanta = (id) => executar(async () => {
+  const obraId = obraAtual()
+  const planta = await plantaDaObra(id, obraId)
+  if (!planta) return falha('Planta não encontrada nesta obra.')
+  const [etapas, marcacoes, url] = await Promise.all([
+    ler('planta_etapas', { obra_id: obraId }),
+    ler('planta_marcacoes', { planta_id: id, obra_id: obraId }),
+    enderecoAssinado(planta.caminho_imagem),
+  ])
+  return ok({ planta: { ...planta, url }, etapas, marcacoes: comAutor(marcacoes) })
+})
+
+// Endereço novo da imagem (o do editor vence em 1 hora): a impressão pede um na hora.
+export const enderecoDaPlanta = (id) => executar(async () => {
+  const planta = await plantaDaObra(id, obraAtual())
+  if (!planta) return falha('Planta não encontrada nesta obra.')
+  return ok(await enderecoAssinado(planta.caminho_imagem))
+})
+
+// Etapas (iguais para todas as plantas da obra) ------------------------------------------------
+
+export const listarEtapasDaPlanta = () => executar(async () => ok(await ler('planta_etapas', { obra_id: obraAtual() })))
+
+// Primeira vez na obra: Escavado, Forma, Armado e Concretado (as que já existirem não repetem).
+export const criarEtapasSugeridas = () => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não configura etapas.')
+  const obraId = obraAtual()
+  const existentes = await ler('planta_etapas', { obra_id: obraId })
+  const nomes = new Set(existentes.map((e) => e.nome))
+  let ordem = proximaOrdemDeEtapa(existentes)
+  const novas = ETAPAS_SUGERIDAS.filter((e) => !nomes.has(e.nome))
+    .map((e) => ({ ...e, obra_id: obraId, ordem: ordem++, ativa: true, meta: null, criado_por: usuario?.id ?? null }))
+  return ok(await inserirVarios('planta_etapas', novas))
+})
+
+// Cria ou muda uma etapa. Renomear muda também o nome nas marcações (a etapa é texto nelas):
+// primeiro as marcações, depois a etapa. Se cair no meio, as marcações aparecem com o nome novo
+// como etapa antiga; salvar de novo completa.
+export const salvarEtapa = (dados) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não configura etapas.')
+  const obraId = obraAtual()
+  const existentes = await ler('planta_etapas', { obra_id: obraId })
+  const erros = validarEtapa(dados, existentes)
+  const primeiro = Object.values(erros)[0]
+  if (primeiro) return falha(primeiro)
+  const campos = camposDaEtapa(dados)
+  if (!dados.id) {
+    return ok(await inserir('planta_etapas', { ...campos, obra_id: obraId, ordem: proximaOrdemDeEtapa(existentes), criado_por: usuario?.id ?? null }))
+  }
+  const antes = existentes.find((e) => e.id === dados.id)
+  if (!antes) return falha('Etapa não encontrada nesta obra.')
+  if (antes.nome !== campos.nome) {
+    await atualizar('planta_marcacoes', { obra_id: obraId, etapa: antes.nome }, { etapa: campos.nome })
+  }
+  const [linha] = await gravar('planta_etapas', { id: dados.id, obra_id: obraId }, campos)
+  return ok(linha)
+})
+
+export const moverEtapa = (id, direcao) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não configura etapas.')
+  const obraId = obraAtual()
+  const troca = trocaDeOrdemEtapa(await ler('planta_etapas', { obra_id: obraId }), id, direcao)
+  if (!troca) return ok(false)
+  for (const t of troca) await gravar('planta_etapas', { id: t.id, obra_id: obraId }, { ordem: t.ordem })
+  return ok(true)
+})
+
+// Quantas marcações usam o nome da etapa (a tela avisa antes de apagar).
+export const contarMarcacoesDaEtapa = (nome) => executar(async () =>
+  ok((await ler('planta_marcacoes', { obra_id: obraAtual(), etapa: nome })).length))
+
+// Apagar a etapa não apaga marcação nenhuma: elas continuam na planta como etapa antiga.
+export const apagarEtapa = (id) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não configura etapas.')
+  await apagarDeVerdade('planta_etapas', { id, obra_id: obraAtual() })
+  return ok(true)
+})
+
+// Marcações -----------------------------------------------------------------------------------
+
+const CAMPOS_DA_MARCACAO = ['tipo', 'pontos', 'etapa', 'cor', 'data', 'rotulo', 'quantidade', 'rotacao', 'espessura', 'lote', 'nota', 'lote_cor', 'substitui']
+const soCamposDaMarcacao = (campos) => Object.fromEntries(CAMPOS_DA_MARCACAO.filter((c) => campos[c] !== undefined).map((c) => [c, campos[c]]))
+
+// Grava um desenho novo na planta. `campos` já vem em pixels da imagem (plantaGeometria.js).
+export const criarMarcacao = (plantaId, campos) => executar(async () => {
+  if (!posso('pranchas.pintar')) return falha('Seu perfil não marca na planta.')
+  const obraId = obraAtual()
+  const erro = conferirMarcacao(campos)
+  if (erro) return falha(erro)
+  if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  const linha = await inserir('planta_marcacoes', {
+    ...soCamposDaMarcacao({ ...campos, substitui: null }), obra_id: obraId, planta_id: plantaId, criado_por: usuario?.id ?? null,
+  })
+  return ok(comAutor([linha])[0])
+})
+
+// Avança a peça de etapa: nasce uma marcação nova que aponta a anterior (o histórico fica).
+// `extras` = extrasDaMarcacao(...) (plantas.js): etapa, cor, data, quantidade, lote, nota.
+export const avancarMarcacao = (id, extras) => executar(async () => {
+  if (!posso('pranchas.pintar')) return falha('Seu perfil não marca na planta.')
+  const obraId = obraAtual()
+  const anterior = await um('planta_marcacoes', { id, obra_id: obraId })
+  if (!anterior) return falha('Marcação não encontrada nesta obra.')
+  if (await existe('planta_marcacoes', { substitui: id, obra_id: obraId })) {
+    return falha('Esta peça já avançou de etapa (talvez em outro aparelho). Recarregue a planta.')
+  }
+  const { erro, campos } = avancoDe(anterior, extras)
+  if (erro) return falha(erro)
+  const problema = conferirMarcacao(campos)
+  if (problema) return falha(problema)
+  // A planta é a da anterior (a mesma peça), nunca a que vier nos campos.
+  const linha = await inserir('planta_marcacoes', {
+    ...soCamposDaMarcacao(campos), obra_id: obraId, planta_id: anterior.planta_id, criado_por: usuario?.id ?? null,
+  })
+  return ok(comAutor([linha])[0])
+})
+
+// Rótulo, quantidade, placa e nota de uma marcação já feita. Peça que guarda quantidade (etapa
+// medida, ou que já tinha número) não fica sem ela: senão passaria a contar como 1.
+export const editarMarcacao = (id, { rotulo, quantidade, lote, nota, lote_cor }) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não edita marcação.')
+  const obraId = obraAtual()
+  const atual = await um('planta_marcacoes', { id, obra_id: obraId })
+  if (!atual) return falha('Marcação não encontrada nesta obra.')
+  const campos = {}
+  if (rotulo !== undefined) campos.rotulo = limparRotulo(rotulo)
+  if (quantidade !== undefined) {
+    const etapa = await um('planta_etapas', { obra_id: obraId, nome: atual.etapa })
+    if (quantidade === null && pedeQuantidade(etapa, atual)) return falha('Esta peça é medida: preencha a quantidade.')
+    campos.quantidade = quantidade
+  }
+  if (lote !== undefined) campos.lote = normalizarLote(lote)
+  if (nota !== undefined) campos.nota = normalizarLote(nota)
+  if (lote_cor !== undefined) campos.lote_cor = lote_cor
+  const [linha] = await gravar('planta_marcacoes', { id, obra_id: obraId }, campos)
+  return ok(comAutor([linha])[0])
+})
+
+// Apagar (🧽) a marcação: se ela era o avanço de outra, a anterior volta a aparecer na planta.
+// Se for um passo do meio (A ← B ← C, com a etapa de C escondida no 👁), C passa a apontar A antes
+// de B sair: a vida da peça não se parte em duas. São duas gravações: se cair no meio, C já aponta
+// A e B continua lá; apagar B de novo completa. (O "não achei" do primeiro passo é esperado: quase
+// sempre ninguém aponta a marcação apagada.)
+export const apagarMarcacao = (id) => executar(async () => {
+  if (!posso('pranchas.pintar')) return falha('Seu perfil não apaga marcação.')
+  const obraId = obraAtual()
+  const alvo = await um('planta_marcacoes', { id, obra_id: obraId })
+  if (!alvo) return falha('Marcação não encontrada nesta obra.')
+  await atualizar('planta_marcacoes', { substitui: id, obra_id: obraId }, { substitui: alvo.substitui ?? null })
+  await apagarDeVerdade('planta_marcacoes', { id, obra_id: obraId })
+  return ok(true)
+})
 
 // O que quem está logado pode fazer (src/lib/permissoes.js). As telas perguntam aqui.
 export const posso = (acao, dono = null) => pode(acao, usuario, dono)

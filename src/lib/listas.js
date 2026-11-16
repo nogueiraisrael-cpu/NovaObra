@@ -67,3 +67,8 @@ export const TIPOS_MEDICAO = ['Contrato', 'Empreiteiro']
 export const STATUS_RDO = ['Em andamento', 'Fechado']
 // Como o RDO de hoje aparece no cartão da obra (inclui o caso "não existe RDO").
 export const STATUS_RDO_HOJE = ['Não iniciado', 'Em andamento', 'Fechado']
+
+// Gestão à Vista (migration -27): IDÊNTICOS aos CHECK de planta_etapas e planta_marcacoes.
+export const UNIDADES_ETAPA = ['un', 'm²', 'm', 'm³', 'kg', 't']
+export const TIPOS_MARCACAO = ['pincel', 'ret', 'seta']
+export const ESPESSURAS_MARCACAO = [0.5, 1, 2]

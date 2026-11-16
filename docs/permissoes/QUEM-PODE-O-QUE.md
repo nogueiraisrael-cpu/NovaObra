@@ -1,6 +1,6 @@
 # Quem pode o quê: Nova Obra
 
-Última atualização: 03/11/2026 · Decidido por: Israel Nogueira
+Última atualização: 16/11/2026 · Decidido por: Israel Nogueira
 
 Este quadro manda nas permissões do app. Tudo o mais (`quadro.json`, `src/lib/permissoes.js`, as regras
 do banco e o teste de permissões) é cópia dele. Ele substitui a "Matriz de permissões" do
@@ -100,11 +100,11 @@ tempo. O app não liga nem desliga módulos por pessoa: não há terceira dimens
 | Comentários | Editar mensagem · o gerente apaga e escreve de novo | pode | · | · |
 | Comentários | Apagar mensagem | pode | só os dele | · |
 | Comentários | Marcar como lido | pode | só os dele | só os dele |
-| Pranchas (v1.2) | Ver com o que foi executado | pode | pode | pode |
-| Pranchas (v1.2) | Anexar PDF e desenhar | pode | pode | · |
-| Pranchas (v1.2) | Editar o desenho | pode | pode | · |
-| Pranchas (v1.2) | Apagar prancha | pode | · | · |
-| Pranchas (v1.2) | Pintar executado e desfazer | pode | pode | · |
+| Gestão à Vista (pranchas) | Ver com o que foi executado · o cliente ainda não (v1.1) | pode | pode | pode |
+| Gestão à Vista (pranchas) | Subir planta (PDF ou imagem) | pode | pode | · |
+| Gestão à Vista (pranchas) | Editar planta, etapas e dados da peça | pode | pode | · |
+| Gestão à Vista (pranchas) | Apagar planta · leva as marcações junto | pode | · | · |
+| Gestão à Vista (pranchas) | Pintar, avançar de etapa e desfazer (apagar marcação) | pode | pode | · |
 | Medições (dinheiro) | Ver o painel e os valores | pode | · | · |
 | Medições (dinheiro) | Subir medição | pode | · | · |
 | Medições (dinheiro) | Trocar a planilha | pode | · | · |
@@ -135,10 +135,10 @@ tempo. O app não liga nem desliga módulos por pessoa: não há terceira dimens
 ## 5. O menu de cada perfil
 
 - **admin_master:** Obras · Ocorrências · Equipamentos · Pessoas (com Presença do mês e Efetivo geral) ·
-  Perfil. No topo, o ícone com a inicial abre Painel de admin (a lista de Usuários) e Sair. Dentro da obra: Hoje · Diários · Fotos · Comentários · Pranchas · Medições ·
+  Perfil. No topo, o ícone com a inicial abre Painel de admin (a lista de Usuários) e Sair. Dentro da obra: Hoje · Diários · Fotos · Comentários · Gestão à Vista · Medições ·
   Materiais · Planejamento.
 - **gerente:** Obras · Ocorrências · Equipamentos · Pessoas · Perfil. O ícone do topo mostra só o nome e Sair. Dentro da obra: Hoje ·
-  Diários · Fotos · Comentários · Pranchas · Materiais (sem a foto da nota fiscal) · Planejamento. **Sem
+  Diários · Fotos · Comentários · Gestão à Vista · Materiais (sem a foto da nota fiscal) · Planejamento. **Sem
   Medições.**
 - **cliente:** Avanço · Fotos · Recados · Perfil.
 
@@ -157,7 +157,8 @@ tempo. O app não liga nem desliga módulos por pessoa: não há terceira dimens
 
 **Apagar**
 - [x] Apagar de vez só o que não tem nada ligado: o banco recusa e a tela diz o que está ligado. Nada
-  sai em cascata. Exceção: apagar uma medição leva as linhas dela junto.
+  sai em cascata. Exceções: apagar uma medição leva as linhas dela junto; apagar uma planta da Gestão à Vista
+  leva as marcações dela (16/11/2026).
 - [x] Obra, funcionário, equipamento e material do catálogo se desativam. Quem decide é o admin.
 - [x] Foto não sai junto com o diário: apagar o diário fica travado enquanto ele tiver fotos.
 
@@ -209,6 +210,7 @@ Decisão que só existe no chat não existe.
 
 | Data | Quem decidiu | O que mudou e por quê |
 |---|---|---|
+| 16/11/2026 | Israel Nogueira | Pranchas vira **Gestão à Vista** (a aba muda de nome; as permissões continuam as mesmas, chaves `pranchas.*`). **Apagar planta leva as marcações junto** (exceção ao "nada sai em cascata", como a medição): a planta é o recipiente das marcações e o Engenheiro confirma vendo quantas vão. |
 | 03/11/2026 | Israel Nogueira | Painel de admin: o `admin_master` passa a poder apagar conta, só sem nenhum registro lançado, para cadastro feito errado (era "bloqueia, nunca apaga"). Quem lançou algo continua sendo bloqueado. Usuários sai de Perfil e vira o Painel de admin, no ícone do topo. |
 | 02/11/2026 | Israel Nogueira | Quadro criado. Mudanças sobre a proposta: o `admin_master` edita e apaga qualquer comentário e marca como lido (era "·" e "só os dele"). |
 

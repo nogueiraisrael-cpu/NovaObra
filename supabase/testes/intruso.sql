@@ -14,15 +14,17 @@ do $$
 declare
   ger uuid := gen_random_uuid(); cli uuid := gen_random_uuid();
   pen uuid := gen_random_uuid(); blq uuid := gen_random_uuid();
-  ubs uuid; serra uuid;
+  ubs uuid; serra uuid; adm uuid; pl uuid;
   tabs text[] := array['atividades','equipamentos','fotos','frentes_servico','funcionarios','insumos','materiais',
     'medicao_itens','medicoes','membros','movimentos_estoque','obras','pedidos_material','profiles','rdo_efetivo',
-    'rdo_equipamentos','rdo_frente_equipe','rdo_frentes','rdos','restricoes','semana_atividades','subtarefas'];
+    'rdo_equipamentos','rdo_frente_equipe','rdo_frentes','rdos','restricoes','semana_atividades','subtarefas',
+    'plantas_visuais','planta_etapas','planta_marcacoes'];
   -- O que o quadro deixa o Gerente fazer na obra DELE (as demais tentativas têm que ser recusadas):
   gerente_le_todas text[] := array['funcionarios','equipamentos','materiais'];   -- cadastros que circulam entre obras
   gerente_cria_sem_obra text[] := array['materiais'];                             -- catálogo: criar pode
   gerente_apaga text[] := array['fotos','pedidos_material','rdo_efetivo','rdo_equipamentos','rdo_frente_equipe',
-    'restricoes','semana_atividades','subtarefas','movimentos_estoque'];         -- foto, pedido em Solicitar e partes de editar
+    'restricoes','semana_atividades','subtarefas','movimentos_estoque',
+    'planta_etapas','planta_marcacoes'];                                          -- foto, pedido em Solicitar, partes de editar e o "desfazer" da planta
   dinheiro text[] := array['medicoes','medicao_itens'];                            -- só o Engenheiro, até na obra dele
   amostras jsonb := '{}'; amostra jsonb; p record; t text; filtro text; mudar text; alvo uuid;
   n int; tot int; r text[] := '{}'; est text; saida text := '';
@@ -41,6 +43,17 @@ begin
   update public.profiles set role = 'cliente', status = 'ativo' where id = cli;
   update public.profiles set role = 'gerente', status = 'bloqueado' where id = blq;
   insert into public.membros (obra_id, profile_id) values (ubs, ger), (serra, cli), (ubs, blq);
+
+  -- Gestão à Vista: as tabelas podem estar vazias; uma planta, uma etapa e uma marcação em cada obra.
+  select id into adm from public.profiles where role = 'admin_master' and status = 'ativo' order by created_at limit 1;
+  foreach alvo in array array[ubs, serra] loop
+    pl := gen_random_uuid();
+    insert into public.plantas_visuais (id, obra_id, nome, caminho_imagem, largura, altura, criado_por)
+      values (pl, alvo, 'Planta intruso', alvo || '/plantas/' || pl || '.png', 100, 100, adm);
+    insert into public.planta_etapas (obra_id, nome, cor, criado_por) values (alvo, 'Etapa intruso', '#F2B23E', adm);
+    insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por)
+      values (alvo, pl, 'Etapa intruso', '#F2B23E', 'ret', '{"x":1,"y":1,"w":9,"h":9}', '2026-11-16', adm);
+  end loop;
 
   -- Uma linha de exemplo de cada tabela, para tentar inserir uma cópia como intruso.
   foreach t in array tabs loop
@@ -183,6 +196,7 @@ begin
     end;
     -- A regra de abrir e apagar (privado.pode_foto): a da obra vizinha e a nota fiscal (só o Engenheiro abre)
     r := r || format('%s|%s|storage fotos|ABRIR foto da obra vizinha|', case when privado.pode_foto(serra || '/diario/x.jpg') and p.nome <> 'Cliente' or privado.pode_foto(ubs || '/diario/x.jpg') and p.nome <> 'Gerente' then 'A' else 'F' end, p.nome);
+    r := r || format('%s|%s|storage fotos|ABRIR planta da obra vizinha|', case when privado.pode_foto(serra || '/plantas/' || gen_random_uuid() || '.png') and p.nome <> 'Cliente' or privado.pode_foto(ubs || '/plantas/' || gen_random_uuid() || '.png') and p.nome <> 'Gerente' then 'A' else 'F' end, p.nome);
     r := r || format('%s|%s|storage fotos|ABRIR nota fiscal|', case when privado.pode_foto(ubs || '/nota-fiscal/x.jpg') or privado.pode_foto(serra || '/nota-fiscal/x.jpg') then 'A' else 'F' end, p.nome);
     reset role;
   end loop;

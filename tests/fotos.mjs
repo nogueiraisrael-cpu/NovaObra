@@ -1,5 +1,5 @@
 // Fotos no Storage: o caminho que o banco confere e as frases de envio que falhou.
-import { caminhoDaFoto, caminhoEhDe, estaNoStorage, mensagemDoEnvio } from '../src/lib/fotos.js'
+import { caminhoDaFoto, caminhoDaPlanta, caminhoEhDe, estaNoStorage, mensagemDoEnvio } from '../src/lib/fotos.js'
 
 let ok = 0
 let tot = 0
@@ -28,6 +28,13 @@ conferir('não apaga arquivo de outra obra', caminhoEhDe(`${outra}/diario/${arqu
 conferir('não apaga a nota fiscal pelo diário', caminhoEhDe(`${obra}/nota-fiscal/${arquivo}`, obra, 'diario'), false)
 conferir('não apaga caminho com pasta a mais', caminhoEhDe(`${obra}/diario/x/${arquivo}`, obra, 'diario'), false)
 conferir('não apaga foto antiga dentro da tabela', caminhoEhDe('data:image/jpeg;base64,AA', obra, 'diario'), false)
+
+const planta = '0d9c8b7a-6f5e-4d3c-8b2a-1f0e9d8c7b6a'
+conferir('caminho da planta em PNG', caminhoDaPlanta(obra, planta, 'png'), `${obra}/plantas/${planta}.png`)
+conferir('planta em formato inventado é recusada', estoura(() => caminhoDaPlanta(obra, planta, 'gif')), true)
+conferir('apaga a planta PNG da mesma obra', caminhoEhDe(`${obra}/plantas/${planta}.png`, obra, 'plantas'), true)
+conferir('não apaga planta de outra obra', caminhoEhDe(`${outra}/plantas/${planta}.png`, obra, 'plantas'), false)
+conferir('foto do diário continua só .jpg', caminhoEhDe(`${obra}/diario/${planta}.png`, obra, 'diario'), false)
 
 conferir('sem internet', mensagemDoEnvio({ message: 'Failed to fetch' }), 'A foto não subiu: sem internet. O resto você pode salvar; tire a foto de novo depois.')
 conferir('sem permissão', mensagemDoEnvio({ statusCode: '403', message: 'new row violates row-level security policy' }), 'A foto não subiu: você não tem permissão para mandar foto aqui.')

@@ -462,7 +462,44 @@ export function criarMock(hoje = hojeISO()) {
     })
   }
 
+  // Gestão à Vista: a Serra tem a planta da fundação (4 etapas, sapatas avançando e duas viagens
+  // do MESMO caminhão hoje, em notas diferentes) e a do térreo, vazia; a UBS tem uma planta só,
+  // com uma etapa e uma marcação. Se aparecer sapata na UBS, vazou dado.
+  const plantas_visuais = [
+    { id: 'pl-serra-fund', obra_id: 'obra-serra', nome: 'Fundação', pavimento: 'Fundação', caminho_imagem: 'obra-serra/plantas/pl-serra-fund.png',
+      largura: 4000, altura: 2800, textos: [{ s: 'S1', x: 150, y: 150 }, { s: 'S2', x: 450, y: 150 }, { s: 'Cota 1,20', x: 470, y: 180 }],
+      criado_por: P.israel, created_at: `${d(-10)}T08:00:00Z` },
+    { id: 'pl-serra-terreo', obra_id: 'obra-serra', nome: 'Forma do térreo', pavimento: 'Térreo', caminho_imagem: 'obra-serra/plantas/pl-serra-terreo.jpg',
+      largura: 3000, altura: 4000, textos: null, criado_por: P.israel, created_at: `${d(-5)}T08:00:00Z` },
+    { id: 'pl-ubs-fund', obra_id: 'obra-ubs', nome: 'Fundação UBS', pavimento: 'Fundação', caminho_imagem: 'obra-ubs/plantas/pl-ubs-fund.png',
+      largura: 2000, altura: 1500, textos: null, criado_por: P.ricardo, created_at: `${d(-3)}T08:00:00Z` },
+  ]
+  const planta_etapas = [
+    { id: 'pe-serra-esc', obra_id: 'obra-serra', nome: 'Escavado', cor: '#F2B23E', ordem: 0, ativa: true, meta: 20, unidade: 'un', criado_por: P.israel },
+    { id: 'pe-serra-forma', obra_id: 'obra-serra', nome: 'Forma', cor: '#9B6BD6', ordem: 1, ativa: true, meta: null, unidade: 'un', criado_por: P.israel },
+    { id: 'pe-serra-arm', obra_id: 'obra-serra', nome: 'Armado', cor: '#3D7DD8', ordem: 2, ativa: true, meta: null, unidade: 'un', criado_por: P.israel },
+    { id: 'pe-serra-conc', obra_id: 'obra-serra', nome: 'Concretado', cor: '#3DC28C', ordem: 3, ativa: true, meta: 30, unidade: 'm³', criado_por: P.israel },
+    { id: 'pe-ubs-esc', obra_id: 'obra-ubs', nome: 'Estaca', cor: '#E2574C', ordem: 0, ativa: true, meta: null, unidade: 'un', criado_por: P.ricardo },
+  ]
+  const marca = (id, planta_id, obra_id, etapa, cor, data, rotulo, extra = {}) => ({
+    id, obra_id, planta_id, etapa, cor, tipo: 'ret', pontos: { x: 100, y: 100, w: 100, h: 100 }, data, rotulo,
+    quantidade: null, rotacao: 0, espessura: 1, lote: null, nota: null, lote_cor: null, substitui: null,
+    criado_por: P.israel, created_at: `${data}T1${id.length % 10}:00:00Z`, ...extra,
+  })
+  const planta_marcacoes = [
+    marca('pm-s1-esc', 'pl-serra-fund', 'obra-serra', 'Escavado', '#F2B23E', d(-3), 'S1'),
+    marca('pm-s1-forma', 'pl-serra-fund', 'obra-serra', 'Forma', '#9B6BD6', d(-2), 'S1', { substitui: 'pm-s1-esc' }),
+    marca('pm-s1-conc', 'pl-serra-fund', 'obra-serra', 'Concretado', '#3DC28C', d(0), 'S1',
+      { substitui: 'pm-s1-forma', quantidade: 1.5, lote: 'BT1111', nota: '501', created_at: `${d(0)}T09:00:00Z` }),
+    marca('pm-s2-esc', 'pl-serra-fund', 'obra-serra', 'Escavado', '#F2B23E', d(-3), 'S2', { pontos: { x: 400, y: 100, w: 100, h: 100 } }),
+    marca('pm-s2-conc', 'pl-serra-fund', 'obra-serra', 'Concretado', '#3DC28C', d(0), 'S2',
+      { substitui: 'pm-s2-esc', quantidade: 2, lote: 'BT1111', nota: '502', pontos: { x: 400, y: 100, w: 100, h: 100 }, created_at: `${d(0)}T11:00:00Z` }),
+    marca('pm-s10-esc', 'pl-serra-fund', 'obra-serra', 'Escavado', '#F2B23E', d(0), 'S10', { pontos: { x: 700, y: 100, w: 100, h: 100 } }),
+    marca('pm-ubs-e1', 'pl-ubs-fund', 'obra-ubs', 'Estaca', '#E2574C', d(-1), 'E1', { criado_por: P.ricardo }),
+  ]
+
   return {
+    plantas_visuais, planta_etapas, planta_marcacoes,
     profiles, obras, membros, funcionarios, equipamentos, frentes_servico,
     rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos,
     materiais, pedidos_material, insumos, movimentos_estoque, atividades, restricoes, semana_atividades, subtarefas,

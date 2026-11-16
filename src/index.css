@@ -567,3 +567,59 @@ button.cron-linha:hover{background:var(--card-2)}
   .med-tabela{font-size:8pt} .med-tabela tr.med-grupo td{background:#eee}
   .med-numeros div,.med-barras{border:1px solid #bbb;break-inside:avoid}
 }
+
+/* ---------- Gestão à Vista (planta com o avanço pintado por cima) ---------- */
+.gv-item{display:flex;align-items:center;gap:8px;padding:0 10px 0 0}
+.gv-abrir{flex:1;min-width:0;text-align:left;padding:16px 4px 16px 18px;min-height:64px}
+.gv-acoes{display:flex;align-items:center;gap:4px;flex:none}
+.gv-seta{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;color:var(--slate)}
+.gv-topo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}
+.gv-titulo{font-size:18px;min-width:0}
+.gv-titulo span{color:var(--muted)}
+.gv-barra{display:flex;gap:6px;overflow-x:auto;margin:10px calc(-1 * var(--gutter)) 0;padding:0 var(--gutter) 4px;scrollbar-width:none}
+.gv-barra::-webkit-scrollbar{display:none}
+.gv-ferr{flex:none;min-width:62px;min-height:56px;border-radius:12px;background:var(--card-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1.5px solid transparent;font-size:20px;line-height:1}
+.gv-ferr small{font-size:12px;font-weight:600;color:var(--muted)}
+.gv-ferr.on{border-color:var(--accent);background:rgba(0,163,180,.18)}
+.gv-ferr.on small{color:var(--text)}
+.gv-controles{margin-top:10px}
+.gv-etapas,.gv-vista{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.gv-vista{margin-top:10px}
+.gv-chip{min-height:44px;min-width:44px;padding:0 12px;border-radius:999px;background:var(--card-2);font-weight:600;font-size:14px;border:1.5px solid transparent;color:#D3DCE0;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.gv-chip.on{border-color:var(--accent);background:rgba(0,163,180,.18);color:var(--text)}
+.gv-chip i,.gv-leg i,.gv-vida i,.gv-etapa-linha i,.gv-tabela i{width:14px;height:14px;border-radius:4px;flex:none;display:inline-block}
+.gv-tabela i{margin-right:8px;vertical-align:-2px}
+.gv-mais{color:var(--accent-text)}
+.gv-campos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
+.gv-campos label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.gv-campos .field{min-height:44px;padding:8px 10px;font-size:16px;text-transform:none;letter-spacing:0}
+.gv-cor{display:flex;align-items:center;gap:8px;min-height:44px;text-transform:none;letter-spacing:0;font-weight:500}
+.gv-cor input{width:44px;height:40px;border:0;background:none;padding:0}
+.gv-campo-cor{padding:4px;height:52px}
+.gv-area{display:grid;gap:12px;margin-top:12px}
+@media (min-width:900px){ .gv-area{grid-template-columns:1fr 260px} }
+.gv-palco{position:relative;overflow:auto;height:min(72vh,820px);background:#0A1013;border-radius:var(--radius);border:1.5px solid var(--line);touch-action:none;overscroll-behavior:contain;user-select:none;-webkit-user-select:none}
+.gv-folha{position:relative;background:#fff}
+.gv-folha img{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;-webkit-user-drag:none}
+.gv-folha svg{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.gv-semimagem{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#333;padding:20px;text-align:center}
+.gv-legenda{background:var(--card);border-radius:var(--radius);padding:14px;align-self:start}
+.gv-leg{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.gv-leg:last-of-type{border-bottom:0}
+.gv-leg i{margin-top:4px}
+.gv-leg.apagada{opacity:.45}
+.gv-leg b{font-size:15px}
+.gv-olho{min-width:44px;min-height:44px;font-size:18px;flex:none}
+.gv-meta{height:6px;background:var(--card-2);border-radius:3px;margin-top:6px;overflow:hidden}
+.gv-meta span{display:block;height:100%}
+.gv-vida{list-style:none;display:grid;gap:10px}
+.gv-vida li{display:flex;gap:10px;align-items:flex-start}
+.gv-vida i{margin-top:4px}
+.gv-tabela{width:100%;border-collapse:collapse;font-size:14px}
+.gv-tabela th,.gv-tabela td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.gv-tabela th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.gv-pecas{font-size:15px;margin:6px 0}
+.gv-lista-etapas{display:grid;gap:4px;margin-top:14px}
+.gv-etapa-linha{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.gv-etapa-linha.apagada{opacity:.6}
+.gv-etapa-linha i{margin-right:4px}

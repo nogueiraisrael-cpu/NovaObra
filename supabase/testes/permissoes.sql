@@ -11,6 +11,8 @@ declare
   pen uuid := gen_random_uuid(); blq uuid := gen_random_uuid();
   ubs uuid; serra uuid; n int; falhas text := ''; total int := 0; certos int := 0;
   pedido_ubs uuid; pedido_novo uuid; dia date; efetivo_do_dia_todo int;
+  pl_ubs uuid := gen_random_uuid(); pl_serra uuid := gen_random_uuid(); mk_ubs uuid := gen_random_uuid(); mk_serra uuid := gen_random_uuid();
+  mk_ger uuid; bate boolean;
 begin
   select id into adm from public.profiles where role = 'admin_master' and status = 'ativo' order by created_at limit 1;
   select id into ubs from public.obras where codigo = 'UBS-NE';
@@ -27,6 +29,14 @@ begin
   update public.profiles set role = 'gerente', status = 'bloqueado' where id = blq;
   insert into public.membros (obra_id, profile_id) values (ubs, ger), (serra, cli), (ubs, blq);
   select id into pedido_ubs from public.pedidos_material where obra_id = ubs and status <> 'Solicitar' limit 1;
+
+  -- Gestão à Vista: uma planta em cada obra, com uma marcação em cada (feitas pelo Engenheiro).
+  insert into public.plantas_visuais (id, obra_id, nome, caminho_imagem, largura, altura, criado_por) values
+    (pl_ubs, ubs, 'Planta T UBS', ubs || '/plantas/' || pl_ubs || '.png', 100, 100, adm),
+    (pl_serra, serra, 'Planta T Serra', serra || '/plantas/' || pl_serra || '.png', 100, 100, adm);
+  insert into public.planta_marcacoes (id, obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por) values
+    (mk_ubs, ubs, pl_ubs, 'Escavado T', '#F2B23E', 'ret', '{"x":1,"y":1,"w":9,"h":9}', '2026-11-16', adm),
+    (mk_serra, serra, pl_serra, 'Escavado T', '#F2B23E', 'ret', '{"x":1,"y":1,"w":9,"h":9}', '2026-11-16', adm);
 
   -- Um dia com efetivo lançado: o teste não depende de ter diário hoje.
   select max(data) into dia from public.rdo_efetivo where obra_id = serra;
@@ -49,6 +59,7 @@ begin
   select count(*) into n from public.obras; insert into _r values ('pendente não vê obra', n = 0);
   select count(*) into n from public.rdos; insert into _r values ('pendente não vê diário', n = 0);
   select count(*) into n from public.funcionarios; insert into _r values ('pendente não vê funcionário', n = 0);
+  select count(*) into n from public.plantas_visuais; insert into _r values ('pendente não vê planta', n = 0);
   begin insert into public.materiais (nome, unidade, categoria) values ('X teste', 'un', 'Material grosso'); insert into _r values ('pendente não grava', false);
   exception when insufficient_privilege then insert into _r values ('pendente não grava', true); end;
   reset role;
@@ -68,6 +79,8 @@ begin
   select count(*) into n from public.medicoes; insert into _r values ('cliente nunca vê medição', n = 0);
   select count(*) into n from public.efetivo_do_dia(dia); insert into _r values ('cliente não vê o efetivo do dia', n = 0);
   select count(*) into n from public.fotos; insert into _r values ('cliente ainda não vê foto (v1.1)', n = 0);
+  select count(*) into n from public.plantas_visuais; insert into _r values ('cliente ainda não vê planta (v1.1)', n = 0);
+  select count(*) into n from public.planta_marcacoes; insert into _r values ('cliente ainda não vê marcação (v1.1)', n = 0);
   reset role;
 
   -- ── Gerente (liberado só na UBS) ──
@@ -134,6 +147,45 @@ begin
   insert into _r values ('gerente abre foto do diário da UBS', privado.pode_foto(ubs || '/diario/' || gen_random_uuid() || '.jpg'));
   insert into _r values ('gerente não abre nota fiscal', not privado.pode_foto(ubs || '/nota-fiscal/' || gen_random_uuid() || '.jpg'));
   insert into _r values ('gerente não abre foto da Serra', not privado.pode_foto(serra || '/diario/' || gen_random_uuid() || '.jpg'));
+
+  -- Gestão à Vista
+  select count(*) into n from public.plantas_visuais where obra_id = serra; insert into _r values ('gerente não vê planta da Serra', n = 0);
+  select count(*) into n from public.plantas_visuais where id = pl_ubs; insert into _r values ('gerente vê planta da UBS', n = 1);
+  select count(*) into n from public.planta_marcacoes where obra_id = serra; insert into _r values ('gerente não vê marcação da Serra', n = 0);
+  insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, substitui, criado_por)
+    values (ubs, pl_ubs, 'Forma T', '#9B6BD6', 'ret', '{"x":1,"y":1,"w":9,"h":9}', '2026-11-16', mk_ubs, ger) returning id into mk_ger;
+  insert into _r values ('gerente avança marcação na UBS (linha nova)', mk_ger is not null);
+  begin
+    insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por)
+      values (serra, pl_serra, 'X', '#000000', 'ret', '{}', '2026-11-16', ger);
+    insert into _r values ('gerente não marca na planta da Serra', false);
+  exception when insufficient_privilege then insert into _r values ('gerente não marca na planta da Serra', true); end;
+  -- O carimbo (migration -29) ignora o autor que vier do navegador e grava quem está logado.
+  declare mk_falso uuid; begin
+    insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por)
+      values (ubs, pl_ubs, 'X', '#000000', 'ret', '{}', '2026-11-16', adm) returning id into mk_falso;
+    insert into _r select 'gerente não marca no nome de outro (o banco grava ele)', criado_por = ger from public.planta_marcacoes where id = mk_falso;
+    delete from public.planta_marcacoes where id = mk_falso;
+  end;
+  select criado_por = ger into bate from public.planta_marcacoes where id = mk_ger;
+  insert into _r values ('o avanço do gerente nasce com ele como quem marcou', bate);
+  begin
+    insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por)
+      values (ubs, pl_serra, 'X', '#000000', 'ret', '{}', '2026-11-16', ger);
+    insert into _r values ('marcação da UBS não aponta planta da Serra', false);
+  exception when foreign_key_violation then insert into _r values ('marcação da UBS não aponta planta da Serra', true); end;
+  update public.planta_marcacoes set criado_por = ger where id = mk_ubs;
+  select criado_por = adm into bate from public.planta_marcacoes where id = mk_ubs;
+  insert into _r values ('ninguém troca o autor da marcação', bate);
+  delete from public.plantas_visuais where id = pl_ubs; get diagnostics n = row_count;
+  insert into _r values ('gerente não apaga planta', n = 0);
+  delete from public.planta_marcacoes where id = mk_serra; get diagnostics n = row_count;
+  insert into _r values ('gerente não apaga marcação da Serra', n = 0);
+  delete from public.planta_marcacoes where id = mk_ger; get diagnostics n = row_count;
+  insert into _r values ('gerente apaga (desfaz) marcação na UBS', n = 1);
+  insert into _r values ('gerente abre planta PNG da UBS', privado.pode_foto(ubs || '/plantas/' || gen_random_uuid() || '.png'));
+  insert into _r values ('gerente não abre planta da Serra', not privado.pode_foto(serra || '/plantas/' || gen_random_uuid() || '.png'));
+  insert into _r values ('PNG fora da pasta plantas é recusado', not privado.pode_foto(ubs || '/diario/' || gen_random_uuid() || '.png'));
   reset role;
 
   -- ── Engenheiro (admin) ──
@@ -164,6 +216,10 @@ begin
     insert into _r values ('nem o engenheiro muda situação pelo navegador', false);
   exception when insufficient_privilege then insert into _r values ('nem o engenheiro muda situação pelo navegador', true); end;
   insert into _r values ('engenheiro abre nota fiscal', privado.pode_foto(ubs || '/nota-fiscal/' || gen_random_uuid() || '.jpg'));
+  select count(*) into n from public.plantas_visuais where id in (pl_ubs, pl_serra); insert into _r values ('engenheiro vê as plantas das duas obras', n = 2);
+  delete from public.plantas_visuais where id = pl_ubs; get diagnostics n = row_count;
+  insert into _r values ('engenheiro apaga planta', n = 1);
+  select count(*) into n from public.planta_marcacoes where planta_id = pl_ubs; insert into _r values ('as marcações da planta apagada vão junto', n = 0);
   reset role;
 
   select count(*), count(*) filter (where ok) into total, certos from _r;

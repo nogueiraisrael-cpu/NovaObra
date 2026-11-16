@@ -27,7 +27,7 @@ gerente lê as outras obras pela função `efetivo_do_dia` (só quem está em qu
    fotos de exemplo antigas continuam dentro do registro (`data:`) e aparecem iguais.
 4. **Histórico de mudanças** (quem mudou o quê) ainda não existe.
 
-## As tabelas (22)
+## As tabelas (25)
 
 Em **todas** as tabelas existem `criado_por` (quem criou, ligado a `profiles`) e `updated_at` (a última
 alteração). O próprio banco preenche as duas (gatilho `privado.carimbar`): o app nunca grava essas colunas, e
@@ -60,6 +60,9 @@ Nas quatro tabelas de Materiais (`materiais`, `pedidos_material`, `insumos`, `mo
 | `subtarefas` | O checklist dentro de cada atividade: feita, ou não realizada com a causa raiz | uma subtarefa |
 | `medicoes` | Cada medição subida por planilha, do contrato (Boletim de Medição, aba BM) ou de um empreiteiro (uma aba por medição): nº, data, período, valor no período, desconto e valor a pagar (empreiteiro), nome do arquivo e da aba, e os avisos aceitos na conferência. **Os valores são os da planilha: o app não recalcula** | uma medição |
 | `medicao_itens` | Cada serviço lido da planilha de uma medição: item, etapa e subetapa (contrato), descrição, unidade, preço, quantidade prevista, contratada (= adequada), no período e acumulada, e os valores. **Saldo e % não são guardados: contratado − acumulado.** Excluir a medição apaga as linhas dela | um serviço numa medição |
+| `plantas_visuais` | Gestão à Vista: a planta da obra (uma por pavimento, normalmente): nome, pavimento, o caminho da imagem no Storage (`<obra>/plantas/<id>.png`), largura e altura em pixels, e a camada de texto do PDF (`textos`, para sugerir o nome da peça). | uma planta |
+| `planta_etapas` | As etapas da Gestão à Vista de cada obra (Escavado, Forma, Armado, Concretado…): cor, ordem, arquivada ou não, meta e unidade (un, m², m, m³, kg, t). Iguais para todas as plantas da obra | uma etapa numa obra |
+| `planta_marcacoes` | Cada desenho pintado na planta, **guardado como vetor** (pontos em pixels da imagem, nunca da tela): etapa (texto, não ligação: apagar a etapa não some com a marcação), data, nome da peça, quantidade (vazia = vale 1), espessura, placa e nota do caminhão. **Avançar de etapa não muda a linha: nasce outra com `substitui` apontando a anterior** (é o histórico da peça). Apagar a planta leva as marcações | um desenho, numa etapa, num dia |
 
 ## As travas que o próprio banco garante
 
@@ -82,6 +85,10 @@ Mesmo que a tela erre, o banco recusa:
 - **Coerência:** frente parada exige motivo; frente concluída exige data; deslocado exige a obra de
   destino; terceirizado exige o empreiteiro; equipamento "na obra" exige a obra (e fora dela, não tem).
 
+- **Gestão à Vista coerente:** a marcação é da mesma obra da planta; `substitui` só aponta marcação da mesma
+  planta (apagar a anterior solta o avanço, não o apaga); um nome de etapa por obra; tipo, unidade e espessura
+  só os da lista; quem cria é quem está logado (o carimbo `criado_por`, como nas outras tabelas).
+  Apagar a planta leva as marcações (decisão do Israel, 16/11/2026).
 - **Medição coerente:** tipo só `Contrato` ou `Empreiteiro`; empreiteiro obrigatório só no tipo Empreiteiro (e
   vazio no Contrato); um nº por contrato (ou por empreiteiro) em cada obra; a linha é da mesma obra da medição.
 
@@ -124,3 +131,6 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | `20261107-22-ultimo-admin-no-banco.sql` | Achado da revisão: o banco recusa tirar o último admin ativo (bloquear, rebaixar ou apagar), com uma fila que faz dois pedidos juntos esperarem um ao outro |
 | `20261107-23-funcoes-da-equipe-real.sql` | Oito funções da equipe real da HB (planilha de funcionários, 07/11): Contramestre, Encarregado, Betoneiro, Auxiliar de pedreiro, Auxiliar de serviços gerais, Almoxarife, Motorista e Operador de máquina |
 | `20261116-26-funcao-calceteiro.sql` | Função Calceteiro, da equipe real da HB (planilha de funcionários, 16/11) |
+| `20261116-27-gestao-a-vista.sql` | Cria `plantas_visuais`, `planta_etapas` e `planta_marcacoes` com as regras por obra (equipe lê, cria e edita; marcação e etapa a equipe apaga; planta só o Engenheiro). A pasta `fotos` passa a aceitar PNG e até 10 MB, e a regra do Storage aceita `<obra>/plantas/<id>.png|.jpg` (apagar planta, só o Engenheiro). Testado em 16/11/2026: permissões 73 de 73, gravações 12 de 12 |
+| `20261116-28-gestao-a-vista-sem-anon.sql` | Achado do teste do estranho: as três tabelas nasceram com a liberação padrão para quem não fez login. Tirada (a RLS já não deixava ver nada) |
+| `20261116-29-gestao-a-vista-carimbo.sql` | As três tabelas passam ao padrão das outras: `created_by` vira `criado_por` (ligado a `profiles`, preenchido pelo banco), ganham `updated_at` e o carimbo `privado.carimbar`. Testado: permissões 74 de 74, gravações 12 de 12, estranho 105 de 105, intruso sem porta aberta |

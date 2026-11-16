@@ -6,6 +6,9 @@ autorizada pelo dono em 02/11/2026:** o SheetJS (`xlsx`), só para ler e gerar p
 (`src/lib/planilhaCronograma.js`) e, desde 02/11/2026 (o plano pede), para ler as planilhas de medição
 (`src/lib/planilhaMedicao.js`, só valores, nunca macro), carregado sob demanda (`import('xlsx')`). Instalado do site oficial
 (`cdn.sheetjs.com`, 0.20.3), nunca do npm: o `xlsx` do npm parou na 0.18.5, com falhas de segurança conhecidas.
+**Segunda exceção, autorizada pelo dono em 16/11/2026:** o `pdfjs-dist` (Mozilla, versão fixa 4.10.38, build
+`legacy` para celular antigo), só para transformar o PDF da planta em imagem na Gestão à Vista
+(`src/lib/plantaImagem.js`), carregado sob demanda quando alguém sobe um PDF.
 Perfis: Engenheiro (`src/pages/AppEngenheiro.jsx`), Cliente (`src/pages/AppCliente.jsx`, v1.1),
 Pendente (`src/pages/Pendente.jsx`). Decisões de produto: `PLANO-DO-PROJETO.md` e os dois PRDs.
 
@@ -171,7 +174,9 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
 
 - **Tabela nova nasce fechada para o app.** Toda tabela precisa de `grant` escrito na migration,
   só para `authenticated` (e `service_role`). Erro "permission denied for table (42501)" é GRANT
-  faltando, não RLS. Nunca `grant all`, nunca `to anon`.
+  faltando, não RLS. Nunca `grant all`, nunca `to anon`. **E escreva também `revoke all on <tabela> from anon`:**
+  neste projeto o schema `public` ainda dá a liberação padrão para quem não fez login (o teste do estranho pegou
+  isso nas tabelas da Gestão à Vista, migration -28). A RLS segura, mas a porta tem que ser recusada.
 - **As planilhas `.xlsx`/`.xlsm` da pasta não vão para o Git** (`.gitignore`): a de empreiteiro
   tem dados bancários. Use só para testar a importação (v1.3), nunca em demonstração.
 - **Desde 01/11/2026 o app grava no banco de verdade** (projeto Supabase `nova-obra`, São Paulo).
@@ -190,6 +195,14 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   arquivo da mesma obra e módulo do registro (`caminhoEhDe`). As fotos de exemplo
   antigas continuam dentro da tabela (`data:`) e aparecem iguais. Foto tirada e descartada antes de salvar
   fica solta no Storage (não aparece, só ocupa espaço).
+  **A planta da Gestão à Vista é a exceção:** mora na mesma pasta, em `<obra_id>/plantas/<id>.png|.jpg`, mas
+  **não passa por `uploadFoto`/`encolherFoto`** (1200 px vira borrão e ninguém acha a sapata): sobe por
+  `subirPlanta`, já preparada no aparelho por `plantaImagem.js` (até 4000 px, PNG; JPEG 0,9 se passar de 9,5 MB).
+  Por isso a pasta aceita PNG e até 10 MB (migration -27). Apagar o arquivo da planta é só do Engenheiro.
+- **Gestão à Vista: a marcação é vetor no banco, nunca imagem; ponto sempre em pixels da IMAGEM.** Avançar de
+  etapa cria linha nova com `substitui` (nunca `update etapa`): é o histórico da peça. `etapa` é texto, não
+  ligação. Lote (caminhão) é atributo, não etapa. Detalhes em `src/lib/plantas.js` e `plantaGeometria.js`.
+  As tabelas dela usam o mesmo carimbo das outras (`criado_por` + `updated_at`, migration -29).
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
   concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
@@ -211,6 +224,13 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   tocar em Operando no RDO (o `dados.js` também completa se o mesmo pedido de volta se repetir no mesmo dia).
   Nos dois casos, a linha "Concluído" de quem ainda está na obra aparece no RDO como conclusão pendente
   (`conclusao_pendente`), com aviso: o engenheiro conclui de novo ou marca Operando.
+  Gestão à Vista: subir planta manda o arquivo e depois grava a linha (se a linha falhar, o arquivo é apagado; para o
+  Gerente, que não apaga planta, sobra um arquivo solto). Renomear uma etapa muda o nome nas marcações e depois a
+  etapa: se cair no meio, as marcações aparecem como etapa antiga com o nome novo, e salvar de novo completa.
+  Subir/descer etapa grava as duas ordens, uma por vez: se cair no meio, duas etapas ficam com a mesma ordem e subir de
+  novo arruma. Apagar planta apaga a linha (as marcações vão junto) e depois o arquivo: se cair no meio, sobra um
+  arquivo solto. Apagar uma marcação do meio da vida da peça religa a seguinte à anterior e depois apaga: se cair no
+  meio, a peça fica inteira e a do meio continua lá; apagar de novo completa.
   Em Diários, "Corrigir este dia" grava o dia, depois o efetivo, depois as frentes: se cair no meio, salvar de novo completa.
   No passo 2, tirar ou incluir alguém pelo cartão de uma frente ainda não lançada hoje grava o lançamento e depois a
   equipe: se a equipe falhar, o `dados.js` desfaz o lançamento (`lancarFrente`), e repetir o toque completa. Fechar o

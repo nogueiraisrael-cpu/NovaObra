@@ -154,7 +154,7 @@ const PARA_ABRIR = {
   Diários: 'diario.ver',
   Fotos: 'fotos.ver',
   Comentários: 'comentarios.interno',
-  Pranchas: 'pranchas.ver',
+  'Gestão à Vista': 'pranchas.ver',
   Medições: 'medicoes.ver',
   Materiais: 'pedidos.ver',
   Planejamento: 'planejamento.ver',

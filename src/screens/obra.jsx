@@ -1,4 +1,4 @@
-// Dentro da obra escolhida: abas Hoje · Diários · Fotos · Comentários · Pranchas · Medições · Materiais · Planejamento.
+// Dentro da obra escolhida: abas Hoje · Diários · Fotos · Comentários · Gestão à Vista · Medições · Materiais · Planejamento.
 import { useObra } from '../lib/ObraContext.jsx'
 import { possoAbrir } from '../lib/dados.js'
 import { hojeISO, formatarDataLonga } from '../lib/datas.js'
@@ -7,12 +7,12 @@ import RdoHoje from './rdoHoje.jsx'
 import Diarios from './diarios.jsx'
 import Fotos from './fotos.jsx'
 import Comentarios from './comentarios.jsx'
-import Pranchas from './pranchas.jsx'
+import GestaoVista from './gestaoVista.jsx'
 import Medicoes from './medicoes.jsx'
 import Materiais from './materiais.jsx'
 import Planejamento from './planejamento.jsx'
 
-const ABAS = ['Hoje', 'Diários', 'Fotos', 'Comentários', 'Pranchas', 'Medições', 'Materiais', 'Planejamento']
+const ABAS = ['Hoje', 'Diários', 'Fotos', 'Comentários', 'Gestão à Vista', 'Medições', 'Materiais', 'Planejamento']
 
 export default function Obra({ goto, params }) {
   const { obra } = useObra()
@@ -26,7 +26,7 @@ export default function Obra({ goto, params }) {
     case 'Diários': corpo = <Diarios irParaHoje={() => goto('obra', { aba: 'Hoje' })} />; break
     case 'Fotos': corpo = <Fotos />; break
     case 'Comentários': corpo = <Comentarios />; break
-    case 'Pranchas': corpo = <Pranchas />; break
+    case 'Gestão à Vista': corpo = <GestaoVista />; break
     case 'Medições': corpo = <Medicoes />; break
     case 'Materiais': corpo = <Materiais />; break
     case 'Planejamento': corpo = <Planejamento />; break

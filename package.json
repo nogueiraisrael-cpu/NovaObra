@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
+    "pdfjs-dist": "4.10.38",
     "react": "latest",
     "react-dom": "latest",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"

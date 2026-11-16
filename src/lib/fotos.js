@@ -18,6 +18,15 @@ export function caminhoDaFoto(obraId, modulo, id) {
   return `${obraId}/${modulo}/${id}.jpg`
 }
 
+// A planta da Gestão à Vista mora na mesma pasta, em <obra_id>/plantas/<id>.png|.jpg. Ela NÃO passa
+// pelo encolhimento das fotos (1200 px vira borrão na planta): sobe com até 4000 px (plantaImagem.js).
+export const MODULO_PLANTAS = 'plantas'
+export function caminhoDaPlanta(obraId, id, extensao) {
+  if (!UUID.test(obraId ?? '')) throw new Error('Planta sem obra válida.')
+  if (!['png', 'jpg'].includes(extensao)) throw new Error(`Formato de planta desconhecido: ${extensao}`)
+  return `${obraId}/${MODULO_PLANTAS}/${id}.${extensao}`
+}
+
 // As fotos antigas (e as de exemplo) moram dentro da própria tabela, num endereço "data:".
 // Essas aparecem como estão; só as do Storage precisam de endereço assinado.
 export const estaNoStorage = (caminho) => Boolean(caminho) && !/^(data:|blob:|https?:)/.test(caminho)
@@ -27,7 +36,8 @@ export const estaNoStorage = (caminho) => Boolean(caminho) && !/^(data:|blob:|ht
 export function caminhoEhDe(caminho, obraId, modulo) {
   if (!estaNoStorage(caminho)) return false
   const partes = caminho.split('/')
-  return partes.length === 3 && partes[0] === obraId && partes[1] === modulo && /^[0-9a-f-]{36}\.jpg$/.test(partes[2])
+  const arquivo = modulo === MODULO_PLANTAS ? /^[0-9a-f-]{36}\.(jpg|png)$/ : /^[0-9a-f-]{36}\.jpg$/
+  return partes.length === 3 && partes[0] === obraId && partes[1] === modulo && arquivo.test(partes[2])
 }
 
 // Erro do Storage em frase de gente. Falhou o envio: o resto do que a pessoa digitou não se perde.

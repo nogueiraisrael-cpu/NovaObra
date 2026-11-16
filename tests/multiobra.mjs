@@ -308,6 +308,18 @@ conferir('o mesmo empreiteiro digitado em minúscula entra com o nome que já ex
 dados.definirObraAtual('obra-ubs')
 conferir('excluir apaga a medição e as linhas', [(await dados.excluirMedicao(gravada.data.ids[0])).erro, (await dados.listarMedicoes()).data.contrato.length], [null, 3])
 
+// Gestão à Vista: cada obra vê só as plantas e as etapas dela; a planta da outra não abre.
+dados.definirObraAtual('obra-serra')
+const plantasS = (await dados.listarPlantas()).data
+const etapasS = (await dados.listarEtapasDaPlanta()).data
+dados.definirObraAtual('obra-ubs')
+const plantasU = (await dados.listarPlantas()).data
+const etapasU = (await dados.listarEtapasDaPlanta()).data
+conferir('plantas: cada obra só as suas', [plantasS.every((p) => p.obra_id === 'obra-serra'), plantasU.every((p) => p.obra_id === 'obra-ubs'), plantasU.length], [true, true, 1])
+conferir('etapas da planta: a UBS não vê Concretado da Serra', [etapasS.length, etapasU.map((e) => e.nome)], [4, ['Estaca']])
+conferir('da UBS não abre a planta da Serra', (await dados.abrirPlanta('pl-serra-fund')).erro, 'Planta não encontrada nesta obra.')
+conferir('marcações da UBS são só da UBS', (await dados.abrirPlanta('pl-ubs-fund')).data.marcacoes.map((m) => m.obra_id), ['obra-ubs'])
+
 // Sem obra escolhida a camada se recusa, em vez de cair numa obra qualquer.
 dados.definirObraAtual(null)
 const registrar = console.error

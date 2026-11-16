@@ -6,6 +6,7 @@ declare
   adm uuid; ger uuid := gen_random_uuid(); ubs uuid; serra uuid; n int; t text; d numeric; ok boolean;
   obra_t uuid; func uuid; func_serra uuid; equip uuid; v_frente uuid; rdo uuid; pedido uuid; mat uuid; ins uuid; mov uuid;
   ativ uuid; rest uuid; sub uuid; med uuid; total int; certos int; falhas text;
+  pl uuid; et uuid; mk uuid; mk2 uuid;
   acentos constant text := 'Fundação — ação nº 2, às 9h: 12 m³';
 begin
   select id into adm from public.profiles where role = 'admin_master' and status = 'ativo' order by created_at limit 1;
@@ -171,6 +172,37 @@ begin
   delete from public.medicoes where id = med; get diagnostics n = row_count;
   select count(*) into certos from public.medicoes where obra_id = ubs;
   insert into _r values ('Medições: excluir leva só a medição dela', n = 1 and certos = total - 1);
+  -- Gestão à Vista: planta, etapa (nome repetido, unidade fora da lista), marcação e avanço
+  insert into public.plantas_visuais (obra_id, nome, pavimento, caminho_imagem, largura, altura, textos, criado_por)
+    values (ubs, acentos, '1º Pavimento', ubs || '/plantas/' || gen_random_uuid() || '.png', 4000, 2800, '[{"s":"SAP-04","x":10,"y":20}]', adm) returning id into pl;
+  select nome = acentos and pavimento = '1º Pavimento' and largura = 4000 and textos -> 0 ->> 's' = 'SAP-04' and criado_por = adm into ok from public.plantas_visuais where id = pl;
+  insert into _r values ('Gestão à Vista: planta volta igual (acento, pavimento, pixels, textos do PDF, quem subiu)', ok);
+  insert into public.planta_etapas (obra_id, nome, cor, unidade, meta, criado_por) values (ubs, 'Concretado T', '#3DC28C', 'm³', 12.5, adm) returning id into et;
+  select unidade = 'm³' and meta = 12.5 into ok from public.planta_etapas where id = et;
+  insert into _r values ('Gestão à Vista: etapa em m³ com meta decimal volta igual', ok);
+  begin insert into public.planta_etapas (obra_id, nome, cor, criado_por) values (ubs, 'Concretado T', '#000000', adm);
+    insert into _r values ('Gestão à Vista: etapa com nome repetido na obra é recusada', false);
+  exception when unique_violation then insert into _r values ('Gestão à Vista: etapa com nome repetido na obra é recusada', true); end;
+  begin insert into public.planta_etapas (obra_id, nome, cor, unidade, criado_por) values (ubs, 'X T', '#000000', 'litro', adm);
+    insert into _r values ('Gestão à Vista: unidade fora da lista é recusada', false);
+  exception when check_violation then insert into _r values ('Gestão à Vista: unidade fora da lista é recusada', true); end;
+  insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, rotulo, quantidade, espessura, lote, nota, criado_por)
+    values (ubs, pl, 'Escavado T', '#F2B23E', 'pincel', '{"pts":[[1,2],[30,40],[5,60]]}', '2026-11-03', 'SAP-04', null, 0.5, null, null, adm) returning id into mk;
+  insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, rotulo, quantidade, lote, nota, substitui, criado_por)
+    values (ubs, pl, 'Concretado T', '#3DC28C', 'pincel', '{"pts":[[1,2],[30,40],[5,60]]}', '2026-11-08', 'SAP-04', 1.25, 'BT1111', '501', mk, adm) returning id into mk2;
+  select (select pontos -> 'pts' -> 1 ->> 1 from public.planta_marcacoes where id = mk) = '40'
+     and data = '2026-11-08' and quantidade = 1.25 and substitui = mk and lote = 'BT1111' into ok from public.planta_marcacoes where id = mk2;
+  insert into _r values ('Gestão à Vista: avanço grava linha nova apontando a anterior (pontos, data, m³, placa)', ok);
+  select count(*) into n from public.planta_marcacoes where id in (mk, mk2); insert into _r values ('Gestão à Vista: a anterior continua (histórico)', n = 2);
+  begin insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, espessura, criado_por)
+      values (ubs, pl, 'X', '#000000', 'ret', '{}', '2026-11-08', 3, adm);
+    insert into _r values ('Gestão à Vista: espessura fora da lista é recusada', false);
+  exception when check_violation then insert into _r values ('Gestão à Vista: espessura fora da lista é recusada', true); end;
+  delete from public.planta_marcacoes where id = mk; get diagnostics n = row_count;
+  select substitui is null into ok from public.planta_marcacoes where id = mk2;
+  insert into _r values ('Gestão à Vista: apagar a anterior solta o avanço, sem apagá-lo', n = 1 and ok);
+  update public.planta_etapas set nome = 'Concretado T2' where id = et; get diagnostics n = row_count;
+  insert into _r values ('Gestão à Vista: renomear etapa grava', n = 1);
   reset role;
 
   -- ── Gerente (só a UBS) ──
@@ -195,6 +227,15 @@ begin
   exception when insufficient_privilege then insert into _r values ('Medições: o Gerente não grava', true); end;
   update public.obras set dias_trabalho = '{1}' where id = ubs; get diagnostics n = row_count;
   insert into _r values ('Calendário: o Gerente não muda', n = 0);
+  insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por)
+    values (ubs, pl, 'Escavado T', '#F2B23E', 'seta', '{"x1":1,"y1":1,"x2":50,"y2":50}', '2026-11-16', ger) returning id into mk;
+  select criado_por = ger into ok from public.planta_marcacoes where id = mk;
+  insert into _r values ('Gestão à Vista: o Gerente marca na planta da obra dele', ok);
+  update public.plantas_visuais set nome = 'Renomeada pelo gerente' where id = pl; get diagnostics n = row_count;
+  select criado_por = adm into ok from public.plantas_visuais where id = pl;
+  insert into _r values ('Gestão à Vista: o Gerente edita a planta da obra dele, e o autor continua o Engenheiro', n = 1 and ok);
+  delete from public.plantas_visuais where id = pl; get diagnostics n = row_count;
+  insert into _r values ('Gestão à Vista: o Gerente não apaga planta', n = 0);
   reset role;
 
   select count(*), count(*) filter (where r.ok) into total, certos from _r r;

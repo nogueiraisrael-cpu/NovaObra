@@ -1,5 +1,5 @@
 {
-  "_tirado_em": "2026-11-03, do banco nova-obra (Supabase), depois da migration 20261102-14. Regenere depois de QUALQUER migration.",
+  "_tirado_em": "2026-11-16, do banco nova-obra (Supabase), depois da migration 20261116-29. Regenere depois de QUALQUER migration.",
   "atividades": ["id", "obra_id", "pai_id", "ordem", "titulo", "data_inicio", "data_fim", "arquivada", "created_at", "updated_at", "progresso", "criado_por"],
   "equipamentos": ["id", "nome", "codigo", "situacao", "obra_id", "situacao_desde", "oficina", "previsao_retorno", "defeito", "created_at", "criado_por", "updated_at"],
   "fotos": ["id", "obra_id", "rdo_id", "rdo_frente_id", "caminho", "legenda", "visivel_cliente", "enviada_por", "created_at", "criado_por", "updated_at"],
@@ -13,6 +13,9 @@
   "movimentos_estoque": ["id", "obra_id", "insumo_id", "tipo", "quantidade", "data", "frente", "origem", "pedido_id", "created_at", "updated_at", "criado_por"],
   "obras": ["id", "nome", "codigo", "tipo", "endereco", "cidade", "cliente", "numero_contrato", "data_inicio", "data_meta_entrega", "situacao", "created_at", "dias_trabalho", "feriados", "criado_por", "updated_at"],
   "pedidos_material": ["id", "obra_id", "material_id", "quantidade", "frente", "prioridade", "status", "fornecedor", "previsao_entrega", "qtd_bate_nf", "estado_ok", "avarias", "foto_nf", "historico", "criado_por", "created_at", "qtd_recebida", "updated_at"],
+  "planta_etapas": ["id", "obra_id", "nome", "cor", "ordem", "ativa", "meta", "unidade", "criado_por", "created_at", "updated_at"],
+  "planta_marcacoes": ["id", "obra_id", "planta_id", "etapa", "cor", "tipo", "pontos", "data", "rotulo", "quantidade", "rotacao", "espessura", "lote", "nota", "lote_cor", "substitui", "criado_por", "created_at", "updated_at"],
+  "plantas_visuais": ["id", "obra_id", "nome", "pavimento", "caminho_imagem", "largura", "altura", "textos", "criado_por", "created_at", "updated_at"],
   "profiles": ["id", "nome", "email", "role", "status", "created_at", "updated_at"],
   "rdo_efetivo": ["id", "rdo_id", "obra_id", "data", "funcionario_id", "situacao", "obra_destino_id", "created_at", "criado_por", "updated_at"],
   "rdo_equipamentos": ["id", "rdo_id", "obra_id", "equipamento_id", "situacao", "observacao", "created_at", "criado_por", "updated_at"],
