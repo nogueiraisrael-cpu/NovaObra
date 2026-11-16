@@ -207,7 +207,8 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   "Concluído" (equipamento terminou o serviço, 13/11/2026) grava a linha "Concluído" com a observação no diário de hoje e
   depois manda para o depósito: se cair no meio, ele continua na obra e repetir completa. Concluir abre o diário de
   hoje se ainda não existir. Se o concluído voltar para a obra no mesmo dia, ele volta e depois a linha volta a
-  "Operando" (uma linha por equipamento por dia: a observação da conclusão se perde); mandar de novo completa.
+  "Operando" (uma linha por equipamento por dia: a observação da conclusão se perde); se cair no meio, a tela manda
+  tocar em Operando no RDO (o `dados.js` também completa se o mesmo pedido de volta se repetir no mesmo dia).
   Nos dois casos, a linha "Concluído" de quem ainda está na obra aparece no RDO como conclusão pendente
   (`conclusao_pendente`), com aviso: o engenheiro conclui de novo ou marca Operando.
   Em Diários, "Corrigir este dia" grava o dia, depois o efetivo, depois as frentes: se cair no meio, salvar de novo completa.

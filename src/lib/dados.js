@@ -1055,7 +1055,7 @@ export const concluirEquipamento = (equipamentoId, observacao) => executar(async
   if (!atual) return falha('Equipamento não está nesta obra.')
   await gravarEquipamentoNoDia(obraId, equipamentoId, { situacao: SITUACAO_EQUIPAMENTO_CONCLUIDO, observacao: (observacao ?? '').trim() })
   // A linha já diz Concluído: se a ida ao depósito falhar, a frase diz o que ficou, e o RDO mostra a conclusão pendente.
-  const pendente = `${atual.nome} continua na obra: o diário já diz Concluído, mas a ida para o depósito não foi gravada. Toque em Concluir de novo.`
+  const pendente = `${atual.nome} continua na obra: o diário já diz Concluído, mas a ida para o depósito não foi gravada. Toque em Concluído de novo.`
   let e
   try {
     e = await levarAoDeposito(equipamentoId, obraId)

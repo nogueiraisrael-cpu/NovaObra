@@ -76,7 +76,7 @@ const daBetoneira = async () => (await dados.listarEquipamentosHoje()).data.find
 // Concluir: a linha "Concluído" foi gravada, a ida ao depósito não.
 cair = 'equipamentos'
 conferir('concluir que cai no meio diz o que ficou', (await dados.concluirEquipamento('e-betoneira', 'Laje pronta')).erro,
-  'Betoneira 400 L continua na obra: o diário já diz Concluído, mas a ida para o depósito não foi gravada. Toque em Concluir de novo.')
+  'Betoneira 400 L continua na obra: o diário já diz Concluído, mas a ida para o depósito não foi gravada. Toque em Concluído de novo.')
 const meio = await daBetoneira()
 conferir('o RDO mostra a conclusão pendente, com a observação', [meio.situacao, meio.observacao, meio.conclusao_pendente], ['Concluído', 'Laje pronta', true])
 conferir('mandar para a obra quem está aqui há dias é recusado', (await dados.mandarEquipamentoParaObra('e-betoneira')).erro,

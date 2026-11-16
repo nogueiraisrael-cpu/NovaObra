@@ -199,7 +199,7 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
                     </div>
                   </div>
                 ) : (
-                  <button className="link-insumo" style={{ marginTop: 8 }} onClick={() => setTirar(x.equipamento.id)}>Lançado por engano? Tirar da obra</button>
+                  <button className="link-insumo" style={{ marginTop: 8 }} disabled={concluindo} onClick={() => setTirar(x.equipamento.id)}>Lançado por engano? Tirar da obra</button>
                 ))}
               </div>
             ))}
