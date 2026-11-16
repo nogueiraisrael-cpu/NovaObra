@@ -123,3 +123,4 @@ nenhuma do contrato (lista vazia de propósito) e tem 3 de empreiteiro.
 | `20261103-21-painel-de-admin.sql` | Painel de admin: perfil e situação só mudam pela função `admin-usuarios` (nem o admin muda pelo navegador). Apagar o login leva o perfil e as obras liberadas; os lançamentos não vão junto, e conta que lançou algo o banco recusa inteira |
 | `20261107-22-ultimo-admin-no-banco.sql` | Achado da revisão: o banco recusa tirar o último admin ativo (bloquear, rebaixar ou apagar), com uma fila que faz dois pedidos juntos esperarem um ao outro |
 | `20261107-23-funcoes-da-equipe-real.sql` | Oito funções da equipe real da HB (planilha de funcionários, 07/11): Contramestre, Encarregado, Betoneiro, Auxiliar de pedreiro, Auxiliar de serviços gerais, Almoxarife, Motorista e Operador de máquina |
+| `20261116-26-funcao-calceteiro.sql` | Função Calceteiro, da equipe real da HB (planilha de funcionários, 16/11) |

@@ -27,7 +27,7 @@ export const SITUACOES_EQUIPAMENTO = ['Na obra', 'No conserto', 'No depósito']
 export const FUNCOES = [
   'Pedreiro', 'Servente', 'Carpinteiro', 'Armador', 'Eletricista', 'Encanador', 'Pintor', 'Mestre',
   'Contramestre', 'Encarregado', 'Betoneiro', 'Auxiliar de pedreiro', 'Auxiliar de serviços gerais',
-  'Almoxarife', 'Motorista', 'Operador de máquina', 'Outro',
+  'Almoxarife', 'Motorista', 'Operador de máquina', 'Calceteiro', 'Outro',
 ]
 
 export const ETAPAS = [
