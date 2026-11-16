@@ -75,7 +75,8 @@ begin
   exception when check_violation then insert into _r values ('Frentes: parada sem motivo é recusada', true); end;
   begin delete from public.frentes_servico where id = v_frente; insert into _r values ('Frentes: frente que está em diário não se apaga', false);
   exception when foreign_key_violation then insert into _r values ('Frentes: frente que está em diário não se apaga', true); end;
-  select id into equip from public.equipamentos limit 1;
+  -- Equipamento próprio do teste (some no fim com o resto): não depende de haver algum cadastrado.
+  insert into public.equipamentos (nome, codigo, situacao, situacao_desde) values ('Teste', 'TESTE9', 'No depósito', '2030-01-07') returning id into equip;
   insert into public.rdo_equipamentos (rdo_id, obra_id, equipamento_id, situacao, observacao) values (rdo, ubs, equip, 'Concluído', acentos);
   select situacao = 'Concluído' and observacao = acentos into ok from public.rdo_equipamentos where rdo_id = rdo and equipamento_id = equip;
   insert into _r values ('Equipamentos: Concluído e a observação voltam iguais', ok);

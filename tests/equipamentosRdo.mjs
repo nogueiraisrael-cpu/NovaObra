@@ -1,6 +1,6 @@
 // Equipamentos no RDO: cadastrar à mão (sem repetir código) e desfazer o lançado por engano.
 import * as dados from '../src/lib/dados.js'
-import { reiniciarMock } from './apoio/bancoMemoria.js'
+import { reiniciarMock, criarBancoMemoria } from './apoio/bancoMemoria.js'
 
 let ok = 0
 let tot = 0
@@ -61,6 +61,38 @@ conferir('e o diário de hoje passa a dizer Operando', await linhaDoDia(), [['Op
 conferir('conclui de novo, sem observação', (await dados.concluirEquipamento(novo.data.id)).erro, null)
 conferir('uma linha só no diário', await linhaDoDia(), [['Concluído', '']])
 await dados.mandarEquipamentoParaObra(novo.data.id)
+conferir('mandar de novo, já estando nesta obra, não acusa erro', (await dados.mandarEquipamentoParaObra(novo.data.id)).erro, null)
+
+// Internet caindo no meio: o banco aceita a primeira gravação e cai na segunda.
+const banco = criarBancoMemoria()
+dados._usarBancoDeTeste({ ...banco, atualizar: async (tabela, filtros, campos) => {
+  if (cair === tabela) { cair = null; throw new Error('Failed to fetch') }
+  return banco.atualizar(tabela, filtros, campos)
+} })
+let cair = null
+await dados.entrar('eng@novaobra.test', 'x')
+dados.definirObraAtual('obra-serra')
+const daBetoneira = async () => (await dados.listarEquipamentosHoje()).data.find((x) => x.equipamento.id === 'e-betoneira')
+// Concluir: a linha "Concluído" foi gravada, a ida ao depósito não.
+cair = 'equipamentos'
+conferir('concluir que cai no meio diz o que ficou', (await dados.concluirEquipamento('e-betoneira', 'Laje pronta')).erro,
+  'Betoneira 400 L continua na obra: o diário já diz Concluído, mas a ida para o depósito não foi gravada. Toque em Concluir de novo.')
+const meio = await daBetoneira()
+conferir('o RDO mostra a conclusão pendente, com a observação', [meio.situacao, meio.observacao, meio.conclusao_pendente], ['Concluído', 'Laje pronta', true])
+conferir('mandar para a obra quem está aqui há dias é recusado', (await dados.mandarEquipamentoParaObra('e-betoneira')).erro,
+  'Betoneira 400 L já está nesta obra.')
+conferir('e a conclusão pendente continua', [(await daBetoneira()).situacao, (await daBetoneira()).conclusao_pendente], ['Concluído', true])
+conferir('concluir de novo completa', (await dados.concluirEquipamento('e-betoneira', 'Laje pronta')).erro, null)
+conferir('e ela vai para o depósito', (await dados.listarEquipamentos()).data.noDeposito.some((e) => e.id === 'e-betoneira'), true)
+// Voltar no mesmo dia: o equipamento voltou, a linha do diário não foi regravada.
+cair = 'rdo_equipamentos'
+conferir('voltar que cai no meio diz o que ficou', (await dados.mandarEquipamentoParaObra('e-betoneira')).erro,
+  'Betoneira 400 L voltou para a obra, mas o diário de hoje ainda diz Concluído. No RDO, toque em Operando.')
+conferir('o RDO mostra a linha Concluído para acertar', (await daBetoneira()).conclusao_pendente, true)
+conferir('mandar de novo completa', (await dados.mandarEquipamentoParaObra('e-betoneira')).erro, null)
+conferir('e o diário volta a Operando', [(await daBetoneira()).situacao, (await daBetoneira()).conclusao_pendente], ['Operando', false])
+reiniciarMock(dados)
+await dados.entrar('eng@novaobra.test', 'x')
 
 // Multi-obra: da UBS não se tira nem se conclui o que está na Serra
 dados.definirObraAtual('obra-ubs')

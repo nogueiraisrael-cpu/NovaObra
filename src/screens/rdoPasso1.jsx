@@ -153,14 +153,25 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
             {equips.data.map((x) => (
               <div className="person" key={x.equipamento.id}>
                 <div className="person-top"><b>{x.equipamento.nome}</b><span>{x.equipamento.codigo}</span></div>
+                {/* Enquanto uma conclusão grava, nenhum botão de situação responde: um toque no meio gravaria por cima. */}
                 <div className="seg">
                   {SITUACOES_EQUIPAMENTO_TOQUE.map((s) => (
-                    <button key={s} className={x.situacao === s && concluir?.id !== x.equipamento.id ? COR_EQUIP[s] : ''}
-                      onClick={() => { setConcluir(null); depoisDe(marcarEquipamentoDia(x.equipamento.id, s), equips) }}>{s}</button>
+                    <button key={s} disabled={concluindo} className={x.situacao === s && concluir?.id !== x.equipamento.id ? COR_EQUIP[s] : ''}
+                      onClick={() => {
+                        // Só fecha a caixa de conclusão deste equipamento; a de outro continua aberta, com o texto.
+                        if (concluir?.id === x.equipamento.id) setConcluir(null)
+                        depoisDe(marcarEquipamentoDia(x.equipamento.id, s), equips)
+                      }}>{s}</button>
                   ))}
-                  <button className={concluir?.id === x.equipamento.id ? COR_EQUIP[SITUACAO_EQUIPAMENTO_CONCLUIDO] : ''}
-                    onClick={() => setConcluir({ id: x.equipamento.id, obs: '' })}>{SITUACAO_EQUIPAMENTO_CONCLUIDO}</button>
+                  <button disabled={concluindo} className={concluir?.id === x.equipamento.id || x.conclusao_pendente ? COR_EQUIP[SITUACAO_EQUIPAMENTO_CONCLUIDO] : ''}
+                    onClick={() => setConcluir({ id: x.equipamento.id, obs: x.conclusao_pendente ? x.observacao : '' })}>{SITUACAO_EQUIPAMENTO_CONCLUIDO}</button>
                 </div>
+                {x.conclusao_pendente && concluir?.id !== x.equipamento.id && (
+                  <div className="err" style={{ marginTop: 8 }}>
+                    O diário de hoje diz Concluído, mas {x.equipamento.nome} ainda está na obra (a gravação não terminou).
+                    Toque em Concluído para mandá-lo ao depósito, ou em Operando se ele continua aqui.
+                  </div>
+                )}
                 {concluir?.id === x.equipamento.id && (
                   <div className="note" style={{ marginTop: 8, textAlign: 'left' }}>
                     Concluir o uso de {x.equipamento.nome} nesta obra? Ele sai da obra e volta para o depósito. O diário de hoje guarda a observação.
@@ -173,7 +184,7 @@ export default function RdoPasso1({ rdo, aoMudarRdo, avancar }) {
                     </div>
                   </div>
                 )}
-                {x.situacao !== 'Operando' && concluir?.id !== x.equipamento.id && (
+                {x.situacao !== 'Operando' && !x.conclusao_pendente && concluir?.id !== x.equipamento.id && (
                   <input className="field" style={{ marginTop: 8 }} aria-label={`Observação — ${x.equipamento.nome}`}
                     placeholder="Observação (opcional)" defaultValue={x.observacao}
                     onBlur={(e) => e.target.value !== x.observacao && depoisDe(marcarEquipamentoDia(x.equipamento.id, x.situacao, e.target.value), equips)} />
