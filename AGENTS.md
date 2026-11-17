@@ -232,6 +232,9 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   arquivo solto. Apagar uma marcação do meio da vida da peça religa a seguinte à anterior e depois apaga: se cair no
   meio, a peça fica inteira e a do meio continua lá; apagar de novo completa.
   Em Diários, "Corrigir este dia" grava o dia, depois o efetivo, depois as frentes: se cair no meio, salvar de novo completa.
+  "+ Dia esquecido" (`lancarDiaEsquecido`, 17/11/2026) grava o dia, depois o efetivo, os equipamentos e as frentes herdadas;
+  se uma linha falhar, o `dados.js` apaga o dia (as linhas vão junto) e repetir começa do zero. O Gerente não apaga diário:
+  para ele sobra o dia meio montado, que aparece como "Não fechado" e se corrige como qualquer outro.
   No passo 2, tirar ou incluir alguém pelo cartão de uma frente ainda não lançada hoje grava o lançamento e depois a
   equipe: se a equipe falhar, o `dados.js` desfaz o lançamento (`lancarFrente`), e repetir o toque completa. Fechar o
   RDO faz o mesmo para cada frente com equipe herdada (ver abaixo), antes de marcar "Fechado": repetir completa as que faltaram.

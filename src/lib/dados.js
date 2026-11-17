@@ -17,7 +17,7 @@ import {
   aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento, validarFrente, situacaoPadraoDoDia, diariosParaHerdar, lancamentosHerdados,
 } from './frentes.js'
 import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo, motivoParaNaoApagarObra, OBRA_COM_LANCAMENTOS } from './obras.js'
-import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico } from './diarios.js'
+import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico, validarDiaEsquecido, textoJaTemDiario, equipamentosNoDia } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
 import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido, acharNoCatalogo, limparNomeMaterial, decidirMaterialEscrito } from './materiais.js'
 import {
@@ -417,6 +417,12 @@ export const obterRdoHoje = () => executar(async () => {
   return ok(rdo ? { ...rdo, fechado_por_nome: nomeDoPerfil(rdo.fechado_por) } : null)
 })
 
+// Como todo diário nasce: aberto, clima Bom e praticável o dia todo (a tela mostra para corrigir).
+const rdoNovo = (obraId, data) => ({
+  obra_id: obraId, data, clima_manha: 'Bom', clima_tarde: 'Bom', praticavel_manha: true, praticavel_tarde: true,
+  observacoes: '', status: 'Em andamento', criado_por: usuario?.id ?? null,
+})
+
 // Abre o RDO de hoje na primeira mexida e grava o efetivo e os equipamentos padrão.
 // Recebe a obra de quem chamou: a obra lida no toque vale do começo ao fim da gravação,
 // mesmo que o seletor mude no meio.
@@ -425,10 +431,7 @@ async function garantirRdoHoje(obraId) {
   if (existente) return existente
   let rdo
   try {
-    rdo = await inserir('rdos', {
-      obra_id: obraId, data: hoje(), clima_manha: 'Bom', clima_tarde: 'Bom', praticavel_manha: true, praticavel_tarde: true,
-      observacoes: '', status: 'Em andamento', criado_por: usuario?.id ?? null,
-    })
+    rdo = await inserir('rdos', rdoNovo(obraId, hoje()))
   } catch (e) {
     // Dois toques ao mesmo tempo: o outro já abriu o RDO de hoje. Usa o dele.
     if (e.code === '23505') return rdoDeHoje(obraId)
@@ -839,6 +842,56 @@ export const fecharDiaAnterior = (rdoId) => executar(async () => {
   const decididas = daObraRfs.filter((rf) => maisNovos.has(rf.rdo_id)).map((rf) => rf.frente_id)
   await gravarFrentesFechadas(daObra, aplicarFechamentoAtrasado(daObra, rfs, rdo.data, decididas))
   return ok((await gravar('rdos', { id: rdo.id, obra_id: obraId }, fechamento()))[0])
+})
+
+// Lançar um dia que passou sem diário (aba Diários). Abre o diário daquele dia como o de hoje
+// abriria: quem está lotado aqui (Presente, ou Deslocado se naquele dia já estava presente em
+// outra obra), os equipamentos que já estavam na obra naquele dia, e as frentes em execução com a
+// equipe do diário anterior a ele. Fica aberto ("Não fechado"): corrige e fecha pelo caminho de
+// sempre. Se uma linha falhar, o diário é desfeito e repetir começa do zero.
+export const lancarDiaEsquecido = (data) => executar(async () => {
+  if (!posso('diario.criar')) return falha('Seu perfil não lança diário.')
+  const obraId = obraAtual()
+  const rdos = await ler('rdos', { obra_id: obraId })
+  const erro = validarDiaEsquecido(data, hoje(), rdos.map((r) => r.data))
+  if (erro) return falha(erro)
+  let rdo
+  try {
+    rdo = await inserir('rdos', rdoNovo(obraId, data))
+  } catch (e) {
+    // Outro aparelho lançou o mesmo dia neste meio-tempo.
+    if (e.code === '23505') return falha(textoJaTemDiario(data))
+    throw e
+  }
+  try {
+    const [funcionarios, linhas, equipamentos, frentes] = await Promise.all([
+      ler('funcionarios'), linhasDoDia(data), equipamentosNaObra(obraId), ler('frentes_servico', { obra_id: obraId }),
+    ])
+    const efetivo = montarEfetivo({ obraId, funcionarios: funcionarios.sort(porNome), linhasDoDia: linhas })
+    await inserirVarios('rdo_efetivo', efetivo.map((item) => ({
+      rdo_id: rdo.id, obra_id: obraId, data, funcionario_id: item.funcionario.id,
+      situacao: item.situacao, obra_destino_id: item.obra_destino_id,
+    })))
+    await inserirVarios('rdo_equipamentos', equipamentosNoDia(equipamentos, data).map((e) => (
+      { rdo_id: rdo.id, obra_id: obraId, equipamento_id: e.id, situacao: 'Operando', observacao: '' })))
+    const anteriores = diariosParaHerdar(rdos, data)
+    const antigos = anteriores.length ? await ler('rdo_frentes', { rdo_id: anteriores.map((r) => r.id) }) : []
+    const herdados = lancamentosHerdados(frentes, anteriores, antigos, [])
+    const origens = [...herdados.values()].map((rf) => rf.id)
+    const equipe = origens.length ? await ler('rdo_frente_equipe', { rdo_frente_id: origens }) : []
+    const presentes = new Set(efetivo.filter((i) => contaComoPresenca(i.situacao)).map((i) => i.funcionario.id))
+    for (const [frenteId, rf] of herdados) {
+      const ids = equipe.filter((q) => q.rdo_frente_id === rf.id && presentes.has(q.funcionario_id)).map((q) => q.funcionario_id)
+      if (ids.length) await lancarFrente(rdo, frentes.find((f) => f.id === frenteId), ids)
+    }
+  } catch (e) {
+    // As linhas vão junto (on delete cascade). `apagar` solto de propósito: o Gerente não apaga diário
+    // (quadro: diario.apagar só do Engenheiro; RLS da migration -20), o banco recusa calado e sobra o dia
+    // meio montado, que aparece na lista como "Não fechado" e se corrige como qualquer outro.
+    await apagar('rdos', { id: rdo.id, obra_id: obraId }).catch(() => {})
+    throw e
+  }
+  return ok(rdo)
 })
 
 // ---------------------------------------------------------------------------

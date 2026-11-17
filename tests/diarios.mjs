@@ -1,6 +1,7 @@
 // Diários: ordem do histórico, números do cartão e o texto do clima.
 import {
   ordenarDiarios, resumirDiario, situacaoDiario, textoClima, textoResponsavel, planejarCorrecao, semanaDe, idsNoIntervalo, resumirPeriodo, escolhaInicial,
+  validarDiaEsquecido, diaEsquecidoSugerido, equipamentosNoDia, ultimoDiaEsquecido,
 } from '../src/lib/diarios.js'
 import { hojeISO, somarDias, formatarDiaMes, formatarDiaCurto } from '../src/lib/datas.js'
 import * as dados from '../src/lib/dados.js'
@@ -172,6 +173,55 @@ const rebocoAntes = (await dados.listarFrentes()).data.find((x) => x.id === 'fs-
 conferir('fechar o dia velho dá certo', (await dados.fecharDiaAnterior(velho.id)).erro, null)
 const rebocoDepois = (await dados.listarFrentes()).data.find((x) => x.id === 'fs-reboco')
 conferir('frente decidida por diário fechado mais novo não volta atrás', [rebocoDepois.situacao, rebocoDepois.motivo_parada], [rebocoAntes.situacao, rebocoAntes.motivo_parada])
+
+// ---- Lançar dia esquecido: regra pura ----
+const h = '2026-11-17'
+conferir('dia esquecido: sem data', validarDiaEsquecido('', h, []), 'Escolha a data do dia esquecido.')
+conferir('dia esquecido: hoje é na aba Hoje', validarDiaEsquecido(h, h, []), 'O diário de hoje se lança na aba Hoje.')
+conferir('dia esquecido: amanhã ainda não chegou', validarDiaEsquecido('2026-11-18', h, []), 'Esse dia ainda não chegou.')
+conferir('dia esquecido: dia que já tem diário', validarDiaEsquecido('2026-11-16', h, ['2026-11-16']), '16/11 já tem diário: abra ele na lista para corrigir.')
+conferir('dia esquecido: ontem sem diário passa', validarDiaEsquecido('2026-11-16', h, ['2026-11-15']), null)
+conferir('sugere ontem quando falta ontem', diaEsquecidoSugerido(h, ['2026-11-15']), '2026-11-16')
+conferir('sugere o buraco mais novo da semana', diaEsquecidoSugerido(h, ['2026-11-16', '2026-11-15', '2026-11-13']), '2026-11-14')
+const semana = Array.from({ length: 7 }, (_, i) => somarDias(h, -(i + 1)))
+conferir('o campo vai até ontem', ultimoDiaEsquecido(h), '2026-11-16')
+conferir('equipamento que chegou depois do dia fica de fora; no mesmo dia e sem data entram',
+  equipamentosNoDia([{ id: 'a', situacao_desde: '2026-11-10' }, { id: 'b', situacao_desde: '2026-11-16' }, { id: 'c', situacao_desde: '2026-11-17' }, { id: 'd' }], '2026-11-16').map((e) => e.id),
+  ['a', 'b', 'd'])
+conferir('semana toda lançada: sugere ontem', diaEsquecidoSugerido(h, semana), '2026-11-16')
+
+// ---- Lançar dia esquecido: no banco em memória ----
+// A Serra perde o diário de anteontem; ele é lançado de novo pela aba Diários.
+const bancoEsq = criarBancoMemoria()
+dados._usarBancoDeTeste(bancoEsq)
+await dados.entrar('eng@novaobra.test', 'x')
+dados.definirObraAtual('obra-serra')
+const anteontem = somarDias(hojeISO(), -2)
+const rfsVelhas = await bancoEsq.ler('rdo_frentes', { rdo_id: 'rdo-serra-2' })
+await bancoEsq.apagar('rdo_frente_equipe', { rdo_frente_id: rfsVelhas.map((rf) => rf.id) })
+for (const t of ['rdo_frentes', 'rdo_efetivo', 'rdo_equipamentos', 'fotos']) await bancoEsq.apagar(t, { rdo_id: 'rdo-serra-2' })
+await bancoEsq.apagar('rdos', { id: 'rdo-serra-2' })
+const lancado = await dados.lancarDiaEsquecido(anteontem)
+conferir('dia esquecido abre sem erro, aberto', [lancado.erro, lancado.data?.data, lancado.data?.status], [null, anteontem, 'Em andamento'])
+const diaEsq = (await dados.obterDiario(lancado.data.id)).data
+const lotadosSerra = (await dados.listarPessoas()).data.daObra.filter((f) => f.ativo).length
+conferir('efetivo: todos os lotados, presentes', [diaEsq.total, diaEsq.presentes], [lotadosSerra, lotadosSerra])
+conferir('equipamentos que já estavam na obra, operando', diaEsq.equipamentos.map((e) => [e.nome, e.situacao]).sort(),
+  [['Andaime tubular 12 m', 'Operando'], ['Betoneira 400 L', 'Operando']])
+const revest = diaEsq.frentes.find((f) => f.frente_id === 'fs-revest')
+conferir('frente em execução herda a equipe do diário anterior (3 dias atrás)', [revest?.situacao, revest?.equipe_ids.sort()], ['Em execução', ['f-joao', 'f-marcos', 'f-tiago']])
+conferir('frente parada não entra sozinha', diaEsq.frentes.some((f) => f.frente_id === 'fs-reboco'), false)
+conferir('aparece na lista como Não fechado', situacaoDiario((await dados.listarDiarios()).data.find((r) => r.data === anteontem), hojeISO()), 'Não fechado')
+conferir('lançar de novo o mesmo dia é recusado', (await dados.lancarDiaEsquecido(anteontem)).erro, `${formatarDiaMes(anteontem)} já tem diário: abra ele na lista para corrigir.`)
+conferir('hoje não se lança por aqui', (await dados.lancarDiaEsquecido(hojeISO())).erro, 'O diário de hoje se lança na aba Hoje.')
+const muitoAntes = somarDias(hojeISO(), -20)
+const velhoEsq = await dados.lancarDiaEsquecido(muitoAntes)
+conferir('equipamento que chegou depois daquele dia fica de fora', (await dados.obterDiario(velhoEsq.data.id)).data.equipamentos.map((e) => e.nome), ['Betoneira 400 L'])
+dados.definirObraAtual('obra-ubs')
+const ubsEsq = await dados.lancarDiaEsquecido(anteontem)
+const diaUbsEsq = (await dados.obterDiario(ubsEsq.data.id)).data
+conferir('na UBS o mesmo dia é outro diário, só com gente e coisa da UBS',
+  [ubsEsq.erro, diaUbsEsq.efetivo.some((l) => l.funcionario_id === 'f-joao'), diaUbsEsq.equipamentos], [null, false, []])
 
 console.log(`${ok}/${tot} — diarios`)
 process.exit(ok === tot ? 0 : 1)

@@ -1,6 +1,6 @@
 // Diários (histórico do RDO): ordem da lista e o resumo de cada dia. Puras: sem React, sem banco.
 import { contaComoPresenca, contaComoFalta } from './efetivo.js'
-import { formatarMomento, somarDias } from './datas.js'
+import { formatarMomento, somarDias, formatarDiaMes } from './datas.js'
 import { segundaDaSemana } from './planejamento.js'
 import { CLIMAS, SITUACOES_EFETIVO_CORRIGIVEIS } from './listas.js'
 
@@ -48,6 +48,37 @@ export const efetivoCorrigivel = (situacao) => SITUACOES_EFETIVO_CORRIGIVEIS.inc
 export const podeCorrigirNoHistorico = (rdo, hoje) => rdo.data < hoje
 // Fechar atrasado: só o dia que já passou e ficou sem fechar ("Não fechado").
 export const podeFecharNoHistorico = (rdo, hoje) => situacaoDiario(rdo, hoje) === 'Não fechado'
+
+// ---------------------------------------------------------------------------
+// Lançar um dia esquecido (aba Diários): o dia passou e ninguém abriu o diário.
+// ---------------------------------------------------------------------------
+
+export const textoJaTemDiario = (data) => `${formatarDiaMes(data)} já tem diário: abra ele na lista para corrigir.`
+// O último dia que dá para escolher no campo de data.
+export const ultimoDiaEsquecido = (hoje) => somarDias(hoje, -1)
+
+// Só dia que já passou e que ainda não tem diário nesta obra. `datasComDiario`: as datas dos RDOs da obra.
+export function validarDiaEsquecido(data, hoje, datasComDiario) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data ?? '')) return 'Escolha a data do dia esquecido.'
+  if (data === hoje) return 'O diário de hoje se lança na aba Hoje.'
+  if (data > hoje) return 'Esse dia ainda não chegou.'
+  if (datasComDiario.includes(data)) return textoJaTemDiario(data)
+  return null
+}
+
+// Os equipamentos que hoje estão na obra e já estavam lá em `data`. `situacao_desde` é a data da
+// última mudança: o que chegou depois daquele dia fica de fora. O que estava lá e já saiu o app não sabe.
+export const equipamentosNoDia = (equipamentos, data) => equipamentos.filter((e) => !e.situacao_desde || e.situacao_desde <= data)
+
+// A data que o campo já traz: o dia mais novo sem diário na última semana; se não faltar nenhum, ontem.
+export function diaEsquecidoSugerido(hoje, datasComDiario) {
+  const tem = new Set(datasComDiario)
+  for (let n = 1; n <= 7; n++) {
+    const dia = somarDias(hoje, -n)
+    if (!tem.has(dia)) return dia
+  }
+  return ultimoDiaEsquecido(hoje)
+}
 
 // As linhas do efetivo que contam como presença com as situações escolhidas na correção
 // (`situacoes`: { [linhaId]: situacao }). Só elas podem estar na equipe das frentes.

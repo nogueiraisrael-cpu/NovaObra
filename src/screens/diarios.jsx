@@ -3,10 +3,12 @@
 // ("Corrigir este dia"). Tocar num dia abre o dia inteiro, com o botão Imprimir;
 // "Imprimir resumo" junta vários dias numa tabela.
 import { useState } from 'react'
-import { listarDiarios, obterDiario, fecharDiaAnterior, posso } from '../lib/dados.js'
+import { listarDiarios, obterDiario, fecharDiaAnterior, lancarDiaEsquecido, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
 import { useObra } from '../lib/ObraContext.jsx'
-import { situacaoDiario, textoClima, textoResponsavel, podeCorrigirNoHistorico, podeFecharNoHistorico } from '../lib/diarios.js'
+import {
+  situacaoDiario, textoClima, textoResponsavel, podeCorrigirNoHistorico, podeFecharNoHistorico, validarDiaEsquecido, diaEsquecidoSugerido, ultimoDiaEsquecido,
+} from '../lib/diarios.js'
 import { rotuloExecutor } from '../lib/frentes.js'
 import { hojeISO, formatarDataLonga, formatarDiaMes } from '../lib/datas.js'
 import {
@@ -82,10 +84,10 @@ function FecharDia({ d, fechado }) {
   )
 }
 
-function DiaDoDiario({ id, voltar }) {
+function DiaDoDiario({ id, voltar, corrigirAoAbrir = false }) {
   const { obra } = useObra()
   const dia = useDados(() => obterDiario(id), [id])
-  const [corrigindo, setCorrigindo] = useState(false)
+  const [corrigindo, setCorrigindo] = useState(corrigirAoAbrir)
   const hoje = hojeISO()
 
   if (dia.carregando) return <Carregando />
@@ -218,25 +220,76 @@ function DiaDoDiario({ id, voltar }) {
   )
 }
 
+// O dia que passou sem ninguém abrir o diário: escolhe a data, o app abre o diário dela
+// (efetivo, equipamentos e frentes como o de hoje abriria) e já vai para a correção.
+function DiaEsquecido({ datas, lancado, cancelar }) {
+  const hoje = hojeISO()
+  const [data, setData] = useState(() => diaEsquecidoSugerido(hoje, datas))
+  const [gravando, setGravando] = useState(false)
+  const [erro, setErro] = useState(null)
+  const aviso = validarDiaEsquecido(data, hoje, datas)
+  async function lancar() {
+    if (gravando || aviso) return
+    setGravando(true)
+    setErro(null)
+    const r = await lancarDiaEsquecido(data)
+    setGravando(false)
+    if (r.erro) return setErro(r.erro)
+    lancado(r.data.id)
+  }
+  return (
+    <section className="block" style={{ marginBottom: 12 }}>
+      <div className="block-h"><h3>Lançar dia esquecido</h3></div>
+      <label className="label" htmlFor="dia-esquecido">Qual dia ficou sem diário?</label>
+      <input id="dia-esquecido" type="date" className="field" value={data} max={ultimoDiaEsquecido(hoje)} onChange={(e) => setData(e.target.value)} />
+      {!aviso && <div className="hint">{formatarDataLonga(data)}</div>}
+      {(erro || aviso) && <div className="err">{erro || aviso}</div>}
+      <p className="hint">O diário abre com quem está lotado na obra como Presente, os equipamentos da obra e as frentes em execução com a equipe do diário anterior. Em seguida você corrige e fecha.</p>
+      <div className="row-wrap" style={{ marginTop: 8 }}>
+        <button className="btn btn-ghost" onClick={cancelar} disabled={gravando}>Cancelar</button>
+        <button className="btn btn-primary" style={{ flex: 1 }} onClick={lancar} disabled={gravando || Boolean(aviso)}>
+          {gravando ? 'Abrindo…' : 'Abrir o diário deste dia'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 export default function Diarios({ irParaHoje }) {
   const lista = useDados(listarDiarios)
-  const [aberto, setAberto] = useState(null)
+  const [aberto, setAberto] = useState(null) // { id, corrigir }
   const [resumo, setResumo] = useState(false)
+  const [esquecido, setEsquecido] = useState(false)
   const hoje = hojeISO()
 
-  function abrir(id) { setAberto(id); window.scrollTo(0, 0) }
+  function abrir(id, corrigir = false) { setAberto({ id, corrigir }); setEsquecido(false); window.scrollTo(0, 0) }
 
   if (resumo && lista.data?.length) return <div style={{ marginTop: 8 }}><ResumoDiarios diarios={lista.data} voltar={() => setResumo(false)} /></div>
-  if (aberto) return <div style={{ marginTop: 8 }}><DiaDoDiario id={aberto} voltar={() => { setAberto(null); lista.recarregar() }} /></div>
+  if (aberto) {
+    return (
+      <div style={{ marginTop: 8 }}>
+        <DiaDoDiario key={aberto.id} id={aberto.id} corrigirAoAbrir={aberto.corrigir} voltar={() => { setAberto(null); lista.recarregar() }} />
+      </div>
+    )
+  }
 
   if (lista.carregando) return <div style={{ marginTop: 16 }}><Carregando /></div>
   if (lista.erro) return <div style={{ marginTop: 16 }}><ErroCarga erro={lista.erro} tentar={lista.recarregar} /></div>
+
+  const formEsquecido = esquecido && (
+    <DiaEsquecido datas={lista.data.map((r) => r.data)} lancado={(id) => abrir(id, true)} cancelar={() => setEsquecido(false)} />
+  )
+  const botaoEsquecido = posso('diario.criar') && !esquecido && (
+    <button className="btn btn-ghost" onClick={() => setEsquecido(true)}>+ Dia esquecido</button>
+  )
+
   if (lista.data.length === 0) {
     return (
       <div style={{ marginTop: 16 }}>
         <Vazio icone="relogio" titulo="Nenhum diário lançado nesta obra ainda."
           texto="O diário de cada dia é lançado na aba Hoje. Depois de lançado, ele aparece aqui."
           acao={<button className="btn btn-primary" onClick={irParaHoje}>Lançar o diário de hoje <Icon nome="arrow" /></button>} />
+        {formEsquecido || (botaoEsquecido && <div style={{ textAlign: 'center', marginTop: 12 }}>{botaoEsquecido}</div>)}
       </div>
     )
   }
@@ -247,9 +300,11 @@ export default function Diarios({ irParaHoje }) {
         <h2>Diários</h2>
         <span className="row-wrap">
           <span className="t-muted">{plural(lista.data.length, 'dia', 'dias')}</span>
+          {botaoEsquecido}
           <button className="btn btn-ghost" onClick={() => { setResumo(true); window.scrollTo(0, 0) }}>Imprimir resumo</button>
         </span>
       </div>
+      {formEsquecido}
       <div className="list two">{lista.data.map((r) => <CartaoDiario key={r.id} r={r} hoje={hoje} abrir={abrir} />)}</div>
     </>
   )
