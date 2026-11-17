@@ -1,7 +1,7 @@
 // Diários: ordem do histórico, números do cartão e o texto do clima.
 import {
   ordenarDiarios, resumirDiario, situacaoDiario, textoClima, textoResponsavel, planejarCorrecao, semanaDe, idsNoIntervalo, resumirPeriodo, escolhaInicial,
-  validarDiaEsquecido, diaEsquecidoSugerido, equipamentosNoDia, ultimoDiaEsquecido,
+  validarDiaEsquecido, diaEsquecidoSugerido, equipamentosNoDia, ultimoDiaEsquecido, frentesQueSaem,
 } from '../src/lib/diarios.js'
 import { hojeISO, somarDias, formatarDiaMes, formatarDiaCurto } from '../src/lib/datas.js'
 import * as dados from '../src/lib/dados.js'
@@ -77,10 +77,10 @@ conferir('nem se marca Deslocado', plan({ efetivo: { l1: 'Deslocado' } }).erro, 
 conferir('linha de outro diário é recusada', plan({ efetivo: { x9: 'Falta' } }).erro, 'Funcionário não está neste diário.')
 conferir('frente de outro diário é recusada', plan({ frentes: { rf9: { descricao: '' } } }).erro, 'Frente não está neste diário.')
 conferir('quem vira Falta sai da equipe da frente', plan({ efetivo: { l1: 'Falta' } }).frentes,
-  [{ id: 'rf1', descricao: 'Reboco', mudouDescricao: false, entra: [], sai: ['a'] }])
+  [{ id: 'rf1', descricao: 'Reboco', mudouDescricao: false, motivo_parada: null, mudouSituacao: false, entra: [], sai: ['a'] }])
 conferir('na equipe só entra quem estava presente', plan({ efetivo: { l2: 'Presente' }, frentes: { rf1: { descricao: 'Reboco', equipe: ['a', 'b', 'c', 'b'] } } }).frentes[0].entra, ['b'])
 conferir('texto da frente corrigido', plan({ frentes: { rf1: { descricao: 'Reboco interno', equipe: ['a'] } } }).frentes,
-  [{ id: 'rf1', descricao: 'Reboco interno', mudouDescricao: true, entra: [], sai: [] }])
+  [{ id: 'rf1', descricao: 'Reboco interno', mudouDescricao: true, motivo_parada: null, mudouSituacao: false, entra: [], sai: [] }])
 
 // ---- Resumo de vários dias ----
 conferir('dia curto da tabela', formatarDiaCurto('2026-10-31'), 'Sáb 31/10')
@@ -222,6 +222,93 @@ const ubsEsq = await dados.lancarDiaEsquecido(anteontem)
 const diaUbsEsq = (await dados.obterDiario(ubsEsq.data.id)).data
 conferir('na UBS o mesmo dia é outro diário, só com gente e coisa da UBS',
   [ubsEsq.erro, diaUbsEsq.efetivo.some((l) => l.funcionario_id === 'f-joao'), diaUbsEsq.equipamentos], [null, false, []])
+
+// ---- Correção com frente nova, situação da frente e equipamentos: regra pura ----
+const ctx = (pedido, extra = {}) => planejarCorrecao({
+  linhas: linhasEf, frentes: [{ id: 'rf1', frente_id: 'fA', situacao: 'Em execução', motivo_parada: null, descricao: 'Reboco' }],
+  equipeAtual: { rf1: ['a'] }, frentesDaObra: ['fA', 'fB'], equipamentosPossiveis: ['eq1', 'eq2'],
+  linhasEquip: [{ id: 'le1', equipamento_id: 'eq1', situacao: 'Operando', observacao: '' }, { id: 'le9', equipamento_id: 'eq9', situacao: 'Concluído', observacao: 'Fim' }],
+  podeTirarFrente: true, comFoto: [], pedido: { ...base, ...pedido }, ...extra,
+})
+conferir('frente vira Parada sem motivo: recusa', ctx({ frentes: { rf1: { descricao: 'Reboco', situacao: 'Parada' } } }).erro, 'Escolha o motivo da parada.')
+conferir('frente vira Parada com motivo', ctx({ frentes: { rf1: { descricao: 'Reboco', situacao: 'Parada', motivo_parada: 'Chuva' } } }).frentes.map((x) => [x.situacao, x.motivo_parada, x.mudouSituacao]),
+  [['Parada', 'Chuva', true]])
+conferir('frente nova entra com equipe só de presentes', ctx({ frentes_novas: [{ frente_id: 'fB', situacao: 'Em execução', descricao: 'Forro', equipe: ['a', 'b'] }] }).frentesNovas,
+  [{ frente_id: 'fB', situacao: 'Em execução', motivo_parada: null, descricao: 'Forro', equipe: ['a'] }])
+conferir('frente de outra obra é recusada', ctx({ frentes_novas: [{ frente_id: 'fZ', situacao: 'Em execução' }] }).erro, 'Frente não encontrada nesta obra.')
+conferir('frente "nova" que já está no dia vira edição (repetir completa)',
+  [ctx({ frentes_novas: [{ frente_id: 'fA', situacao: 'Concluída', descricao: 'Fim', equipe: ['a'] }] }).frentesNovas, ctx({ frentes_novas: [{ frente_id: 'fA', situacao: 'Concluída', descricao: 'Fim', equipe: ['a'] }] }).frentes[0].situacao],
+  [[], 'Concluída'])
+conferir('tirar frente: só quem pode', ctx({ frentes_tiradas: ['rf1'] }, { podeTirarFrente: false }).erro, 'Só o Engenheiro tira frente do diário, e só de dia não fechado.')
+conferir('tirar frente com foto: recusa', ctx({ frentes_tiradas: ['rf1'] }, { comFoto: ['rf1'] }).erro, 'Esta frente tem foto neste dia: ela não sai do diário.')
+conferir('tirar frente: sai e não é editada', [ctx({ frentes_tiradas: ['rf1'], efetivo: { l1: 'Falta' } }).frentesTiradas, ctx({ frentes_tiradas: ['rf1'], efetivo: { l1: 'Falta' } }).frentes], [['rf1'], []])
+conferir('tirar frente que já saiu é ignorado', ctx({ frentes_tiradas: ['rf8'] }).frentesTiradas, [])
+conferir('equipamento muda de situação com observação', ctx({ equipamentos: { le1: { situacao: 'Quebrado', observacao: 'Motor' } } }).equipamentos, [{ id: 'le1', situacao: 'Quebrado', observacao: 'Motor' }])
+conferir('Operando não leva observação', ctx({ equipamentos: { le1: { situacao: 'Operando', observacao: 'sobrou' } } }).equipamentos, [])
+conferir('frente tirada que já saiu: a edição dela é ignorada; a de outro diário, não',
+  [ctx({ frentes_tiradas: ['rf7'], frentes: { rf7: { descricao: '' } } }).erro, ctx({ frentes: { rf7: { descricao: '' } } }).erro], [undefined, 'Frente não está neste diário.'])
+conferir('frentes que dá para tirar: só sem foto, e só quem pode', [frentesQueSaem([{ id: 'r1' }, { id: 'r2' }], ['r2'], true), frentesQueSaem([{ id: 'r1' }], [], false)], [['r1'], []])
+conferir('Concluído não se corrige', ctx({ equipamentos: { le9: { situacao: 'Operando', observacao: '' } } }).erro, 'O Concluído não se corrige por aqui: só Operando, Parado e Quebrado.')
+conferir('Concluído não sai do diário', ctx({ equipamentos_tirados: ['le9'] }).erro, 'Equipamento concluído não sai do diário por aqui.')
+conferir('equipamento novo entra; o de fora da lista é recusado',
+  [ctx({ equipamentos_novos: [{ equipamento_id: 'eq2', situacao: 'Parado', observacao: 'Chuva' }] }).equipamentosNovos, ctx({ equipamentos_novos: [{ equipamento_id: 'eq7', situacao: 'Operando' }] }).erro],
+  [[{ equipamento_id: 'eq2', situacao: 'Parado', observacao: 'Chuva' }], 'Esse equipamento não pode entrar neste diário.'])
+conferir('equipamento "novo" que já está no dia vira edição', ctx({ equipamentos_novos: [{ equipamento_id: 'eq1', situacao: 'Parado', observacao: 'x' }] }).equipamentos,
+  [{ id: 'le1', situacao: 'Parado', observacao: 'x' }])
+
+// ---- Correção completa do dia esquecido, no banco em memória ----
+dados._usarBancoDeTeste(bancoEsq)
+await dados.entrar('eng@novaobra.test', 'x')
+dados.definirObraAtual('obra-serra')
+const op = (await dados.opcoesDaCorrecao(lancado.data.id)).data
+conferir('opções: frentes que não estão no dia e equipamentos da obra ou do depósito que não estão nele',
+  [op.frentes.some((x) => x.id === 'fs-reboco'), op.frentes.some((x) => x.id === 'fs-revest'), op.equipamentos.map((e) => e.id), op.frentes_que_saem.length > 0],
+  [true, false, ['e-fachadeiro'], true])
+const antesEsq = (await dados.obterDiario(lancado.data.id)).data
+const rfRevest = antesEsq.frentes.find((x) => x.frente_id === 'fs-revest')
+const rfTirar = antesEsq.frentes.find((x) => x.frente_id === 'fs-hidro')
+conferir('o dia esquecido tinha a hidráulica (para tirar)', Boolean(rfTirar), true)
+const linhaBetoneira = antesEsq.equipamentos.find((e) => e.nome.startsWith('Betoneira'))
+const linhaAndaime = antesEsq.equipamentos.find((e) => e.nome.startsWith('Andaime'))
+const pedidoEsq = {
+  ...pedidoBase,
+  // Como a tela manda: todas as linhas do dia, também as que pediu para tirar.
+  frentes: {
+    ...Object.fromEntries(antesEsq.frentes.map((x) => [x.id, { descricao: x.descricao, equipe: x.equipe_ids, situacao: x.situacao, motivo_parada: x.motivo_parada }])),
+    [rfRevest.id]: { descricao: 'Rejunte da suíte', equipe: rfRevest.equipe_ids, situacao: 'Parada', motivo_parada: 'Chuva' },
+  },
+  frentes_novas: [{ frente_id: 'fs-reboco', situacao: 'Em execução', motivo_parada: null, descricao: 'Chapisco', equipe: ['f-paulo'] }],
+  frentes_tiradas: [rfTirar.id],
+  equipamentos: {
+    ...Object.fromEntries(antesEsq.equipamentos.map((e) => [e.id, { situacao: e.situacao, observacao: e.observacao }])),
+    [linhaAndaime.id]: { situacao: 'Parado', observacao: 'Chuva' },
+  },
+  equipamentos_novos: [{ equipamento_id: 'e-fachadeiro', situacao: 'Operando', observacao: '' }],
+  equipamentos_tirados: [linhaBetoneira.id],
+}
+conferir('correção completa grava sem erro', (await dados.corrigirDiario(lancado.data.id, pedidoEsq)).erro, null)
+conferir('repetir a mesma correção (o que foi tirado já saiu) não dá erro nem duplica', (await dados.corrigirDiario(lancado.data.id, pedidoEsq)).erro, null)
+const depoisEsq = (await dados.obterDiario(lancado.data.id)).data
+const fr = (id) => depoisEsq.frentes.filter((x) => x.frente_id === id)
+conferir('revestimento ficou Parada por chuva, com o texto novo', fr('fs-revest').map((x) => [x.situacao, x.motivo_parada, x.descricao]), [['Parada', 'Chuva', 'Rejunte da suíte']])
+conferir('reboco entrou uma vez só, com o Paulo', fr('fs-reboco').map((x) => [x.situacao, x.descricao, x.equipe_ids]), [['Em execução', 'Chapisco', ['f-paulo']]])
+conferir('hidráulica saiu do dia', fr('fs-hidro'), [])
+conferir('equipamentos: betoneira saiu, andaime parado, fachadeiro entrou uma vez',
+  depoisEsq.equipamentos.map((e) => [e.nome, e.situacao, e.observacao]).sort(),
+  [['Andaime fachadeiro 30 m', 'Operando', ''], ['Andaime tubular 12 m', 'Parado', 'Chuva']])
+const frentesObraAntes = (await dados.listarFrentes()).data
+conferir('dia não fechado: a lista de frentes da obra ainda não muda', frentesObraAntes.find((x) => x.id === 'fs-reboco').situacao, 'Parada')
+
+// Dia já fechado: mudar a situação vai para a lista de frentes da obra (ninguém mais novo decidiu).
+const rfHidro = (await dados.obterDiario('rdo-serra-ontem')).data.frentes.find((x) => x.frente_id === 'fs-hidro')
+const fechadoOntem = await dados.corrigirDiario('rdo-serra-ontem', { ...pedidoBase, frentes: { [rfHidro.id]: { descricao: rfHidro.descricao, equipe: rfHidro.equipe_ids, situacao: 'Concluída' } } })
+const hidro = (await dados.listarFrentes()).data.find((x) => x.id === 'fs-hidro')
+conferir('dia fechado: a frente concluída na correção fica Concluída na obra', [fechadoOntem.erro, hidro.situacao, hidro.data_conclusao], [null, 'Concluída', ontem])
+const vivaDeNovo = await dados.corrigirDiario('rdo-serra-ontem', { ...pedidoBase, frentes: { [rfHidro.id]: { descricao: rfHidro.descricao, equipe: rfHidro.equipe_ids, situacao: 'Em execução' } } })
+const hidro2 = (await dados.listarFrentes()).data.find((x) => x.id === 'fs-hidro')
+conferir('voltar para Em execução limpa a data de conclusão', [vivaDeNovo.erro, hidro2.situacao, hidro2.data_conclusao], [null, 'Em execução', null])
+conferir('dia fechado: tirar frente é recusado', (await dados.corrigirDiario('rdo-serra-ontem', { ...pedidoBase, frentes_tiradas: [rfHidro.id] })).erro,
+  'Só o Engenheiro tira frente do diário, e só de dia não fechado.')
 
 console.log(`${ok}/${tot} — diarios`)
 process.exit(ok === tot ? 0 : 1)

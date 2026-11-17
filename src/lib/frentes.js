@@ -96,10 +96,11 @@ export function aplicarFechamento(frentes, rdoFrentes, dataRdo) {
         situacao: 'Parada',
         parada_desde: f.situacao === 'Parada' && f.parada_desde ? f.parada_desde : dataRdo,
         motivo_parada: rf.motivo_parada,
+        data_conclusao: null,
       }
     }
     if (rf.situacao === 'Em execução') {
-      return { ...f, situacao: 'Em execução', parada_desde: null, motivo_parada: null, data_inicio: f.data_inicio ?? dataRdo }
+      return { ...f, situacao: 'Em execução', parada_desde: null, motivo_parada: null, data_conclusao: null, data_inicio: f.data_inicio ?? dataRdo }
     }
     if (rf.situacao === 'Concluída') {
       return { ...f, situacao: 'Concluída', parada_desde: null, motivo_parada: null, data_conclusao: dataRdo, data_inicio: f.data_inicio ?? dataRdo }

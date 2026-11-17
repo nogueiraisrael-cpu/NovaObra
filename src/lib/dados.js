@@ -17,7 +17,7 @@ import {
   aplicarFechamento, aplicarFechamentoAtrasado, validarPreenchimento, validarFrente, situacaoPadraoDoDia, diariosParaHerdar, lancamentosHerdados,
 } from './frentes.js'
 import { statusRdoHoje, cobraRdoDeOntem, validarObra, normalizarCodigo, motivoParaNaoApagarObra, OBRA_COM_LANCAMENTOS } from './obras.js'
-import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico, validarDiaEsquecido, textoJaTemDiario, equipamentosNoDia } from './diarios.js'
+import { ordenarDiarios, resumirDiario, planejarCorrecao, podeCorrigirNoHistorico, validarDiaEsquecido, textoJaTemDiario, equipamentosNoDia, frentesQueSaem } from './diarios.js'
 import { montarQuadro } from './quadroEfetivo.js'
 import { validarNovoPedido, validarMovimento, aplicarMovimento, novoPedido, lerQuantidade, podeExcluirPedido, acharNoCatalogo, limparNomeMaterial, decidirMaterialEscrito } from './materiais.js'
 import {
@@ -638,9 +638,13 @@ async function equipesDeHoje(obraId, frentes, rdo, efetivo) {
 // a equipe, e repetir o toque (ou o Fechar RDO) não a traria de volta.
 async function lancarFrente(rdo, frente, equipe) {
   const situacao = situacaoPadraoDoDia(frente)
+  return lancarFrenteNoDia(rdo, frente.id, { situacao, motivo_parada: situacao === 'Parada' ? frente.motivo_parada : null, descricao: '' }, equipe)
+}
+
+// O lançamento de uma frente num diário, com a equipe. Correção de dia passado entra aqui direto.
+async function lancarFrenteNoDia(rdo, frenteId, { situacao, motivo_parada, descricao }, equipe) {
   const rf = await inserir('rdo_frentes', {
-    rdo_id: rdo.id, obra_id: rdo.obra_id, frente_id: frente.id, situacao,
-    motivo_parada: situacao === 'Parada' ? frente.motivo_parada : null, descricao: '',
+    rdo_id: rdo.id, obra_id: rdo.obra_id, frente_id: frenteId, situacao, motivo_parada, descricao,
   })
   try {
     await inserirVarios('rdo_frente_equipe', equipe.map((id) => ({ rdo_frente_id: rf.id, obra_id: rdo.obra_id, funcionario_id: id })))
@@ -832,8 +836,16 @@ export const fecharDiaAnterior = (rdoId) => executar(async () => {
   if (!rdo) return falha('Diário não encontrado nesta obra.')
   if (!podeCorrigirNoHistorico(rdo, hoje())) return falha('O diário de hoje se fecha na aba Hoje.')
   if (rdo.status === 'Fechado') return ok(rdo)
-  // As frentes da obra inteira, filtradas aqui: uma lista de ids de um ano de diários não
-  // cabe no endereço do pedido ao banco.
+  await aplicarDiaPassadoNasFrentes(obraId, rdo)
+  return ok((await gravar('rdos', { id: rdo.id, obra_id: obraId }, fechamento()))[0])
+})
+
+// Leva para a lista de frentes da obra o que um dia que já passou diz delas (fechar atrasado, ou
+// corrigir a situação num dia já fechado). Só o fechamento escreve a lista de frentes da obra e
+// `gravarFrentesFechadas` grava só o que difere: aplicar o mesmo dia de novo não muda nada.
+// As frentes da obra inteira, filtradas aqui: uma lista de ids de um ano de diários não
+// cabe no endereço do pedido ao banco.
+async function aplicarDiaPassadoNasFrentes(obraId, rdo) {
   const [daObraRfs, daObra, rdos] = await Promise.all([
     ler('rdo_frentes', { obra_id: obraId }), ler('frentes_servico', { obra_id: obraId }), ler('rdos', { obra_id: obraId, status: 'Fechado' }),
   ])
@@ -841,8 +853,7 @@ export const fecharDiaAnterior = (rdoId) => executar(async () => {
   const rfs = daObraRfs.filter((rf) => rf.rdo_id === rdo.id)
   const decididas = daObraRfs.filter((rf) => maisNovos.has(rf.rdo_id)).map((rf) => rf.frente_id)
   await gravarFrentesFechadas(daObra, aplicarFechamentoAtrasado(daObra, rfs, rdo.data, decididas))
-  return ok((await gravar('rdos', { id: rdo.id, obra_id: obraId }, fechamento()))[0])
-})
+}
 
 // Lançar um dia que passou sem diário (aba Diários). Abre o diário daquele dia como o de hoje
 // abriria: quem está lotado aqui (Presente, ou Deslocado se naquele dia já estava presente em
@@ -983,8 +994,38 @@ export const obterDiarios = (rdoIds) => executar(async () => {
   return ok(await montarDiarios(obraId, rdos, { comFotos: false }))
 })
 
-// Corrige um dia que já passou (fechado ou não): clima, ocorrências, texto e equipe das
-// frentes, e Presente/Falta/Atestado do efetivo. O de hoje se corrige na aba Hoje.
+// O que pode entrar na correção de um dia que já passou: as frentes da obra que ainda não estão
+// no dia, e os equipamentos desta obra ou do depósito que ainda não estão nele.
+export const opcoesDaCorrecao = (rdoId) => executar(async () => {
+  const obraId = obraAtual()
+  const rdo = await um('rdos', { id: rdoId, obra_id: obraId })
+  if (!rdo) return falha('Diário não encontrado nesta obra.')
+  const [frentes, rfs, linhasEquip, possiveis, fotos] = await Promise.all([
+    ler('frentes_servico', { obra_id: obraId }), ler('rdo_frentes', { rdo_id: rdo.id }), ler('rdo_equipamentos', { rdo_id: rdo.id }), equipamentosPossiveis(obraId),
+    ler('fotos', { rdo_id: rdo.id }),
+  ])
+  const noDia = new Set(rfs.map((rf) => rf.frente_id))
+  const equipNoDia = new Set(linhasEquip.map((l) => l.equipamento_id))
+  return ok({
+    frentes: frentes.filter((f) => !noDia.has(f.id)).sort(porNome).map((f) => ({ id: f.id, nome: f.nome, etapa: f.etapa })),
+    equipamentos: possiveis.filter((e) => !equipNoDia.has(e.id)).sort(porNome).map((e) => ({ id: e.id, nome: e.nome, codigo: e.codigo })),
+    // As linhas de rdo_frentes que a pessoa pode tirar do dia.
+    frentes_que_saem: frentesQueSaem(rfs, fotos.map((ft) => ft.rdo_frente_id).filter(Boolean), podeTirarFrenteDoDia(rdo)),
+  })
+})
+
+const equipamentosPossiveis = async (obraId) => {
+  const [naObra, noDeposito] = await Promise.all([equipamentosNaObra(obraId), ler('equipamentos', { situacao: 'No depósito' })])
+  return [...naObra, ...noDeposito]
+}
+// Tirar uma frente do dia apaga o lançamento: o quadro dá "Apagar diário" só ao Engenheiro, e só de dia não fechado.
+const podeTirarFrenteDoDia = (rdo) => posso('diario.apagar') && rdo.status !== 'Fechado'
+
+// Corrige um dia que já passou (fechado ou não): clima, ocorrências, efetivo (Presente/Falta/Atestado),
+// as frentes do dia (texto, equipe, situação; incluir outra frente da obra; tirar uma lançada por engano)
+// e os equipamentos do dia (situação, observação; incluir; tirar). O de hoje se corrige na aba Hoje.
+// Dia já fechado: a situação das frentes vai também para a lista de frentes da obra, menos onde
+// um diário fechado mais novo já decidiu (a mesma regra de fechar atrasado).
 // Várias gravações, não atômicas: repetir a mesma correção completa o que faltou.
 export const corrigirDiario = (rdoId, pedido) => executar(async () => {
   if (!posso('diario.editar')) return falha('Seu perfil não corrige diário.')
@@ -992,10 +1033,17 @@ export const corrigirDiario = (rdoId, pedido) => executar(async () => {
   const rdo = await um('rdos', { id: rdoId, obra_id: obraId })
   if (!rdo) return falha('Diário não encontrado nesta obra.')
   if (!podeCorrigirNoHistorico(rdo, hoje())) return falha('O diário de hoje se corrige na aba Hoje.')
-  const [linhas, rfs] = await Promise.all([ler('rdo_efetivo', { rdo_id: rdo.id }), ler('rdo_frentes', { rdo_id: rdo.id })])
+  const [linhas, rfs, linhasEquip, frentesDaObra, possiveis, fotos] = await Promise.all([
+    ler('rdo_efetivo', { rdo_id: rdo.id }), ler('rdo_frentes', { rdo_id: rdo.id }), ler('rdo_equipamentos', { rdo_id: rdo.id }),
+    ler('frentes_servico', { obra_id: obraId }), equipamentosPossiveis(obraId), ler('fotos', { rdo_id: rdo.id }),
+  ])
   const equipe = rfs.length ? await ler('rdo_frente_equipe', { rdo_frente_id: rfs.map((rf) => rf.id) }) : []
   const equipeAtual = Object.fromEntries(rfs.map((rf) => [rf.id, equipe.filter((q) => q.rdo_frente_id === rf.id).map((q) => q.funcionario_id)]))
-  const plano = planejarCorrecao({ linhas, frentes: rfs, equipeAtual, pedido })
+  const plano = planejarCorrecao({
+    linhas, frentes: rfs, equipeAtual, pedido, linhasEquip,
+    frentesDaObra: frentesDaObra.map((f) => f.id), equipamentosPossiveis: possiveis.map((e) => e.id),
+    comFoto: fotos.map((ft) => ft.rdo_frente_id).filter(Boolean), podeTirarFrente: podeTirarFrenteDoDia(rdo),
+  })
   if (plano.erro) return falha(plano.erro)
   // A trava de duas obras vale também para o dia que passou: confere antes de gravar qualquer coisa.
   if (plano.viraramPresenca.length) {
@@ -1009,11 +1057,23 @@ export const corrigirDiario = (rdoId, pedido) => executar(async () => {
   await gravar('rdos', { id: rdo.id, obra_id: obraId }, plano.rdo)
   for (const l of plano.efetivo) await gravar('rdo_efetivo', { id: l.id, obra_id: obraId }, { situacao: l.situacao })
   for (const f of plano.frentes) {
-    if (f.mudouDescricao) await gravar('rdo_frentes', { id: f.id, obra_id: obraId }, { descricao: f.descricao })
+    const campos = {
+      ...(f.mudouDescricao ? { descricao: f.descricao } : {}),
+      ...(f.mudouSituacao ? { situacao: f.situacao, motivo_parada: f.motivo_parada } : {}),
+    }
+    if (Object.keys(campos).length) await gravar('rdo_frentes', { id: f.id, obra_id: obraId }, campos)
     // Tira só quem saiu (e confere que saiu), põe só quem entrou: nunca duplica a equipe.
     if (f.sai.length) await apagarDeVerdade('rdo_frente_equipe', { rdo_frente_id: f.id, obra_id: obraId, funcionario_id: f.sai })
     await inserirVarios('rdo_frente_equipe', f.entra.map((id) => ({ rdo_frente_id: f.id, obra_id: obraId, funcionario_id: id })))
   }
+  for (const n of plano.frentesNovas) await lancarFrenteNoDia(rdo, n.frente_id, n, n.equipe)
+  // A equipe e o lançamento saem juntos (on delete cascade).
+  for (const id of plano.frentesTiradas) await apagarDeVerdade('rdo_frentes', { id, obra_id: obraId })
+  for (const e of plano.equipamentos) await gravar('rdo_equipamentos', { id: e.id, obra_id: obraId }, { situacao: e.situacao, observacao: e.observacao })
+  await inserirVarios('rdo_equipamentos', plano.equipamentosNovos.map((e) => ({ rdo_id: rdo.id, obra_id: obraId, ...e })))
+  for (const id of plano.equipamentosTirados) await apagarDeVerdade('rdo_equipamentos', { id, obra_id: obraId })
+  // Por último: a lista de frentes só grava o que difere, então repetir a correção completa sem estrago.
+  if (rdo.status === 'Fechado') await aplicarDiaPassadoNasFrentes(obraId, rdo)
   return ok(true)
 })
 

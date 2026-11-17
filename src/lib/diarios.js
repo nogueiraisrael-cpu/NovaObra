@@ -2,7 +2,9 @@
 import { contaComoPresenca, contaComoFalta } from './efetivo.js'
 import { formatarMomento, somarDias, formatarDiaMes } from './datas.js'
 import { segundaDaSemana } from './planejamento.js'
-import { CLIMAS, SITUACOES_EFETIVO_CORRIGIVEIS } from './listas.js'
+import {
+  CLIMAS, SITUACOES_EFETIVO_CORRIGIVEIS, SITUACOES_FRENTE_DIA, MOTIVOS_PARADA, SITUACOES_EQUIPAMENTO_TOQUE, SITUACAO_EQUIPAMENTO_CONCLUIDO,
+} from './listas.js'
 
 // Do mais novo para o mais antigo. Data AAAA-MM-DD compara certo como texto.
 export function ordenarDiarios(rdos) {
@@ -84,12 +86,27 @@ export function diaEsquecidoSugerido(hoje, datasComDiario) {
 // (`situacoes`: { [linhaId]: situacao }). Só elas podem estar na equipe das frentes.
 export const presentesNaCorrecao = (linhas, situacoes) => linhas.filter((l) => contaComoPresenca(situacoes[l.id] ?? l.situacao))
 
-// Confere a correção e diz o que muda no banco.
-// `linhas`: rdo_efetivo do dia; `frentes`: rdo_frentes do dia; `equipeAtual`: { [rdoFrenteId]: [funcionarioId] }.
+// Confere a correção e diz o que muda no banco. Tudo que vem da tela é conferido aqui.
+// Contexto (o que está no banco):
+//   linhas: rdo_efetivo do dia; frentes: rdo_frentes do dia; equipeAtual: { [rdoFrenteId]: [funcionarioId] };
+//   linhasEquip: rdo_equipamentos do dia; frentesDaObra: ids das frentes da obra;
+//   equipamentosPossiveis: ids que podem entrar no dia (na obra ou no depósito);
+//   comFoto: ids de rdo_frentes com foto; podeTirarFrente: Engenheiro e dia não fechado.
 // `pedido`: clima, praticável e observações do dia, mais
-//   efetivo: { [linhaId]: situacao } e frentes: { [rdoFrenteId]: { descricao, equipe } }.
+//   efetivo: { [linhaId]: situacao }
+//   frentes: { [rdoFrenteId]: { descricao, equipe, situacao, motivo_parada } }
+//   frentes_novas: [{ frente_id, situacao, motivo_parada, descricao, equipe }]   frentes_tiradas: [rdoFrenteId]
+//   equipamentos: { [linhaId]: { situacao, observacao } }
+//   equipamentos_novos: [{ equipamento_id, situacao, observacao }]   equipamentos_tirados: [linhaId]
 // Quem deixa de estar presente sai das equipes do dia, como na aba Hoje.
-export function planejarCorrecao({ linhas, frentes, equipeAtual, pedido }) {
+// Repetir a mesma correção depois de cair no meio completa: frente ou equipamento "novo" que já
+// entrou vira edição da linha, e o que já saiu é ignorado.
+export function planejarCorrecao(contexto) {
+  const { linhas, frentes, equipeAtual, pedido } = contexto
+  const linhasEquip = contexto.linhasEquip ?? []
+  const frentesDaObra = new Set(contexto.frentesDaObra ?? frentes.map((rf) => rf.frente_id))
+  const equipamentosPossiveis = new Set(contexto.equipamentosPossiveis ?? [])
+  const comFoto = new Set(contexto.comFoto ?? [])
   if (!CLIMAS.includes(pedido.clima_manha) || !CLIMAS.includes(pedido.clima_tarde)) return { erro: 'Escolha o clima da manhã e da tarde.' }
   const rdo = {
     clima_manha: pedido.clima_manha, clima_tarde: pedido.clima_tarde,
@@ -112,20 +129,108 @@ export function planejarCorrecao({ linhas, frentes, equipeAtual, pedido }) {
   }
   const presentes = new Set(presentesNaCorrecao(linhas, pedidasEf).map((l) => l.funcionario_id))
 
+  // ---- Frentes ----
+  const frentesTiradas = []
+  for (const id of new Set(pedido.frentes_tiradas ?? [])) {
+    if (!frentes.some((x) => x.id === id)) continue // já saiu
+    if (!contexto.podeTirarFrente) return { erro: 'Só o Engenheiro tira frente do diário, e só de dia não fechado.' }
+    if (comFoto.has(id)) return { erro: 'Esta frente tem foto neste dia: ela não sai do diário.' }
+    frentesTiradas.push(id)
+  }
+  // Frente "nova" que já está no dia (repetir depois de cair no meio) vira edição da linha.
+  const pedidas = { ...(pedido.frentes ?? {}) }
+  const frentesNovas = []
+  for (const nova of pedido.frentes_novas ?? []) {
+    if (!frentesDaObra.has(nova.frente_id)) return { erro: 'Frente não encontrada nesta obra.' }
+    const ja = frentes.find((rf) => rf.frente_id === nova.frente_id)
+    if (ja) { pedidas[ja.id] = { ...nova, ...pedidas[ja.id] }; continue }
+    if (frentesNovas.some((x) => x.frente_id === nova.frente_id)) continue
+    const erro = erroDaSituacao(nova)
+    if (erro) return { erro }
+    frentesNovas.push({
+      frente_id: nova.frente_id, situacao: nova.situacao, motivo_parada: nova.situacao === 'Parada' ? nova.motivo_parada : null,
+      descricao: String(nova.descricao ?? ''), equipe: [...new Set(nova.equipe ?? [])].filter((id) => presentes.has(id)),
+    })
+  }
+  // A tela manda todas as linhas, também a que pediu para tirar: essa, se já saiu, é ignorada.
+  const tiradasPedidas = new Set(pedido.frentes_tiradas ?? [])
+  for (const id of Object.keys(pedidas)) {
+    if (frentes.some((rf) => rf.id === id)) continue
+    if (!tiradasPedidas.has(id)) return { erro: 'Frente não está neste diário.' }
+    delete pedidas[id]
+  }
   // Equipe: só quem entra e quem sai, para o banco não apagar e regravar o time inteiro.
-  const pedidas = pedido.frentes ?? {}
-  if (Object.keys(pedidas).some((id) => !frentes.some((rf) => rf.id === id))) return { erro: 'Frente não está neste diário.' }
   const frentesQueMudam = []
   for (const rf of frentes) {
+    if (frentesTiradas.includes(rf.id)) continue
+    const pedida = pedidas[rf.id]
     const antes = equipeAtual[rf.id] ?? []
-    const descricao = pedidas[rf.id] ? String(pedidas[rf.id].descricao ?? '') : rf.descricao ?? ''
-    const equipe = [...new Set(pedidas[rf.id]?.equipe ?? antes)].filter((id) => presentes.has(id))
+    const descricao = pedida ? String(pedida.descricao ?? '') : rf.descricao ?? ''
+    const situacao = pedida?.situacao ?? rf.situacao
+    const motivo = situacao !== 'Parada' ? null : (pedida?.situacao ? pedida.motivo_parada : rf.motivo_parada) ?? null
+    const mudouSituacao = situacao !== rf.situacao || motivo !== (rf.motivo_parada ?? null)
+    if (mudouSituacao) {
+      const erro = erroDaSituacao({ situacao, motivo_parada: motivo })
+      if (erro) return { erro }
+    }
+    const equipe = [...new Set(pedida?.equipe ?? antes)].filter((id) => presentes.has(id))
     const mudouDescricao = descricao !== (rf.descricao ?? '')
     const entra = equipe.filter((id) => !antes.includes(id))
     const sai = antes.filter((id) => !equipe.includes(id))
-    if (mudouDescricao || entra.length || sai.length) frentesQueMudam.push({ id: rf.id, descricao, mudouDescricao, entra, sai })
+    if (mudouDescricao || mudouSituacao || entra.length || sai.length) {
+      frentesQueMudam.push({ id: rf.id, descricao, mudouDescricao, situacao, motivo_parada: motivo, mudouSituacao, entra, sai })
+    }
   }
-  return { rdo, efetivo, viraramPresenca, frentes: frentesQueMudam }
+
+  // ---- Equipamentos ----
+  const equipamentosTirados = []
+  for (const id of new Set(pedido.equipamentos_tirados ?? [])) {
+    const linha = linhasEquip.find((l) => l.id === id)
+    if (!linha) continue // já saiu
+    if (linha.situacao === SITUACAO_EQUIPAMENTO_CONCLUIDO) return { erro: 'Equipamento concluído não sai do diário por aqui.' }
+    equipamentosTirados.push(id)
+  }
+  const pedidosEq = { ...(pedido.equipamentos ?? {}) }
+  const equipamentosNovos = []
+  for (const novo of pedido.equipamentos_novos ?? []) {
+    const ja = linhasEquip.find((l) => l.equipamento_id === novo.equipamento_id)
+    if (ja) { pedidosEq[ja.id] = { ...novo, ...pedidosEq[ja.id] }; continue }
+    if (!equipamentosPossiveis.has(novo.equipamento_id)) return { erro: 'Esse equipamento não pode entrar neste diário.' }
+    if (equipamentosNovos.some((x) => x.equipamento_id === novo.equipamento_id)) continue
+    if (!SITUACOES_EQUIPAMENTO_TOQUE.includes(novo.situacao)) return { erro: 'Escolha Operando, Parado ou Quebrado.' }
+    equipamentosNovos.push({ equipamento_id: novo.equipamento_id, situacao: novo.situacao, observacao: observacaoDoEquipamento(novo.situacao, novo.observacao) })
+  }
+  const equipamentos = []
+  const tiradosPedidos = new Set(pedido.equipamentos_tirados ?? [])
+  for (const [id, pedidoEq] of Object.entries(pedidosEq)) {
+    if (tiradosPedidos.has(id)) continue
+    const linha = linhasEquip.find((l) => l.id === id)
+    if (!linha) return { erro: 'Equipamento não está neste diário.' }
+    const situacao = pedidoEq.situacao ?? linha.situacao
+    const observacao = observacaoDoEquipamento(situacao, pedidoEq.observacao ?? linha.observacao)
+    if (situacao === linha.situacao && observacao === (linha.observacao ?? '')) continue
+    if (linha.situacao === SITUACAO_EQUIPAMENTO_CONCLUIDO || !SITUACOES_EQUIPAMENTO_TOQUE.includes(situacao)) {
+      return { erro: 'O Concluído não se corrige por aqui: só Operando, Parado e Quebrado.' }
+    }
+    equipamentos.push({ id, situacao, observacao })
+  }
+
+  return {
+    rdo, efetivo, viraramPresenca, frentes: frentesQueMudam, frentesNovas, frentesTiradas,
+    equipamentos, equipamentosNovos, equipamentosTirados,
+  }
+}
+
+// Operando não leva observação (como na aba Hoje).
+const observacaoDoEquipamento = (situacao, observacao) => (situacao === 'Operando' ? '' : String(observacao ?? ''))
+
+// As frentes do dia que dá para tirar: quem pode tirar, e só as sem foto.
+export const frentesQueSaem = (rdoFrentes, comFoto, podeTirar) => (podeTirar ? rdoFrentes.filter((rf) => !comFoto.includes(rf.id)).map((rf) => rf.id) : [])
+
+function erroDaSituacao({ situacao, motivo_parada }) {
+  if (!SITUACOES_FRENTE_DIA.includes(situacao)) return 'Escolha a situação da frente.'
+  if (situacao === 'Parada' && !MOTIVOS_PARADA.includes(motivo_parada)) return 'Escolha o motivo da parada.'
+  return null
 }
 
 // ---------------------------------------------------------------------------

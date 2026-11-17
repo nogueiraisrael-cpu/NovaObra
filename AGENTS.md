@@ -231,7 +231,10 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   novo arruma. Apagar planta apaga a linha (as marcações vão junto) e depois o arquivo: se cair no meio, sobra um
   arquivo solto. Apagar uma marcação do meio da vida da peça religa a seguinte à anterior e depois apaga: se cair no
   meio, a peça fica inteira e a do meio continua lá; apagar de novo completa.
-  Em Diários, "Corrigir este dia" grava o dia, depois o efetivo, depois as frentes: se cair no meio, salvar de novo completa.
+  Em Diários, "Corrigir este dia" grava o dia, o efetivo, as frentes (editadas, incluídas, tiradas), os equipamentos
+  (editados, incluídos, tirados) e, se o dia já está fechado, a lista de frentes da obra por último: se cair no meio,
+  salvar de novo completa (frente ou equipamento "incluído" que já entrou vira edição; o que já saiu é ignorado).
+  Tirar frente do dia apaga o lançamento: só o Engenheiro (`diario.apagar`), só em dia não fechado e sem foto.
   "+ Dia esquecido" (`lancarDiaEsquecido`, 17/11/2026) grava o dia, depois o efetivo, os equipamentos e as frentes herdadas;
   se uma linha falhar, o `dados.js` apaga o dia (as linhas vão junto) e repetir começa do zero. O Gerente não apaga diário:
   para ele sobra o dia meio montado, que aparece como "Não fechado" e se corrige como qualquer outro.

@@ -83,5 +83,12 @@ conferir('lançamento fora dos 7 diários não conta', herd.has('v'), false)
 conferir('não iniciada lançada num dia sem fechar herda', lancamentosHerdados([f('n', 'N', 'Não iniciada')], paraHerdar, [{ id: 'n1', rdo_id: 'r8', frente_id: 'n', situacao: 'Em execução' }], []).get('n')?.id, 'n1')
 conferir('dia pulado no meio não quebra: vale o último lançamento dela', herd.get('u')?.id, 'u-pulou')
 
+// Frente concluída que volta (correção de dia passado): a data de conclusão sai.
+const concluida = { id: 'c', situacao: 'Concluída', parada_desde: null, motivo_parada: null, data_inicio: '2026-10-01', data_conclusao: '2026-10-20' }
+conferir('concluída que volta a Em execução perde a data de conclusão',
+  aplicarFechamento([concluida], [{ frente_id: 'c', situacao: 'Em execução' }], '2026-10-21')[0].data_conclusao, null)
+conferir('concluída que vira Parada perde a data de conclusão',
+  aplicarFechamento([concluida], [{ frente_id: 'c', situacao: 'Parada', motivo_parada: 'Chuva' }], '2026-10-21')[0].data_conclusao, null)
+
 console.log(`${ok}/${tot} — frentes`)
 process.exit(ok === tot ? 0 : 1)
