@@ -278,11 +278,12 @@ export function conferirMarcacao(campos) {
   return null
 }
 
-// Erro (frase) ou null.
-export function validarMarcacao(campos, etapa) {
+// Erro (frase) ou null. `temNoQuadro`: a peça tem valor desta etapa no quadro de peças, então
+// numa etapa medida a quantidade pode ficar vazia (o valor vem do quadro, quantitativo.js).
+export function validarMarcacao(campos, etapa, temNoQuadro = false) {
   if (!etapa) return 'Escolha a etapa antes de marcar.'
   if (!campos.data || !/^\d{4}-\d{2}-\d{2}$/.test(campos.data)) return 'Escolha a data da marcação.'
-  if (etapa.unidade && etapa.unidade !== 'un' && campos.quantidade == null) {
+  if (etapa.unidade && etapa.unidade !== 'un' && campos.quantidade == null && !temNoQuadro) {
     return `A etapa ${etapa.nome} é medida em ${etapa.unidade}: preencha a quantidade antes de marcar.`
   }
   return null
@@ -373,14 +374,17 @@ const dentro = (data, { de, ate }) => (!de || data >= de) && (!ate || data <= at
 // Por etapa, no período: quanto saiu, em quantos dias trabalhados, a média diária REAL (produção
 // ÷ dias em que a etapa andou, não ÷ dias corridos), o acumulado até o fim do período, a % da
 // meta e as peças que andaram. E as viagens de concreto do período.
-export function resumoDoPeriodo(etapas, marcacoes, intervalo) {
+// `valores` (id → número) vem de valoresDasMarcacoes (quantitativo.js), com o quadro de peças e a
+// regra "a mesma peça conta uma vez"; sem ele, cada marcação vale a quantidade digitada ou 1.
+export function resumoDoPeriodo(etapas, marcacoes, intervalo, valores = null) {
+  const qtd = (m) => (valores ? valores.get(m.id) ?? 0 : qtdDe(m))
   const noPeriodo = marcacoes.filter((m) => dentro(m.data, intervalo))
   const ateOFim = marcacoes.filter((m) => !intervalo.ate || m.data <= intervalo.ate)
   const porEtapa = etapas.map((e) => {
     const daEtapa = noPeriodo.filter((m) => m.etapa === e.nome)
-    const feito = daEtapa.reduce((s, m) => s + qtdDe(m), 0)
+    const feito = daEtapa.reduce((s, m) => s + qtd(m), 0)
     const dias = new Set(daEtapa.map((m) => m.data)).size
-    const acumulado = ateOFim.filter((m) => m.etapa === e.nome).reduce((s, m) => s + qtdDe(m), 0)
+    const acumulado = ateOFim.filter((m) => m.etapa === e.nome).reduce((s, m) => s + qtd(m), 0)
     return {
       nome: e.nome, cor: e.cor, unidade: e.unidade || 'un', meta: e.meta ?? null,
       feito, dias, media: dias ? feito / dias : 0, acumulado,

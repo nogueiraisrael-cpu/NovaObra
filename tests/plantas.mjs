@@ -171,6 +171,14 @@ conferir('apagar a planta leva as marcações', (await dados.contarMarcacoesDaPl
 dados.definirObraAtual('obra-ubs')
 conferir('e a UBS continua com a dela', (await dados.abrirPlanta('pl-ubs-fund')).data.marcacoes.length, 1)
 
+// ── Quantitativo (19/11): quadro de peças ──────────────────────────────────────────
+conferir('etapa medida não pede quantidade quando a peça está no quadro', validarMarcacao({ data: dia, quantidade: null }, etapas[2], true), null)
+conferir('etapa medida continua pedindo quando a peça não está no quadro', Boolean(validarMarcacao({ data: dia, quantidade: null }, etapas[2], false)), true)
+const valoresP3 = new Map([['p1', 1], ['p2', 1], ['p3', 3], ['q1', 1], ['v1', 1], ['dup', 0]])
+const comDuplicada = [...peca, m('dup', { etapa: 'Escavado', data: '2026-11-04', rotulo: 'P2', created_at: '2026-11-08T12:00:00Z' })]
+const rq = resumoDoPeriodo(comLegado, comDuplicada, semana, valoresP3)
+conferir('resumo do período usa os valores do quadro (a peça repetida vale 0)', rq.etapas.find((e) => e.nome === 'Escavado').feito, 2)
+
 // ── Achados da revisão de código (16/11) ──────────────────────────────────────────
 // Por caminhão: só os caminhões do dia escolhido ganham cor; os de outro dia ficam cinza.
 const coresHoje = coresDosLotes(doDia, dia)
