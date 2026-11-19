@@ -53,7 +53,9 @@ export function tipoDoFormulario({ nome, pecasTexto, medidas, aco, aplicadas = [
   const linhas = []
   for (const l of aco ?? []) {
     const b = String(l.bitola ?? '').trim()
-    const c = String(l.comprimento_cm ?? '').trim()
+    // A tabela da prancha imprime "10.989" (ponto de milhar): ponto seguido de 3 algarismos é milhar.
+    const bruto = String(l.comprimento_cm ?? '').trim()
+    const c = /^\d{1,3}(\.\d{3})+$/.test(bruto) ? bruto.replace(/\./g, '') : bruto
     if (!b && !c) continue
     const bitola = lerNumero(b)
     const comprimento = lerNumero(c)
@@ -133,11 +135,13 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = 
   const ligados = Object.entries(destino).sort(([, x], [, y]) => ordemEtapa(x.etapa) - ordemEtapa(y.etapa))
   const linhas = []
   let digitadas = 0
+  // Peça que está em algum tipo agora nunca é apagada por outro (mudou de tipo na mesma aplicação).
+  const emAlgumTipo = new Set(tipos.flatMap((t) => t.pecas))
   const novosTipos = tipos.map((tipo) => {
     const valores = servicosDoTipo(tipo, kgPorMetro)
     const ultimo = {}
     const pecas = [...tipo.pecas].sort(ordemNatural)
-    const sairam = (tipo.aplicadas ?? []).filter((p) => !tipo.pecas.includes(p)).sort(ordemNatural)
+    const sairam = (tipo.aplicadas ?? []).filter((p) => !emAlgumTipo.has(p)).sort(ordemNatural)
     const mudar = (rotulo, etapa, quantidade) => {
       const k = chaveDaCelula(rotulo, etapa)
       const agora = atual.get(k) ?? null
@@ -158,7 +162,7 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = 
   for (const tipo of removidos) {
     for (const k of Object.keys(tipo.ultimo ?? {})) {
       const [rotulo, etapa] = k.split('|')
-      if (atual.get(k) == null || linhas.some((l) => l.rotulo === rotulo && l.etapa === etapa)) continue
+      if (atual.get(k) == null || emAlgumTipo.has(rotulo) || linhas.some((l) => l.rotulo === rotulo && l.etapa === etapa)) continue
       if (atual.get(k) !== tipo.ultimo[k]) digitadas++
       linhas.push({ rotulo, etapa, quantidade: null })
     }

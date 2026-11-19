@@ -240,8 +240,8 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   Gerente, que não apaga planta, sobra um arquivo solto). Renomear uma etapa muda o nome nas marcações e depois a
   etapa (desde 19/11 também o quadro de peças): se cair no meio, aparecem como etapa antiga com o nome novo, e salvar
   de novo completa. Salvar o quadro de peças grava uma célula por vez: se cair no meio, parte fica gravada e salvar de
-  novo completa. Aplicar tipos de peça grava os tipos na planta e depois as células: se cair no meio, os tipos ficam
-  guardados e aplicar de novo completa.
+  novo completa. Aplicar tipos de peça grava as células e depois os tipos na planta: se cair no meio, os tipos
+  continuam os de antes e aplicar de novo completa (nunca grave os tipos primeiro: a limpeza de peça que saiu se perde).
   Subir/descer etapa grava as duas ordens, uma por vez: se cair no meio, duas etapas ficam com a mesma ordem e subir de
   novo arruma. Apagar planta apaga a linha (as marcações vão junto) e depois o arquivo: se cair no meio, sobra um
   arquivo solto. Apagar uma marcação do meio da vida da peça religa a seguinte à anterior e depois apaga: se cair no

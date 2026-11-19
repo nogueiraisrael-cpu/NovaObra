@@ -1994,9 +1994,10 @@ async function gravarCelulas(obraId, plantaId, linhas) {
   }
 }
 
-// Sapata por tipo: grava os tipos na planta e depois as células que o cálculo deu (`linhas`, de
-// celulasDosTipos em sapataTipo.js). Duas gravações: se cair no meio, os tipos ficam guardados e aplicar
-// de novo completa as células.
+// Sapata por tipo: grava as células que o cálculo deu (`linhas`, de celulasDosTipos em sapataTipo.js) e
+// SÓ DEPOIS os tipos (com `aplicadas` e `ultimo` novos). Nessa ordem, se cair no meio, os tipos guardados ainda
+// são os de antes: aplicar de novo recalcula a partir deles e completa (peça que saiu e tipo apagado ainda são
+// limpos). Na ordem inversa, essas limpezas se perderiam.
 export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas) => executar(async () => {
   if (!posso('pranchas.editar')) return falha('Seu perfil não edita o quadro de peças.')
   for (const tipo of tipos) {
@@ -2007,8 +2008,8 @@ export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas) =>
   if (erroLinhas) return falha(erroLinhas)
   const obraId = obraAtual()
   if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
-  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {} } })
   await gravarCelulas(obraId, plantaId, linhas)
+  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {} } })
   return ok(true)
 })
 

@@ -90,6 +90,22 @@ conferir('medida que não é número avisa qual', tipoDoFormulario({ ...form, me
 conferir('linha de aço pela metade avisa', tipoDoFormulario({ ...form, aco: [{ bitola: '10', comprimento_cm: '' }] }).erro, 'Preencha bitola e comprimento total em cada linha de aço.')
 conferir('padrões do formulário: lastro 5 cm', MEDIDAS_PADRAO_CM.e, '5')
 
+// Revisão final: peça que muda de tipo na mesma aplicação NÃO perde as células.
+const tA = { ...r1.tipos[0], nome: 'Tipo A', pecas: ['S1'], aco: [{ bitola: '10', comprimento_cm: 1000 }] } // S2 saiu do A…
+const tB = { ...tipo1, nome: 'Tipo B', pecas: ['S2'], aco: [{ bitola: '10', comprimento_cm: 1000 }], aplicadas: [], ultimo: {} } // …e entrou no B
+const atualAB = new Map([['S1|CONCRETAGEM', 0.3346], ['S1|ARMAÇÃO', 0.00617], ['S2|CONCRETAGEM', 0.3346], ['S2|ARMAÇÃO', 0.00617]])
+const rAB = celulasDosTipos({ tipos: [tA, tB], etapas, atual: atualAB, kgPorMetro: PESO_ACO_NBR })
+conferir('peça que muda de tipo com o mesmo valor: nenhuma célula some', rAB.linhas.filter((l) => l.rotulo === 'S2'), [])
+const rAB2 = celulasDosTipos({ tipos: [tA, { ...tB, medidas: { ...M, A: 1.2 } }], etapas, atual: atualAB, kgPorMetro: PESO_ACO_NBR })
+conferir('peça que muda de tipo com outro valor: só a linha nova, sem apagar', rAB2.linhas.filter((l) => l.rotulo === 'S2').map((l) => l.quantidade === null), [false])
+const rRem = celulasDosTipos({ tipos: [{ ...tB, pecas: ['S1'] }], removidos: [r1.tipos[0]], etapas, atual: atualAB, kgPorMetro: PESO_ACO_NBR })
+conferir('tipo apagado não apaga peça que outro tipo assumiu', rRem.linhas.filter((l) => l.rotulo === 'S1' && l.quantidade === null), [])
+
+// Revisão final: comprimento de aço com ponto de milhar ("10.989", como a prancha imprime).
+const comMilhar = tipoDoFormulario({ ...form, aco: [{ bitola: '10', comprimento_cm: '10.989' }] })
+conferir('"10.989" cm é dez mil novecentos e oitenta e nove', comMilhar.tipo.aco[0].comprimento_cm, 10989)
+conferir('"10,5" cm continua sendo dez e meio', tipoDoFormulario({ ...form, aco: [{ bitola: '10', comprimento_cm: '10,5' }] }).tipo.aco[0].comprimento_cm, 10.5)
+
 // ── Próxima peça ───────────────────────────────────────────────────────────────
 conferir('próxima peça pula a já marcada', proximaPeca(['S1', 'S2', 'S3', 'S10'], new Set(['S2']), 'S1'), 'S3')
 conferir('depois da última volta ao começo', proximaPeca(['S1', 'S2', 'S3'], new Set(['S2']), 'S3'), 'S1')

@@ -62,11 +62,12 @@ function FormTipo({ inicial, outros, kgPorMetro, salvar, cancelar }) {
           Por peça: {SERVICOS_CALCULO.map((s) => `${s} ${formatarQtd(porPeca[s], UNIDADE_DO_SERVICO[s])}`).join(' · ')}
         </div>
       )}
-      {porPeca?.erro && <div className="banner bad">{porPeca.erro} Ajuste em Peso por metro.</div>}
+      {/* Bitola fora da NBR (ex.: 4,2 mm): o tipo salva, e o peso por metro dela aparece na lista para preencher. */}
+      {porPeca?.erro && <div className="banner warn">{porPeca.erro} Salve o tipo e preencha esse peso em Peso por metro, na lista de tipos.</div>}
       <ErroCampo erro={tentou && problema} />
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={cancelar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => { setTentou(true); if (!problema && !porPeca?.erro) salvar(tipo) }}>Salvar tipo</button>
+        <button className="btn btn-primary" onClick={() => { setTentou(true); if (!problema) salvar(tipo) }}>Salvar tipo</button>
       </div>
     </>
   )
