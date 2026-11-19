@@ -2,11 +2,12 @@
 // dados (avançar sem apagar, apagar planta leva as marcações, uma obra não mexe na outra).
 import {
   normalizarLote, chaveDoLote, lotesDoDia, resumoDoLote, qtdDe, lerNumero, etapasComLegado, marcacoesAtuais, marcacoesNaTela,
-  legendaDasEtapas, avancoDe, historicoDaPeca, intervaloDoPeriodo, moverPeriodo, resumoDoPeriodo, agruparPorPavimento,
+  avancoDe, historicoDaPeca, intervaloDoPeriodo, moverPeriodo, resumoDoPeriodo, agruparPorPavimento,
   ordenarPecas, validarEtapa, trocaDeOrdemEtapa, extrasDaMarcacao, validarMarcacao, corDaMarcacao, PALETA_LOTES, PALETA_ETAPAS,
   coresDosLotes, corPorLote, COR_SEM_LOTE, pedeQuantidade, conferirMarcacao, limparRotulo,
 } from '../src/lib/plantas.js'
 import { UNIDADES_ETAPA } from '../src/lib/listas.js'
+import { resumoDaPlanta } from '../src/lib/quantitativo.js'
 import * as dados from '../src/lib/dados.js'
 import { reiniciarMock } from './apoio/bancoMemoria.js'
 import { hojeISO, somarDias } from '../src/lib/datas.js'
@@ -72,10 +73,10 @@ conferir('etapas por ordem e a apagada vira legado no fim', comLegado.map((e) =>
 ])
 conferir('estado atual: só quem ninguém substituiu', marcacoesAtuais(peca).map((x) => x.id).sort(), ['p3', 'q1', 'v1'])
 conferir('ocultar Concretado mostra a peça como estava (Forma)', marcacoesNaTela(peca, new Set(['Concretado'])).map((x) => x.id).sort(), ['p2', 'q1', 'v1'])
-const leg = legendaDasEtapas(comLegado, peca, '2026-11-08')
-conferir('legenda: Escavado conta as duas escavações, 1 hoje, 1 na planta agora, 50% da meta',
-  (({ total, hoje, agora, pct }) => ({ total, hoje, agora, pct }))(leg[0]), { total: 2, hoje: 1, agora: 1, pct: 50 })
-conferir('legenda: Concretado em m³ soma a quantidade', [leg[2].total, leg[2].pct], [3, 30])
+const leg = resumoDaPlanta(comLegado, peca, [], ['P2', 'P12'], '2026-11-08')
+conferir('resumo: Escavado conta as duas escavações (inclusive a que avançou), 1 hoje, 50% da meta',
+  (({ feitas, hojePecas, pct }) => ({ feitas, hojePecas, pct }))(leg[0]), { feitas: 2, hojePecas: 1, pct: 50 })
+conferir('resumo: Concretado em m³ sem quadro de peças usa a meta da etapa', [leg[2].feito, leg[2].previsto, leg[2].pct], [3, 10, 30])
 
 const extras = extrasDaMarcacao({ etapa: etapas[1], data: '2026-11-09' })
 conferir('avançar para a mesma etapa é recusado', avancoDe(peca[0], extras).erro, 'Esta peça já está em Escavado.')

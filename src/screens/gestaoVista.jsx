@@ -2,9 +2,9 @@
 // pavimento (ordem do prédio), sobe planta nova (PDF ou imagem; um popup pede nome e pavimento) e
 // abre o editor, onde o avanço é pintado por cima da planta.
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { listarPlantas, subirPlanta, editarPlanta, apagarPlanta, contarMarcacoesDaPlanta, posso } from '../lib/dados.js'
+import { listarPlantas, subirPlanta, editarPlanta, apagarPlanta, contarMarcacoesDaPlanta, obterAndamentoDaObra, posso } from '../lib/dados.js'
 import { useDados } from '../lib/useDados.js'
-import { agruparPorPavimento, validarPlanta, PAVIMENTOS_SUGERIDOS } from '../lib/plantas.js'
+import { agruparPorPavimento, validarPlanta, PAVIMENTOS_SUGERIDOS, formatarQtd } from '../lib/plantas.js'
 import { formatarData } from '../lib/datas.js'
 import { Carregando, ErroCarga, ErroCampo, Gaveta, Icon, Pill, Vazio, useToast } from '../components/index.jsx'
 // O editor (gestos, zoom, varinha) só carrega quando alguém abre uma planta.
@@ -36,11 +36,54 @@ function FormPlanta({ titulo, inicial, arquivo, preparo, ocupado, cancelar, salv
         onChange={(e) => setCampos({ ...campos, pavimento: e.target.value })} placeholder="Ex.: Térreo" />
       <datalist id="pl-pavimentos">{PAVIMENTOS_SUGERIDOS.map((p) => <option key={p} value={p} />)}</datalist>
       <div className="hint">Os pavimentos aparecem na ordem do prédio: Fundação, Subsolo, Térreo, 1º, 2º… Cobertura.</div>
+      {campos.conta_no_andamento !== undefined && (
+        <label className="toggle-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
+          <input type="checkbox" checked={campos.conta_no_andamento} onChange={(e) => setCampos({ ...campos, conta_no_andamento: e.target.checked })} />
+          <span>Conta no andamento da obra<div className="hint">Desligue numa planta que foi substituída por revisão, para não somar em dobro.</div></span>
+        </label>
+      )}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={cancelar} disabled={ocupado}>Cancelar</button>
         <button className="btn btn-primary" onClick={enviar} disabled={ocupado}>{ocupado ? 'Subindo…' : 'Salvar'}</button>
       </div>
     </>
+  )
+}
+
+// Andamento da obra contra a medição do contrato (só o Engenheiro): uma linha por item ligado a etapa.
+function Andamento() {
+  const { data, erro, carregando, recarregar } = useDados(obterAndamentoDaObra)
+  if (carregando) return null
+  if (erro) return <ErroCarga erro={erro} tentar={recarregar} />
+  const { medicao, linhas } = data
+  return (
+    <section className="gv-andamento">
+      <div className="eyebrow" style={{ margin: '18px 0 8px' }}>Andamento da obra · executado × medição do contrato</div>
+      {!medicao && <div className="hint">Esta obra ainda não tem medição do contrato. Suba em Medições para comparar.</div>}
+      {medicao && !linhas.length && <div className="hint">Nenhuma etapa ligada a item do contrato. Na planta, em ⚙ Etapas, escolha o item de cada etapa medida.</div>}
+      {medicao && linhas.length > 0 && (
+        <>
+          <div className="tabela-rolagem">
+            <table className="gv-tabela">
+              <thead><tr><th>Item</th><th>Contratado</th><th>Executado</th><th>Medido</th><th>Saldo a medir</th><th>% executado</th></tr></thead>
+              <tbody>
+                {linhas.map((l) => (
+                  <tr key={l.item}>
+                    <td><b>{l.item}</b> {l.descricao ?? ''}<div className="hint">{l.etapas.join(' + ')}{l.avisoUnidade ? ' · unidade diferente da etapa' : ''}{l.semItem ? ' · item não está na última medição' : ''}</div></td>
+                    <td>{l.contratado == null ? '—' : formatarQtd(l.contratado, l.unidade)}</td>
+                    <td>{formatarQtd(l.executado, l.unidade)}</td>
+                    <td>{l.medido == null ? '—' : formatarQtd(l.medido, l.unidade)}</td>
+                    <td className={l.saldo < 0 ? 't-bad' : ''}>{l.saldo == null ? '—' : formatarQtd(l.saldo, l.unidade)}</td>
+                    <td>{l.pct == null ? '—' : `${l.pct}%`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="hint">Medição nº {medicao.numero} de {formatarData(medicao.data_medicao)}. Saldo negativo: mediu-se mais do que está pintado nas plantas.</div>
+        </>
+      )}
+    </section>
   )
 }
 
@@ -139,6 +182,8 @@ export default function GestaoVista() {
         {plantas.length > 0 && botaoSubir}
       </div>
 
+      {posso('medicoes.ver') && plantas.length > 0 && <Andamento />}
+
       {!plantas.length && (
         <Vazio icone="planta" titulo="Nenhuma planta nesta obra"
           texto={podeSubir ? 'Suba a planta (PDF ou imagem) e pinte o que foi feito: escavado, armado, concretado.' : 'Ainda não subiram planta nesta obra.'}
@@ -176,7 +221,7 @@ export default function GestaoVista() {
 
       <Gaveta aberta={Boolean(editando)} fechar={() => !ocupado && setEditando(null)} rotulo="Editar planta">
         {editando && <FormPlanta key={editando.id} titulo="Editar planta" ocupado={ocupado}
-          inicial={{ nome: editando.nome, pavimento: editando.pavimento ?? '' }} cancelar={() => setEditando(null)} salvar={confirmarEdicao} />}
+          inicial={{ nome: editando.nome, pavimento: editando.pavimento ?? '', conta_no_andamento: editando.conta_no_andamento !== false }} cancelar={() => setEditando(null)} salvar={confirmarEdicao} />}
       </Gaveta>
 
       <Gaveta aberta={Boolean(apagando)} fechar={() => !ocupado && setApagando(null)} rotulo="Apagar planta">

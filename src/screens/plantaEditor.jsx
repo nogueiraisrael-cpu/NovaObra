@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { abrirPlanta, criarMarcacao, avancarMarcacao, apagarMarcacao, enderecoDaPlanta, posso } from '../lib/dados.js'
 import {
-  etapasComLegado, marcacoesNaTela, legendaDasEtapas, corDaMarcacao, coresDosLotes, corPorLote, lotesDoDia, resumoDoLote,
+  etapasComLegado, marcacoesNaTela, corDaMarcacao, coresDosLotes, corPorLote, lotesDoDia, resumoDoLote,
   extrasDaMarcacao, validarMarcacao, formatarQtd,
 } from '../lib/plantas.js'
 import {
@@ -15,9 +15,11 @@ import {
   limitarZoom, scrollAncorado,
 } from '../lib/plantaGeometria.js'
 import { htmlDaImpressao } from '../lib/plantaImpressao.js'
+import { pecasDaPlanta, quadroDe, resumoDaPlanta, valorNoQuadro, valoresDasMarcacoes } from '../lib/quantitativo.js'
 import { hojeISO, formatarData, formatarDiaMes } from '../lib/datas.js'
 import { Carregando, ErroCarga, Icon, useToast } from '../components/index.jsx'
 import { PainelPeca, PainelResumo, PainelEtapas } from './plantaPaineis.jsx'
+import { PainelQuantitativo } from './plantaQuantitativo.jsx'
 
 const FERRAMENTAS = [
   { id: 'mover', icone: '✋', nome: 'Mover', tecla: 'V' },
@@ -69,12 +71,21 @@ function Rascunho({ r, cor, largura, altura, espessura }) {
   return <path {...comum} fill="none" d={caminhoDoPincel(r.pontos.pts)} />
 }
 
+// A linha de números do quadro de resumo: "8 de 20 peças · 5,76 de 14,4 m³ · 40%".
+function textoDoResumo(e) {
+  const pecas = e.totalPecas ? `${e.feitas} de ${e.totalPecas} peças` : `${e.feitas} peça(s)`
+  if (e.unidade === 'un') return e.pct !== null ? `${pecas} · ${e.pct}%` : pecas
+  const qtd = e.previsto ? `${formatarQtd(e.feito, e.unidade)} de ${formatarQtd(e.previsto, e.unidade)}` : formatarQtd(e.feito, e.unidade)
+  return [pecas, qtd, e.pct !== null ? `${e.pct}%` : null].filter(Boolean).join(' · ')
+}
+
 export default function PlantaEditor({ plantaId, voltar }) {
   const toast = useToast()
   const [carga, setCarga] = useState({ carregando: true, erro: null })
   const [planta, setPlanta] = useState(null)
   const [etapas, setEtapas] = useState([])
   const [marcacoes, setMarcacoes] = useState([])
+  const [quantitativos, setQuantitativos] = useState([])
   const podePintar = posso('pranchas.pintar')
 
   const [ferramenta, setFerramenta] = useState('mover')
@@ -107,6 +118,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
     setPlanta(r.data.planta)
     setEtapas(r.data.etapas)
     setMarcacoes(r.data.marcacoes)
+    setQuantitativos(r.data.quantitativos)
     setCarga({ carregando: false, erro: null })
   }, [plantaId])
   useEffect(() => { carregar() }, [carregar])
@@ -117,7 +129,12 @@ export default function PlantaEditor({ plantaId, voltar }) {
   const etapasPorNome = useMemo(() => new Map(todasEtapas.map((e) => [e.nome, e])), [todasEtapas])
   const naTela = useMemo(() => marcacoesNaTela(marcacoes, ocultas), [marcacoes, ocultas])
   const cores = useMemo(() => coresDosLotes(marcacoes, data), [marcacoes, data])
-  const legenda = legendaDasEtapas(todasEtapas, marcacoes, hojeISO())
+  // O quadro de resumo: feitas de total, quantidade feita de prevista, % e o de hoje, por etapa.
+  const quadro = useMemo(() => quadroDe(quantitativos), [quantitativos])
+  const pecas = useMemo(() => pecasDaPlanta({ textos: planta?.textos, marcacoes, quantitativos }), [planta, marcacoes, quantitativos])
+  const resumo = resumoDaPlanta(todasEtapas, marcacoes, quantitativos, pecas, hojeISO())
+  const valores = useMemo(() => valoresDasMarcacoes(marcacoes, etapasPorNome, quadro), [marcacoes, etapasPorNome, quadro])
+  const etapasMedidas = ativas.filter((e) => e.unidade && e.unidade !== 'un')
   const lotes = lotesDoDia(marcacoes, data).map(resumoDoLote)
 
   // Largura do palco: a planta "cabe na largura" no zoom 1.
@@ -202,9 +219,9 @@ export default function PlantaEditor({ plantaId, voltar }) {
 
   async function gravarNova(tipo, pontos, caixaDoNome) {
     const campos = { tipo, pontos, ...extras(), rotacao: 0 }
-    const problema = validarMarcacao(campos, etapa)
-    if (problema) return toast(problema, 'bad')
     campos.rotulo = sugerirRotulo(planta.textos, caixaDoNome ?? bboxDe({ tipo, pontos }))
+    const problema = validarMarcacao(campos, etapa, valorNoQuadro(quadro, planta.id, campos.rotulo, etapa?.nome) != null)
+    if (problema) return toast(problema, 'bad')
     setGravando(true)
     const r = await criarMarcacao(planta.id, campos)
     setGravando(false)
@@ -216,7 +233,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
     const anterior = marcacoes.find((m) => m.id === id)
     if (!anterior) return
     const campos = extras()
-    const problema = validarMarcacao(campos, etapa)
+    const problema = validarMarcacao(campos, etapa, valorNoQuadro(quadro, planta.id, anterior.rotulo, etapa?.nome) != null)
     if (problema) return toast(problema, 'bad')
     setGravando(true)
     const r = await avancarMarcacao(id, campos)
@@ -373,7 +390,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
     copia.removeAttribute('style')
     copia.removeAttribute('class')
     const endereco = await enderecoDaPlanta(planta.id)
-    const visiveis = legenda.filter((e) => !ocultas.has(e.nome) && e.total > 0)
+    const visiveis = resumo.filter((e) => !ocultas.has(e.nome) && e.feitas > 0)
     const html = htmlDaImpressao({
       titulo: planta.nome,
       subtitulo: `${planta.pavimento ? `${planta.pavimento} · ` : ''}impresso em ${formatarData(hojeISO())}`,
@@ -381,7 +398,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
         : ocultas.size ? `Etapas ocultas: ${[...ocultas].join(', ')}` : 'Todas as etapas',
       legenda: porCaminhao
         ? lotes.map((l) => ({ nome: [l.lote, l.nota && `NF ${l.nota}`].filter(Boolean).join(' · '), cor: l.cor, texto: `${l.pecas} peça(s)` }))
-        : visiveis.map((e) => ({ nome: e.nome, cor: e.cor, texto: `${formatarQtd(e.total, e.unidade)}${e.pct !== null ? ` · ${e.pct}%` : ''}` })),
+        : visiveis.map((e) => ({ nome: e.nome, cor: e.cor, texto: textoDoResumo(e) })),
       svg: copia.outerHTML, imagem: endereco.data ?? planta.url ?? '', largura, altura,
     })
     janela.document.open()
@@ -436,7 +453,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
               </select>
             </label>
             {etapa && etapa.unidade !== 'un' && (
-              <label>Quantidade ({etapa.unidade})<input className="field" inputMode="decimal" value={qtdTexto} onChange={(e) => setQtdTexto(e.target.value)} placeholder="Ex.: 1,5" /></label>
+              <label>Quantidade ({etapa.unidade})<input className="field" inputMode="decimal" value={qtdTexto} onChange={(e) => setQtdTexto(e.target.value)} placeholder="vazio = quadro de peças" /></label>
             )}
             <label>Placa (BT)<input className="field" value={lote} onChange={(e) => setLote(e.target.value)} placeholder="Ex.: BT 1111" autoComplete="off" /></label>
             <label>Nota fiscal<input className="field" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nº da NF" autoComplete="off" /></label>
@@ -460,6 +477,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
         <button className="gv-chip" onClick={() => zoomEm((z) => z / 1.25, palcoRef.current.clientWidth / 2, palcoRef.current.clientHeight / 2)} aria-label="Diminuir zoom">−</button>
         <button className="gv-chip" onClick={() => zoomEm(() => 1, 0, 0)} title="Caber na largura">{Math.round(zoom * 100)}%</button>
         <button className="gv-chip" onClick={() => zoomEm((z) => z * 1.25, palcoRef.current.clientWidth / 2, palcoRef.current.clientHeight / 2)} aria-label="Aumentar zoom">+</button>
+        <button className="gv-chip" onClick={() => setPainel('quantitativo')}>📋 Quantitativo</button>
         <button className="gv-chip" onClick={() => setPainel('resumo')}>📊 Resumo</button>
         <button className="gv-chip" onClick={imprimir}>🖨 Imprimir</button>
         {gravando && <span className="hint">Gravando…</span>}
@@ -496,18 +514,17 @@ export default function PlantaEditor({ plantaId, voltar }) {
             </>
           ) : (
             <>
-              <div className="eyebrow">Etapas · total · hoje</div>
-              {!legenda.length && <div className="hint">Sem etapas ainda.</div>}
-              {legenda.map((e) => (
+              <div className="eyebrow">Resumo da planta · executado</div>
+              {!resumo.length && <div className="hint">Sem etapas ainda.</div>}
+              {resumo.map((e) => (
                 <div key={e.nome} className={`gv-leg${ocultas.has(e.nome) ? ' apagada' : ''}`}>
                   <i style={{ background: e.cor }} />
                   <div style={{ flex: 1 }}>
                     <b>{e.nome}</b>{e.legado && <small> (etapa antiga)</small>}
-                    <div className="hint">
-                      {formatarQtd(e.total, e.unidade)} · hoje {formatarQtd(e.hoje, e.unidade)}
-                      {e.pct !== null && ` · ${e.pct}% de ${formatarQtd(e.meta, e.unidade)}`}
-                    </div>
+                    <div className="gv-resumo-num">{textoDoResumo(e)}</div>
                     {e.pct !== null && <div className="gv-meta"><span style={{ width: `${Math.min(100, e.pct)}%`, background: e.cor }} /></div>}
+                    {(e.hojePecas > 0) && <div className="hint">hoje: {e.hojePecas} peça(s){e.unidade !== 'un' ? ` · ${formatarQtd(e.hojeFeito, e.unidade)}` : ''}</div>}
+                    {e.semQuantitativo > 0 && <div className="hint t-warn">{e.semQuantitativo} marcação(ões) sem quantitativo: preencha no 📋</div>}
                   </div>
                   <button className="gv-olho" onClick={() => alternarOculta(e.nome)} aria-label={`${ocultas.has(e.nome) ? 'Mostrar' : 'Esconder'} ${e.nome}`}
                     title={ocultas.has(e.nome) ? 'Mostrar' : 'Esconder'}>{ocultas.has(e.nome) ? '🙈' : '👁'}</button>
@@ -523,7 +540,9 @@ export default function PlantaEditor({ plantaId, voltar }) {
 
       <PainelPeca marcacao={marcada} marcacoes={marcacoes} etapasPorNome={etapasPorNome} fechar={() => setSelecionada(null)}
         aoMudar={(nova) => setMarcacoes((ms) => ms.map((m) => (m.id === nova.id ? nova : m)))} />
-      <PainelResumo aberto={painel === 'resumo'} fechar={() => setPainel(null)} etapas={todasEtapas} marcacoes={marcacoes} planta={planta} />
+      <PainelResumo aberto={painel === 'resumo'} fechar={() => setPainel(null)} etapas={todasEtapas} marcacoes={marcacoes} planta={planta} valores={valores} />
+      <PainelQuantitativo aberto={painel === 'quantitativo'} fechar={() => setPainel(null)} planta={planta} etapas={etapasMedidas}
+        pecas={pecas} quantitativos={quantitativos} aoMudar={carregar} />
       <PainelEtapas aberto={painel === 'etapas'} fechar={() => setPainel(null)} etapas={etapas}
         aoMudar={async () => { await carregar() }} />
     </div>

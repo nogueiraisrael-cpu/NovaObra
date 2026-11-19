@@ -1,7 +1,8 @@
 // Gestão à Vista — os popups do editor: a peça (com a vida dela), o resumo do período e a
 // configuração das etapas. As contas vêm de src/lib/plantas.js.
-import { useState } from 'react'
-import { editarMarcacao, salvarEtapa, moverEtapa, apagarEtapa, contarMarcacoesDaEtapa, criarEtapasSugeridas, posso } from '../lib/dados.js'
+import { useEffect, useState } from 'react'
+import { editarMarcacao, salvarEtapa, moverEtapa, apagarEtapa, contarMarcacoesDaEtapa, criarEtapasSugeridas, listarItensDoContrato, posso } from '../lib/dados.js'
+import { mesmaUnidade } from '../lib/quantitativo.js'
 import {
   historicoDaPeca, pedeQuantidade, resumoDoPeriodo, intervaloDoPeriodo, moverPeriodo, PERIODOS, formatarQtd, lerNumero, proximaCorDeEtapa,
   validarEtapa, ETAPAS_SUGERIDAS,
@@ -88,11 +89,11 @@ export function PainelPeca({ marcacao, marcacoes, etapasPorNome, aoMudar, fechar
 // ---------------------------------------------------------------------------
 // 📊 Resumo: semana (começa na segunda), mês ou tudo, navegável com ‹ ›
 // ---------------------------------------------------------------------------
-export function PainelResumo({ aberto, fechar, etapas, marcacoes, planta }) {
+export function PainelResumo({ aberto, fechar, etapas, marcacoes, planta, valores }) {
   const [tipo, setTipo] = useState('semana')
   const [ancora, setAncora] = useState(hojeISO())
   const intervalo = intervaloDoPeriodo(tipo, ancora)
-  const r = aberto ? resumoDoPeriodo(etapas, marcacoes, intervalo) : null
+  const r = aberto ? resumoDoPeriodo(etapas, marcacoes, intervalo, valores) : null
   const andou = r?.etapas.filter((e) => e.feito > 0) ?? []
   return (
     <Gaveta aberta={aberto} fechar={fechar} rotulo="Resumo">
@@ -152,7 +153,8 @@ export function PainelResumo({ aberto, fechar, etapas, marcacoes, planta }) {
 // ---------------------------------------------------------------------------
 // ⚙ Etapas: renomear, cor, ordem, arquivar, meta e unidade
 // ---------------------------------------------------------------------------
-function FormEtapa({ inicial, existentes, salvar, cancelar, ocupado }) {
+// `itens`: os itens da última medição do contrato (só para o Engenheiro); null = não mostra a ligação.
+function FormEtapa({ inicial, existentes, itens, salvar, cancelar, ocupado }) {
   const [campos, setCampos] = useState(inicial)
   const [tentou, setTentou] = useState(false)
   const erros = validarEtapa(campos, existentes)
@@ -175,6 +177,23 @@ function FormEtapa({ inicial, existentes, salvar, cancelar, ocupado }) {
           <input id="et-meta" className="field" inputMode="decimal" value={campos.meta ?? ''} onChange={(e) => mudar('meta', e.target.value)} placeholder={campos.unidade === 'un' ? 'Ex.: 80 peças' : `Ex.: 120 ${campos.unidade}`} />
           <ErroCampo erro={tentou && erros.meta} /></div>
       </div>
+      {itens && campos.unidade !== 'un' && (
+        <>
+          <label className="label" htmlFor="et-item">Item do contrato (para comparar com a medição)</label>
+          {itens.length ? (
+            <select id="et-item" className="field" value={campos.item_medicao ?? ''} onChange={(e) => mudar('item_medicao', e.target.value || null)}>
+              <option value="">Nenhum</option>
+              {itens.map((i) => <option key={i.item} value={i.item}>{i.item} · {i.descricao} ({i.unidade})</option>)}
+            </select>
+          ) : <div className="hint">Suba a medição do contrato em Medições para ligar esta etapa a um item.</div>}
+          {(() => {
+            const it = itens.find((i) => i.item === campos.item_medicao)
+            return it && !mesmaUnidade(it.unidade, campos.unidade)
+              ? <div className="hint t-warn">A etapa está em {campos.unidade} e o item em {it.unidade}: confira, senão a comparação não fecha.</div>
+              : null
+          })()}
+        </>
+      )}
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={cancelar} disabled={ocupado}>Cancelar</button>
         <button className="btn btn-primary" disabled={ocupado} onClick={() => { setTentou(true); if (!Object.keys(erros).length) salvar(campos) }}>{ocupado ? 'Salvando…' : 'Salvar etapa'}</button>
@@ -189,6 +208,12 @@ export function PainelEtapas({ aberto, fechar, etapas, aoMudar }) {
   const [apagando, setApagando] = useState(null) // { etapa, usos }
   const [ocupado, setOcupado] = useState(false)
   const lista = [...etapas].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+  // Itens do contrato para ligar as etapas: só o Engenheiro (a medição é só dele).
+  const [itens, setItens] = useState(null)
+  useEffect(() => {
+    if (!aberto || !posso('medicoes.ver')) return
+    listarItensDoContrato().then((r) => setItens(r.data ?? []))
+  }, [aberto])
 
   async function fazer(promessa, frase) {
     setOcupado(true)
@@ -207,7 +232,7 @@ export function PainelEtapas({ aberto, fechar, etapas, aoMudar }) {
   }
 
   const fecharTudo = () => { setEditando(null); setApagando(null); fechar() }
-  const meta = (e) => (e.meta ? ` · meta ${formatarQtd(e.meta, e.unidade)}` : '')
+  const meta = (e) => `${e.meta ? ` · meta ${formatarQtd(e.meta, e.unidade)}` : ''}${e.item_medicao ? ` · item ${e.item_medicao}` : ''}`
 
   return (
     <Gaveta aberta={aberto} fechar={() => !ocupado && fecharTudo()} rotulo="Etapas">
@@ -232,7 +257,7 @@ export function PainelEtapas({ aberto, fechar, etapas, aoMudar }) {
               </div>
             </>
           ) : editando ? (
-            <FormEtapa key={editando.id ?? 'nova'} existentes={etapas} ocupado={ocupado} cancelar={() => setEditando(null)}
+            <FormEtapa key={editando.id ?? 'nova'} existentes={etapas} itens={itens} ocupado={ocupado} cancelar={() => setEditando(null)}
               inicial={editando.id
                 ? { ...editando, meta: editando.meta == null ? '' : String(editando.meta).replace('.', ',') }
                 : { nome: '', cor: proximaCorDeEtapa(etapas), unidade: 'un', meta: '', ativa: true }}

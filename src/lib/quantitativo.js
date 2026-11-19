@@ -8,7 +8,7 @@
 // - quantidade digitada na marcação manda sobre o quadro;
 // - a mesma peça conta uma vez por etapa (marcada duas vezes por engano não soma em dobro);
 // - peça sem valor no quadro fica "sem quantitativo": não soma zero calado.
-import { ordemNatural } from './plantas.js'
+import { ordemNatural, lerNumero } from './plantas.js'
 import { PADRAO_PECA } from './plantaGeometria.js'
 
 const chave = (plantaId, rotulo, etapa) => `${plantaId ?? ''}|${rotulo}|${etapa}`
@@ -86,7 +86,11 @@ export function resumoDaPlanta(etapas, marcacoes, quantitativos, pecas, hoje) {
   const valores = valoresDasMarcacoes(marcacoes, new Map(etapas.map((e) => [e.nome, e])), quadro)
   return etapas.map((e) => {
     const s = somaDaEtapa(marcacoes, e, quadro, hoje, valores)
-    const p = medida(e) ? previstoDaEtapa(e, quadro, pecas, plantaId) : { pecas: e.meta ? Number(e.meta) : null, previsto: e.meta ? Number(e.meta) : null }
+    // Etapa medida: o previsto é a soma do quadro; sem quadro, a meta da etapa (se houver) continua valendo.
+    const doQuadro = medida(e) ? previstoDaEtapa(e, quadro, pecas, plantaId) : null
+    const p = doQuadro?.previsto
+      ? doQuadro
+      : { pecas: medida(e) ? null : (e.meta ? Number(e.meta) : null), previsto: e.meta ? Number(e.meta) : null }
     return {
       nome: e.nome, cor: e.cor, unidade: e.unidade || 'un', legado: Boolean(e.legado),
       feitas: s.pecas, totalPecas: p.pecas, feito: s.feito, previsto: p.previsto,
@@ -94,6 +98,27 @@ export function resumoDaPlanta(etapas, marcacoes, quantitativos, pecas, hoje) {
       hojePecas: s.hojePecas, hojeFeito: s.hojeFeito, semQuantitativo: s.semQuantitativo,
     }
   })
+}
+
+// O valor da peça nesta etapa, no quadro da planta (ou null).
+export const valorNoQuadro = (quadro, plantaId, rotulo, etapa) => (rotulo ? quadro.get(chave(plantaId, rotulo, etapa)) ?? null : null)
+
+// Chave de uma célula no rascunho do painel (peça + etapa, dentro de uma planta).
+export const chaveDaCelula = (rotulo, etapa) => `${rotulo}|${etapa}`
+
+// O que mudou entre o rascunho do painel (texto digitado) e o quadro gravado (números): só essas
+// células vão para o banco. Texto vazio = apagar a célula. Texto que não é número: frase dizendo onde.
+export function linhasDoRascunho(rascunho, original) {
+  const linhas = []
+  for (const [k, texto] of rascunho) {
+    const [rotulo, etapa] = k.split('|')
+    const vazio = !String(texto ?? '').trim()
+    const quantidade = vazio ? null : lerNumero(texto)
+    if (!vazio && quantidade === null) return { linhas: [], erro: `Número inválido em ${rotulo} · ${etapa}.` }
+    if ((original.get(k) ?? null) === quantidade) continue
+    linhas.push({ rotulo, etapa, quantidade })
+  }
+  return { linhas, erro: null }
 }
 
 // As células que vão para o banco estão certas? Erro (frase) ou null. Vazio (null) = apagar a célula.

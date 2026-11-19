@@ -623,3 +623,9 @@ button.cron-linha:hover{background:var(--card-2)}
 .gv-etapa-linha{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
 .gv-etapa-linha.apagada{opacity:.6}
 .gv-etapa-linha i{margin-right:4px}
+/* Gestão à Vista: quadro de peças, resumo e andamento */
+.gv-quadro td,.gv-quadro th{padding:4px 6px}
+.gv-quadro tfoot td{border-top:2px solid var(--line);white-space:nowrap}
+.gv-celula{min-height:40px;width:86px;padding:6px 8px;font-size:15px;text-align:right}
+.gv-resumo-num{font-size:14px;font-weight:600;margin-top:2px}
+.gv-andamento .gv-tabela td{vertical-align:top}

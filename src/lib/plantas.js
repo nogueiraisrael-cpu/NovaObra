@@ -237,19 +237,6 @@ export function marcacoesNaTela(marcacoes, ocultas = new Set()) {
   return visiveis.filter((m) => !cobertas.has(m.id)).sort(porCriacao)
 }
 
-// A legenda: por etapa, quanto foi feito no total, quanto hoje, quantas peças estão nela agora,
-// e a % da meta.
-export function legendaDasEtapas(etapas, marcacoes, hoje) {
-  const atuais = marcacoesAtuais(marcacoes)
-  return etapas.map((e) => {
-    const daEtapa = marcacoes.filter((m) => m.etapa === e.nome)
-    const total = daEtapa.reduce((s, m) => s + qtdDe(m), 0)
-    const deHoje = daEtapa.filter((m) => m.data === hoje).reduce((s, m) => s + qtdDe(m), 0)
-    const agora = atuais.filter((m) => m.etapa === e.nome).length
-    return { ...e, total, hoje: deHoje, agora, pct: e.meta ? Math.round((total / Number(e.meta)) * 100) : null }
-  })
-}
-
 // ---------------------------------------------------------------------------
 // Criar e avançar
 // ---------------------------------------------------------------------------

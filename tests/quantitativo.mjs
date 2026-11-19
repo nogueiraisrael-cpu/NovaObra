@@ -2,7 +2,7 @@
 // e o andamento da obra contra a medição do contrato.
 import {
   quadroDe, pecasDaPlanta, valorDaMarcacao, valoresDasMarcacoes, somaDaEtapa, previstoDaEtapa, resumoDaPlanta,
-  linhasParaAplicar, ultimaMedicaoDoContrato, andamentoDaObra, mesmaUnidade, conferirLinhasDoQuadro,
+  linhasParaAplicar, ultimaMedicaoDoContrato, andamentoDaObra, mesmaUnidade, conferirLinhasDoQuadro, valorNoQuadro, linhasDoRascunho, chaveDaCelula,
 } from '../src/lib/quantitativo.js'
 
 let ok = 0
@@ -71,6 +71,15 @@ conferir('linhas do quadro: negativo ou texto são recusados', [conferirLinhasDo
   ['A quantidade tem que ser um número maior ou igual a zero.', 'A quantidade tem que ser um número maior ou igual a zero.'])
 conferir('linhas do quadro: peça ou etapa sem nome são recusadas', [conferirLinhasDoQuadro([{ rotulo: ' ', etapa: 'E', quantidade: 1 }]), conferirLinhasDoQuadro([{ rotulo: 'S1', etapa: '', quantidade: 1 }])],
   ['Cada peça precisa de um nome.', 'Escolha a etapa.'])
+
+// ── Painel do quadro ─────────────────────────────────────────────────────────────
+const qp = quadroDe([{ planta_id: 'p1', rotulo: 'S1', etapa: 'Escavado', quantidade: 0.72 }])
+conferir('valor no quadro da peça (ou null)', [valorNoQuadro(qp, 'p1', 'S1', 'Escavado'), valorNoQuadro(qp, 'p1', 'S2', 'Escavado'), valorNoQuadro(qp, 'p1', null, 'Escavado')], [0.72, null, null])
+const original = new Map([[chaveDaCelula('S1', 'Escavado'), 0.72], [chaveDaCelula('S2', 'Escavado'), 0.9]])
+const rascunho = new Map([[chaveDaCelula('S1', 'Escavado'), '0,72'], [chaveDaCelula('S2', 'Escavado'), ''], [chaveDaCelula('S3', 'Escavado'), '1,5'], [chaveDaCelula('S4', 'Escavado'), '']])
+conferir('rascunho: só o que mudou (S2 apagada, S3 nova); S1 igual e S4 vazia ficam de fora', linhasDoRascunho(rascunho, original),
+  { linhas: [{ rotulo: 'S2', etapa: 'Escavado', quantidade: null }, { rotulo: 'S3', etapa: 'Escavado', quantidade: 1.5 }], erro: null })
+conferir('rascunho com texto que não é número avisa onde', linhasDoRascunho(new Map([[chaveDaCelula('S5', 'Forma'), 'abc']]), new Map()).erro, 'Número inválido em S5 · Forma.')
 
 // ── Medição de referência ───────────────────────────────────────────────────────────
 conferir('a última medição do contrato é a de maior número (empreiteiro não entra)',
