@@ -96,6 +96,18 @@ export function resumoDaPlanta(etapas, marcacoes, quantitativos, pecas, hoje) {
   })
 }
 
+// As células que vão para o banco estão certas? Erro (frase) ou null. Vazio (null) = apagar a célula.
+export function conferirLinhasDoQuadro(linhas) {
+  for (const l of linhas) {
+    if (!String(l.rotulo ?? '').trim()) return 'Cada peça precisa de um nome.'
+    if (!String(l.etapa ?? '').trim()) return 'Escolha a etapa.'
+    if (l.quantidade != null && !(typeof l.quantidade === 'number' && Number.isFinite(l.quantidade) && l.quantidade >= 0)) {
+      return 'A quantidade tem que ser um número maior ou igual a zero.'
+    }
+  }
+  return null
+}
+
 // "Aplicar nas iguais": as mesmas quantidades (null = apagar a célula) em várias peças.
 export function linhasParaAplicar(rotulos, valores) {
   return rotulos.flatMap((rotulo) => Object.entries(valores).map(([etapa, quantidade]) => ({ rotulo, etapa, quantidade })))

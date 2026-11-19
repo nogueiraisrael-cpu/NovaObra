@@ -40,8 +40,9 @@ import { ordenarUsuarios } from './painelAdmin.js'
 import { PASTA_DE_FOTOS, VALIDADE_DO_ENDERECO, MODULO_PLANTAS, caminhoDaFoto, caminhoDaPlanta, caminhoEhDe, estaNoStorage, mensagemDoEnvio } from './fotos.js'
 import {
   ETAPAS_SUGERIDAS, validarPlanta, camposDaPlanta, validarEtapa, camposDaEtapa, proximaOrdemDeEtapa, trocaDeOrdemEtapa,
-  avancoDe, normalizarLote, mensagemDoEnvioDaPlanta, conferirMarcacao, limparRotulo, pedeQuantidade,
+  avancoDe, normalizarLote, mensagemDoEnvioDaPlanta, conferirMarcacao, limparRotulo, pedeQuantidade, validarMarcacao,
 } from './plantas.js'
+import { conferirLinhasDoQuadro, ultimaMedicaoDoContrato, andamentoDaObra } from './quantitativo.js'
 import { encolherFoto } from './imagem.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
 
@@ -1838,11 +1839,14 @@ export const subirPlanta = ({ nome, pavimento, preparada }) => executar(async ()
   }
 })
 
-export const editarPlanta = (id, { nome, pavimento }) => executar(async () => {
+// `conta_no_andamento`: desligado numa planta substituída por revisão (o executado da obra não soma em dobro).
+export const editarPlanta = (id, { nome, pavimento, conta_no_andamento }) => executar(async () => {
   if (!posso('pranchas.editar')) return falha('Seu perfil não edita planta.')
   const erros = validarPlanta({ nome })
   if (erros.nome) return falha(erros.nome)
-  const [linha] = await gravar('plantas_visuais', { id, obra_id: obraAtual() }, camposDaPlanta({ nome, pavimento }))
+  const campos = camposDaPlanta({ nome, pavimento })
+  if (conta_no_andamento !== undefined) campos.conta_no_andamento = Boolean(conta_no_andamento)
+  const [linha] = await gravar('plantas_visuais', { id, obra_id: obraAtual() }, campos)
   return ok(linha)
 })
 
@@ -1860,22 +1864,24 @@ export const apagarPlanta = (id) => executar(async () => {
   // serve ao banco em memória, que não tem cascata; no Supabase não acha nada.
   await apagarDeVerdade('plantas_visuais', { id, obra_id: obraId })
   await apagar('planta_marcacoes', { planta_id: id, obra_id: obraId })
+  await apagar('planta_quantitativos', { planta_id: id, obra_id: obraId })
   await apagarArquivos([planta.caminho_imagem], obraId, MODULO_PLANTAS)
   return ok(true)
 })
 
-// Tudo que o editor precisa: a planta (com endereço assinado por 1 hora), as etapas da obra e as
-// marcações desta planta, com o nome de quem marcou.
+// Tudo que o editor precisa: a planta (com endereço assinado por 1 hora), as etapas da obra, as
+// marcações desta planta, com o nome de quem marcou, e o quadro de peças dela.
 export const abrirPlanta = (id) => executar(async () => {
   const obraId = obraAtual()
   const planta = await plantaDaObra(id, obraId)
   if (!planta) return falha('Planta não encontrada nesta obra.')
-  const [etapas, marcacoes, url] = await Promise.all([
+  const [etapas, marcacoes, quantitativos, url] = await Promise.all([
     ler('planta_etapas', { obra_id: obraId }),
     ler('planta_marcacoes', { planta_id: id, obra_id: obraId }),
+    ler('planta_quantitativos', { planta_id: id, obra_id: obraId }),
     enderecoAssinado(planta.caminho_imagem),
   ])
-  return ok({ planta: { ...planta, url }, etapas, marcacoes: comAutor(marcacoes) })
+  return ok({ planta: { ...planta, url }, etapas, marcacoes: comAutor(marcacoes), quantitativos })
 })
 
 // Endereço novo da imagem (o do editor vence em 1 hora): a impressão pede um na hora.
@@ -1901,9 +1907,10 @@ export const criarEtapasSugeridas = () => executar(async () => {
   return ok(await inserirVarios('planta_etapas', novas))
 })
 
-// Cria ou muda uma etapa. Renomear muda também o nome nas marcações (a etapa é texto nelas):
-// primeiro as marcações, depois a etapa. Se cair no meio, as marcações aparecem com o nome novo
-// como etapa antiga; salvar de novo completa.
+// Cria ou muda uma etapa. Renomear muda também o nome nas marcações e no quadro de peças (a etapa é
+// texto neles): primeiro eles, depois a etapa. Se cair no meio, aparecem com o nome novo como etapa
+// antiga; salvar de novo completa. O item do contrato (`item_medicao`) só o Engenheiro liga: para quem
+// não vê medição, o campo é ignorado.
 export const salvarEtapa = (dados) => executar(async () => {
   if (!posso('pranchas.editar')) return falha('Seu perfil não configura etapas.')
   const obraId = obraAtual()
@@ -1912,6 +1919,7 @@ export const salvarEtapa = (dados) => executar(async () => {
   const primeiro = Object.values(erros)[0]
   if (primeiro) return falha(primeiro)
   const campos = camposDaEtapa(dados)
+  if (dados.item_medicao !== undefined && posso('medicoes.ver')) campos.item_medicao = String(dados.item_medicao ?? '').trim() || null
   if (!dados.id) {
     return ok(await inserir('planta_etapas', { ...campos, obra_id: obraId, ordem: proximaOrdemDeEtapa(existentes), criado_por: usuario?.id ?? null }))
   }
@@ -1919,6 +1927,7 @@ export const salvarEtapa = (dados) => executar(async () => {
   if (!antes) return falha('Etapa não encontrada nesta obra.')
   if (antes.nome !== campos.nome) {
     await atualizar('planta_marcacoes', { obra_id: obraId, etapa: antes.nome }, { etapa: campos.nome })
+    await atualizar('planta_quantitativos', { obra_id: obraId, etapa: antes.nome }, { etapa: campos.nome })
   }
   const [linha] = await gravar('planta_etapas', { id: dados.id, obra_id: obraId }, campos)
   return ok(linha)
@@ -1944,6 +1953,81 @@ export const apagarEtapa = (id) => executar(async () => {
   return ok(true)
 })
 
+// Quadro de peças (quantitativo) ---------------------------------------------------------------
+
+// Grava células do quadro de peças de uma planta: quantidade vazia (null) apaga a célula, existente
+// troca o valor, nova entra. Uma célula por vez: se cair no meio, parte fica gravada e salvar de novo
+// completa (as que já entraram viram troca).
+export const salvarQuantitativos = (plantaId, linhas) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não edita o quadro de peças.')
+  const erro = conferirLinhasDoQuadro(linhas)
+  if (erro) return falha(erro)
+  const obraId = obraAtual()
+  if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  const existentes = await ler('planta_quantitativos', { planta_id: plantaId, obra_id: obraId })
+  for (const l of linhas) {
+    const rotulo = limparRotulo(l.rotulo)
+    const atual = existentes.find((q) => q.rotulo === rotulo && q.etapa === l.etapa)
+    if (l.quantidade == null) {
+      if (atual) await apagarDeVerdade('planta_quantitativos', { id: atual.id, obra_id: obraId })
+    } else if (atual) {
+      if (Number(atual.quantidade) !== l.quantidade) await gravar('planta_quantitativos', { id: atual.id, obra_id: obraId }, { quantidade: l.quantidade })
+    } else {
+      await inserir('planta_quantitativos', { obra_id: obraId, planta_id: plantaId, rotulo, etapa: l.etapa, quantidade: l.quantidade, criado_por: usuario?.id ?? null })
+    }
+  }
+  return ok(true)
+})
+
+// Tira uma peça do quadro (apaga as células dela). As marcações da peça continuam na planta.
+export const tirarPecaDoQuadro = (plantaId, rotulo) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não edita o quadro de peças.')
+  const obraId = obraAtual()
+  if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  await apagar('planta_quantitativos', { planta_id: plantaId, obra_id: obraId, rotulo })
+  return ok(true)
+})
+
+// Os itens da última medição do contrato da obra, para ligar uma etapa (só o Engenheiro). Sem medição: [].
+async function itensDaUltimaMedicao(obraId) {
+  const medicao = ultimaMedicaoDoContrato(await ler('medicoes', { obra_id: obraId, tipo: 'Contrato' }))
+  if (!medicao) return { medicao: null, itens: [] }
+  const itens = (await ler('medicao_itens', { obra_id: obraId, medicao_id: medicao.id })).sort((a, b) => a.linha_planilha - b.linha_planilha)
+  return { medicao, itens }
+}
+
+export const listarItensDoContrato = () => executar(async () => {
+  if (!posso('medicoes.ver')) return falha('Só o Engenheiro liga etapa a item do contrato.')
+  const { itens } = await itensDaUltimaMedicao(obraAtual())
+  return ok(itens.filter((i) => i.unidade).map((i) => ({ item: i.item, descricao: i.descricao, unidade: i.unidade })))
+})
+
+// O andamento da obra contra a medição do contrato (só o Engenheiro: a medição é só dele).
+export const obterAndamentoDaObra = () => executar(async () => {
+  if (!posso('medicoes.ver')) return falha('Só o Engenheiro vê o andamento contra a medição.')
+  const obraId = obraAtual()
+  const [etapas, plantas, marcacoes, quantitativos, { medicao, itens }] = await Promise.all([
+    ler('planta_etapas', { obra_id: obraId }), ler('plantas_visuais', { obra_id: obraId }),
+    ler('planta_marcacoes', { obra_id: obraId }), ler('planta_quantitativos', { obra_id: obraId }), itensDaUltimaMedicao(obraId),
+  ])
+  return ok({
+    medicao: medicao ? { numero: medicao.numero, data_medicao: medicao.data_medicao } : null,
+    linhas: andamentoDaObra({ etapas, plantas, marcacoes, quantitativos, itens }),
+  })
+})
+
+// A peça tem valor desta etapa no quadro da planta? (Aí a marcação em etapa medida dispensa quantidade.)
+const temNoQuadro = (obraId, plantaId, rotulo, etapa) =>
+  (rotulo ? existe('planta_quantitativos', { obra_id: obraId, planta_id: plantaId, rotulo, etapa }) : Promise.resolve(false))
+
+// Quantidade de etapa medida: digitada, ou do quadro de peças; senão, frase.
+async function conferirQuantidade(obraId, plantaId, campos) {
+  if (campos.quantidade != null) return null
+  const etapa = await um('planta_etapas', { obra_id: obraId, nome: campos.etapa })
+  if (!etapa || etapa.unidade === 'un') return null
+  return validarMarcacao(campos, etapa, await temNoQuadro(obraId, plantaId, campos.rotulo, campos.etapa))
+}
+
 // Marcações -----------------------------------------------------------------------------------
 
 const CAMPOS_DA_MARCACAO = ['tipo', 'pontos', 'etapa', 'cor', 'data', 'rotulo', 'quantidade', 'rotacao', 'espessura', 'lote', 'nota', 'lote_cor', 'substitui']
@@ -1956,6 +2040,8 @@ export const criarMarcacao = (plantaId, campos) => executar(async () => {
   const erro = conferirMarcacao(campos)
   if (erro) return falha(erro)
   if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  const semQuantidade = await conferirQuantidade(obraId, plantaId, campos)
+  if (semQuantidade) return falha(semQuantidade)
   const linha = await inserir('planta_marcacoes', {
     ...soCamposDaMarcacao({ ...campos, substitui: null }), obra_id: obraId, planta_id: plantaId, criado_por: usuario?.id ?? null,
   })
@@ -1974,7 +2060,7 @@ export const avancarMarcacao = (id, extras) => executar(async () => {
   }
   const { erro, campos } = avancoDe(anterior, extras)
   if (erro) return falha(erro)
-  const problema = conferirMarcacao(campos)
+  const problema = conferirMarcacao(campos) ?? await conferirQuantidade(obraId, anterior.planta_id, campos)
   if (problema) return falha(problema)
   // A planta é a da anterior (a mesma peça), nunca a que vier nos campos.
   const linha = await inserir('planta_marcacoes', {
@@ -1994,7 +2080,11 @@ export const editarMarcacao = (id, { rotulo, quantidade, lote, nota, lote_cor })
   if (rotulo !== undefined) campos.rotulo = limparRotulo(rotulo)
   if (quantidade !== undefined) {
     const etapa = await um('planta_etapas', { obra_id: obraId, nome: atual.etapa })
-    if (quantidade === null && pedeQuantidade(etapa, atual)) return falha('Esta peça é medida: preencha a quantidade.')
+    // Peça com valor no quadro de peças pode ficar sem quantidade digitada: o valor vem do quadro.
+    const rotuloFinal = campos.rotulo !== undefined ? campos.rotulo : atual.rotulo
+    if (quantidade === null && pedeQuantidade(etapa, atual) && !(await temNoQuadro(obraId, atual.planta_id, rotuloFinal, atual.etapa))) {
+      return falha('Esta peça é medida: preencha a quantidade.')
+    }
     campos.quantidade = quantidade
   }
   if (lote !== undefined) campos.lote = normalizarLote(lote)

@@ -2,7 +2,7 @@
 // e o andamento da obra contra a medição do contrato.
 import {
   quadroDe, pecasDaPlanta, valorDaMarcacao, valoresDasMarcacoes, somaDaEtapa, previstoDaEtapa, resumoDaPlanta,
-  linhasParaAplicar, ultimaMedicaoDoContrato, andamentoDaObra, mesmaUnidade,
+  linhasParaAplicar, ultimaMedicaoDoContrato, andamentoDaObra, mesmaUnidade, conferirLinhasDoQuadro,
 } from '../src/lib/quantitativo.js'
 
 let ok = 0
@@ -65,6 +65,12 @@ conferir('aplicar os mesmos valores em várias peças', linhasParaAplicar(['S1',
   { rotulo: 'S1', etapa: 'Escavado', quantidade: 0.72 }, { rotulo: 'S1', etapa: 'Forma', quantidade: null },
   { rotulo: 'S2', etapa: 'Escavado', quantidade: 0.72 }, { rotulo: 'S2', etapa: 'Forma', quantidade: null },
 ])
+
+conferir('linhas do quadro: número ≥ 0 ou vazio passam', conferirLinhasDoQuadro([{ rotulo: 'S1', etapa: 'E', quantidade: 0 }, { rotulo: 'S1', etapa: 'F', quantidade: null }]), null)
+conferir('linhas do quadro: negativo ou texto são recusados', [conferirLinhasDoQuadro([{ rotulo: 'S1', etapa: 'E', quantidade: -1 }]), conferirLinhasDoQuadro([{ rotulo: 'S1', etapa: 'E', quantidade: 'abc' }])],
+  ['A quantidade tem que ser um número maior ou igual a zero.', 'A quantidade tem que ser um número maior ou igual a zero.'])
+conferir('linhas do quadro: peça ou etapa sem nome são recusadas', [conferirLinhasDoQuadro([{ rotulo: ' ', etapa: 'E', quantidade: 1 }]), conferirLinhasDoQuadro([{ rotulo: 'S1', etapa: '', quantidade: 1 }])],
+  ['Cada peça precisa de um nome.', 'Escolha a etapa.'])
 
 // ── Medição de referência ───────────────────────────────────────────────────────────
 conferir('a última medição do contrato é a de maior número (empreiteiro não entra)',

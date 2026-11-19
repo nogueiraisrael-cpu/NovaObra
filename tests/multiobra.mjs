@@ -324,6 +324,13 @@ conferir('etapas da planta: a UBS não vê Concretado da Serra', [etapasS.length
 conferir('da UBS não abre a planta da Serra', (await dados.abrirPlanta('pl-serra-fund')).erro, 'Planta não encontrada nesta obra.')
 conferir('marcações da UBS são só da UBS', (await dados.abrirPlanta('pl-ubs-fund')).data.marcacoes.map((m) => m.obra_id), ['obra-ubs'])
 
+// Quadro de peças: cada obra só o seu.
+dados.definirObraAtual('obra-serra')
+const quadroS = (await dados.abrirPlanta('pl-serra-fund')).data.quantitativos
+dados.definirObraAtual('obra-ubs')
+conferir('quadro de peças da Serra só da Serra, a UBS sem quadro', [quadroS.every((q) => q.obra_id === 'obra-serra'), (await dados.abrirPlanta('pl-ubs-fund')).data.quantitativos], [true, []])
+conferir('da UBS não tira peça do quadro da Serra', (await dados.tirarPecaDoQuadro('pl-serra-fund', 'S1')).erro, 'Planta não encontrada nesta obra.')
+
 // Sem obra escolhida a camada se recusa, em vez de cair numa obra qualquer.
 dados.definirObraAtual(null)
 const registrar = console.error
