@@ -246,6 +246,24 @@ conferir('andamento: medição de referência é a 3ª', andUbs.medicao.numero, 
 conferir('andamento do 2.1.3: contratado, medido, executado, saldo, %', (({ item, contratado, medido, executado, saldo, pct }) => ({ item, contratado, medido, executado, saldo, pct }))(andUbs.linhas[0]),
   { item: '2.1.3', contratado: 86.4, medido: 91.2, executado: 2, saldo: -89.2, pct: 2 })
 
+// ── Sapata por tipo (camada de dados, 19/11) ───────────────────────────────────────
+reiniciarMock(dados)
+await dados.entrar('eng@novaobra.test', 'x')
+dados.definirObraAtual('obra-serra')
+const medidasT = { A: 1, B: 1, h0: 0.15, H: 0.5, a: 0.34, b: 0.5, e: 0.05, folga: 0.3, prof: 1.2 }
+const tipoT = { nome: 'Tipo T', pecasTexto: 'S30=S31', pecas: ['S30', 'S31'], medidas: medidasT, aco: [], aplicadas: ['S30', 'S31'], ultimo: {} }
+const linhasT = [{ rotulo: 'S30', etapa: 'Concretado', quantidade: 0.3346 }, { rotulo: 'S31', etapa: 'Concretado', quantidade: 0.3346 }]
+conferir('aplicar um tipo grava as células e o tipo', (await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoT], kg_por_metro: { 10: 0.63 } }, linhasT)).erro, null)
+const depoisT = (await dados.abrirPlanta('pl-serra-fund')).data
+conferir('o quadro ganhou S30 e S31 no Concretado', depoisT.quantitativos.filter((q) => ['S30', 'S31'].includes(q.rotulo)).map((q) => q.quantidade), [0.3346, 0.3346])
+conferir('o tipo ficou guardado na planta', [depoisT.planta.tipos_de_peca.tipos[0].nome, depoisT.planta.tipos_de_peca.kg_por_metro['10']], ['Tipo T', 0.63])
+conferir('peça em dois tipos é recusada', (await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoT, { ...tipoT, nome: 'Tipo U', pecas: ['S31'] }], kg_por_metro: {} }, [])).erro, 'A peça S31 já está no tipo Tipo U.')
+const formaSerra = (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma')
+conferir('segundo "calcular como Concreto" na obra é recusado com frase', (await dados.salvarEtapa({ ...formaSerra, calcular_como: 'Concreto' })).erro, 'Já existe uma etapa calculada como Concreto nesta obra (Concretado).')
+conferir('"calcular como" grava', [(await dados.salvarEtapa({ ...formaSerra, calcular_como: 'Forma' })).erro, (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma').calcular_como], [null, 'Forma'])
+dados.definirObraAtual('obra-ubs')
+conferir('da UBS não aplica tipo na planta da Serra', (await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoT], kg_por_metro: {} }, linhasT)).erro, 'Planta não encontrada nesta obra.')
+
 // Gerente: marca e configura, mas não apaga planta (quadro: pranchas.apagar só do admin).
 reiniciarMock(dados, somarDias(hoje, 0))
 const fulano = (await dados.entrar('fulano@novaobra.test', 'x')).data

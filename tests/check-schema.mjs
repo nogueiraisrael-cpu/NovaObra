@@ -160,6 +160,8 @@ await d.salvarQuantitativos(plantaConf.data.id, [{ rotulo: 'P1', etapa: 'Conferi
 await d.tirarPecaDoQuadro(plantaConf.data.id, 'P1')
 await d.editarPlanta(plantaConf.data.id, { nome: 'Conferência 3', pavimento: null, conta_no_andamento: false })
 await d.salvarEtapa({ ...etapaConf.data, nome: 'Conferida 2', item_medicao: '2.1' })
+await d.salvarEtapa({ ...etapaConf.data, nome: 'Conferida 2', calcular_como: 'Lastro' })
+await d.aplicarTiposDePeca(plantaConf.data.id, { tipos: [{ nome: 'Tipo C', pecas: ['C1'], medidas: { A: 1, B: 1, h0: 0.1, H: 0.3, a: 0.3, b: 0.3, e: 0.05, folga: 0.3, prof: 1 }, aco: [], aplicadas: ['C1'], ultimo: {} }], kg_por_metro: {} }, [{ rotulo: 'C1', etapa: 'Conferida 2', quantidade: 0.05 }])
 await d.listarItensDoContrato()
 await d.obterAndamentoDaObra()
 await d.apagarEtapa(etapaConf.data.id)

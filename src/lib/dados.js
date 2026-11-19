@@ -43,6 +43,8 @@ import {
   avancoDe, normalizarLote, mensagemDoEnvioDaPlanta, conferirMarcacao, limparRotulo, pedeQuantidade, validarMarcacao,
 } from './plantas.js'
 import { conferirLinhasDoQuadro, ultimaMedicaoDoContrato, andamentoDaObra } from './quantitativo.js'
+import { validarTipo } from './sapataTipo.js'
+import { SERVICOS_CALCULO } from './listas.js'
 import { encolherFoto } from './imagem.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
 
@@ -136,6 +138,7 @@ function traduzirErro(e) {
   if (/saldo_negativo/.test(e.message)) return 'O estoque ficaria negativo: alguém mexeu neste insumo ao mesmo tempo. Confira o saldo e tente de novo.'
   if (e.code === '23505' && /medicoes_um_numero/.test(e.message)) return 'Já existe medição com esse número. Use outro número.'
   if (e.code === '23505' && /planta_etapas_um_nome/.test(e.message)) return 'Já existe uma etapa com esse nome nesta obra.'
+  if (e.code === '23505' && /planta_etapas_um_servico/.test(e.message)) return 'Outra etapa desta obra já usa esse cálculo.'
   if (e.code === '23505') return 'Isso já está gravado (registro repetido).'
   if (e.code === '23514') return 'O banco recusou um valor fora da lista permitida.'
   if (e.code === '23503' && /on table "obras"/.test(e.message)) return OBRA_COM_LANCAMENTOS
@@ -1920,6 +1923,14 @@ export const salvarEtapa = (dados) => executar(async () => {
   if (primeiro) return falha(primeiro)
   const campos = camposDaEtapa(dados)
   if (dados.item_medicao !== undefined && posso('medicoes.ver')) campos.item_medicao = String(dados.item_medicao ?? '').trim() || null
+  // "Calcular como" (sapata por tipo): um serviço por obra; o banco também recusa (planta_etapas_um_servico).
+  if (dados.calcular_como !== undefined) {
+    const servico = dados.calcular_como || null
+    if (servico && !SERVICOS_CALCULO.includes(servico)) return falha('Escolha um cálculo da lista.')
+    const outra = servico && existentes.find((e) => e.calcular_como === servico && e.id !== dados.id)
+    if (outra) return falha(`Já existe uma etapa calculada como ${servico} nesta obra (${outra.nome}).`)
+    campos.calcular_como = servico
+  }
   if (!dados.id) {
     return ok(await inserir('planta_etapas', { ...campos, obra_id: obraId, ordem: proximaOrdemDeEtapa(existentes), criado_por: usuario?.id ?? null }))
   }
@@ -1964,6 +1975,11 @@ export const salvarQuantitativos = (plantaId, linhas) => executar(async () => {
   if (erro) return falha(erro)
   const obraId = obraAtual()
   if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  await gravarCelulas(obraId, plantaId, linhas)
+  return ok(true)
+})
+
+async function gravarCelulas(obraId, plantaId, linhas) {
   const existentes = await ler('planta_quantitativos', { planta_id: plantaId, obra_id: obraId })
   for (const l of linhas) {
     const rotulo = limparRotulo(l.rotulo)
@@ -1976,6 +1992,23 @@ export const salvarQuantitativos = (plantaId, linhas) => executar(async () => {
       await inserir('planta_quantitativos', { obra_id: obraId, planta_id: plantaId, rotulo, etapa: l.etapa, quantidade: l.quantidade, criado_por: usuario?.id ?? null })
     }
   }
+}
+
+// Sapata por tipo: grava os tipos na planta e depois as células que o cálculo deu (`linhas`, de
+// celulasDosTipos em sapataTipo.js). Duas gravações: se cair no meio, os tipos ficam guardados e aplicar
+// de novo completa as células.
+export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não edita o quadro de peças.')
+  for (const tipo of tipos) {
+    const erro = validarTipo(tipo, tipos)
+    if (erro) return falha(erro)
+  }
+  const erroLinhas = conferirLinhasDoQuadro(linhas)
+  if (erroLinhas) return falha(erroLinhas)
+  const obraId = obraAtual()
+  if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {} } })
+  await gravarCelulas(obraId, plantaId, linhas)
   return ok(true)
 })
 
