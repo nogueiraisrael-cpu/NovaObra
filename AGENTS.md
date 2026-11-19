@@ -208,6 +208,13 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   "sem quantitativo". Nunca grave esse valor na marcação. A mesma peça conta uma vez por etapa. Andamento da obra
   (executado × medição do contrato, a de maior número) é só do Engenheiro; planta com `conta_no_andamento` desligado
   fica fora dele.
+  **Sapata por tipo (19/11/2026, migration -31):** as pranchas reais do Israel trazem nomes e cotas desenhados em
+  traços (não há texto para ler), mas agrupam as sapatas por tipo ("S1=S2=…=S22 (X11)"). O engenheiro cadastra o tipo
+  (lista, medidas em cm, bloco da tabela de aço) e `src/lib/sapataTipo.js` calcula concreto, lastro, forma, escavação e
+  armação por peça; os tipos ficam em `plantas_visuais.tipos_de_peca` e os números vão para o quadro de peças. Cada
+  etapa pode ter um `calcular_como` (um por obra). A linha de aço é o total do grupo (divide pelas peças). O peso por
+  metro começa na NBR 7480 e é editável por planta (o projetista do Israel usa 0,63 kg/m para 10 mm). As pranchas
+  reais nunca entram no Git nem nos testes: os exemplos são fictícios no mesmo formato.
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
   concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
@@ -233,7 +240,8 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   Gerente, que não apaga planta, sobra um arquivo solto). Renomear uma etapa muda o nome nas marcações e depois a
   etapa (desde 19/11 também o quadro de peças): se cair no meio, aparecem como etapa antiga com o nome novo, e salvar
   de novo completa. Salvar o quadro de peças grava uma célula por vez: se cair no meio, parte fica gravada e salvar de
-  novo completa.
+  novo completa. Aplicar tipos de peça grava os tipos na planta e depois as células: se cair no meio, os tipos ficam
+  guardados e aplicar de novo completa.
   Subir/descer etapa grava as duas ordens, uma por vez: se cair no meio, duas etapas ficam com a mesma ordem e subir de
   novo arruma. Apagar planta apaga a linha (as marcações vão junto) e depois o arquivo: se cair no meio, sobra um
   arquivo solto. Apagar uma marcação do meio da vida da peça religa a seguinte à anterior e depois apaga: se cair no
