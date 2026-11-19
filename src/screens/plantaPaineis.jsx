@@ -7,7 +7,7 @@ import {
   historicoDaPeca, pedeQuantidade, resumoDoPeriodo, intervaloDoPeriodo, moverPeriodo, PERIODOS, formatarQtd, lerNumero, proximaCorDeEtapa,
   validarEtapa, ETAPAS_SUGERIDAS,
 } from '../lib/plantas.js'
-import { UNIDADES_ETAPA } from '../lib/listas.js'
+import { UNIDADES_ETAPA, SERVICOS_CALCULO, UNIDADE_DO_SERVICO } from '../lib/listas.js'
 import { hojeISO, formatarData, formatarDiaMes } from '../lib/datas.js'
 import { ErroCampo, Gaveta, useToast } from '../components/index.jsx'
 
@@ -177,6 +177,18 @@ function FormEtapa({ inicial, existentes, itens, salvar, cancelar, ocupado }) {
           <input id="et-meta" className="field" inputMode="decimal" value={campos.meta ?? ''} onChange={(e) => mudar('meta', e.target.value)} placeholder={campos.unidade === 'un' ? 'Ex.: 80 peças' : `Ex.: 120 ${campos.unidade}`} />
           <ErroCampo erro={tentou && erros.meta} /></div>
       </div>
+      {campos.unidade !== 'un' && (
+        <>
+          <label className="label" htmlFor="et-calc">Calcular como (sapata por tipo)</label>
+          <select id="et-calc" className="field" value={campos.calcular_como ?? ''} onChange={(e) => mudar('calcular_como', e.target.value || null)}>
+            <option value="">Não calcular</option>
+            {SERVICOS_CALCULO.map((sv) => <option key={sv} value={sv}>{sv} ({UNIDADE_DO_SERVICO[sv]})</option>)}
+          </select>
+          {campos.calcular_como && UNIDADE_DO_SERVICO[campos.calcular_como] !== campos.unidade && !(campos.calcular_como === 'Armação' && campos.unidade === 't') && (
+            <div className="hint t-warn">{campos.calcular_como} é calculado em {UNIDADE_DO_SERVICO[campos.calcular_como]}: mude a unidade da etapa, senão o tipo não grava aqui.</div>
+          )}
+        </>
+      )}
       {itens && campos.unidade !== 'un' && (
         <>
           <label className="label" htmlFor="et-item">Item do contrato (para comparar com a medição)</label>
@@ -232,7 +244,7 @@ export function PainelEtapas({ aberto, fechar, etapas, aoMudar }) {
   }
 
   const fecharTudo = () => { setEditando(null); setApagando(null); fechar() }
-  const meta = (e) => `${e.meta ? ` · meta ${formatarQtd(e.meta, e.unidade)}` : ''}${e.item_medicao ? ` · item ${e.item_medicao}` : ''}`
+  const meta = (e) => `${e.meta ? ` · meta ${formatarQtd(e.meta, e.unidade)}` : ''}${e.calcular_como ? ` · calcula ${e.calcular_como}` : ''}${e.item_medicao ? ` · item ${e.item_medicao}` : ''}`
 
   return (
     <Gaveta aberta={aberto} fechar={() => !ocupado && fecharTudo()} rotulo="Etapas">

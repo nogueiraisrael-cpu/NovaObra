@@ -20,6 +20,8 @@ import { hojeISO, formatarData, formatarDiaMes } from '../lib/datas.js'
 import { Carregando, ErroCarga, Icon, useToast } from '../components/index.jsx'
 import { PainelPeca, PainelResumo, PainelEtapas } from './plantaPaineis.jsx'
 import { PainelQuantitativo } from './plantaQuantitativo.jsx'
+import { PainelTipos } from './plantaTipos.jsx'
+import { proximaPeca } from '../lib/sapataTipo.js'
 
 const FERRAMENTAS = [
   { id: 'mover', icone: '✋', nome: 'Mover', tecla: 'V' },
@@ -93,6 +95,8 @@ export default function PlantaEditor({ plantaId, voltar }) {
   const [data, setData] = useState(hojeISO())
   const [espessura, setEspessura] = useState(1)
   const [qtdTexto, setQtdTexto] = useState('')
+  // Nome da próxima peça a marcar (planta cujo PDF não tem os nomes em texto): avança sozinho.
+  const [peca, setPeca] = useState('')
   const [lote, setLote] = useState('')
   const [nota, setNota] = useState('')
   const [loteCor, setLoteCor] = useState(null)
@@ -219,7 +223,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
 
   async function gravarNova(tipo, pontos, caixaDoNome) {
     const campos = { tipo, pontos, ...extras(), rotacao: 0 }
-    campos.rotulo = sugerirRotulo(planta.textos, caixaDoNome ?? bboxDe({ tipo, pontos }))
+    campos.rotulo = peca.trim() || sugerirRotulo(planta.textos, caixaDoNome ?? bboxDe({ tipo, pontos }))
     const problema = validarMarcacao(campos, etapa, valorNoQuadro(quadro, planta.id, campos.rotulo, etapa?.nome) != null)
     if (problema) return toast(problema, 'bad')
     setGravando(true)
@@ -229,6 +233,10 @@ export default function PlantaEditor({ plantaId, voltar }) {
     setMarcacoes((ms) => [...ms, r.data])
     // A quantidade digitada vale para ESTA peça só: a próxima volta a usar o quadro de peças.
     setQtdTexto('')
+    if (peca.trim()) {
+      const marcadas = new Set([...marcacoes, r.data].filter((m) => m.etapa === r.data.etapa).map((m) => m.rotulo))
+      setPeca(proximaPeca(pecas, marcadas, r.data.rotulo) ?? '')
+    }
   }
 
   async function avancar(id) {
@@ -458,6 +466,10 @@ export default function PlantaEditor({ plantaId, voltar }) {
             {etapa && etapa.unidade !== 'un' && (
               <label>Quantidade ({etapa.unidade})<input className="field" inputMode="decimal" value={qtdTexto} onChange={(e) => setQtdTexto(e.target.value)} placeholder="vazio = quadro de peças" /></label>
             )}
+            <label>Peça
+              <input className="field" list="gv-pecas" value={peca} onChange={(e) => setPeca(e.target.value)} placeholder="Do PDF, ou ex.: S7" autoComplete="off" />
+              <datalist id="gv-pecas">{pecas.map((p) => <option key={p} value={p} />)}</datalist>
+            </label>
             <label>Placa (BT)<input className="field" value={lote} onChange={(e) => setLote(e.target.value)} placeholder="Ex.: BT 1111" autoComplete="off" /></label>
             <label>Nota fiscal<input className="field" value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nº da NF" autoComplete="off" /></label>
             {(lote || nota) && (
@@ -481,6 +493,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
         <button className="gv-chip" onClick={() => zoomEm(() => 1, 0, 0)} title="Caber na largura">{Math.round(zoom * 100)}%</button>
         <button className="gv-chip" onClick={() => zoomEm((z) => z * 1.25, palcoRef.current.clientWidth / 2, palcoRef.current.clientHeight / 2)} aria-label="Aumentar zoom">+</button>
         <button className="gv-chip" onClick={() => setPainel('quantitativo')}>📋 Quantitativo</button>
+        <button className="gv-chip" onClick={() => setPainel('tipos')}>🧱 Tipos</button>
         <button className="gv-chip" onClick={() => setPainel('resumo')}>📊 Resumo</button>
         <button className="gv-chip" onClick={imprimir}>🖨 Imprimir</button>
         {gravando && <span className="hint">Gravando…</span>}
@@ -546,6 +559,8 @@ export default function PlantaEditor({ plantaId, voltar }) {
       <PainelResumo aberto={painel === 'resumo'} fechar={() => setPainel(null)} etapas={todasEtapas} marcacoes={marcacoes} planta={planta} valores={valores} />
       <PainelQuantitativo aberto={painel === 'quantitativo'} fechar={() => setPainel(null)} planta={planta} etapas={etapasMedidas}
         pecas={pecas} quantitativos={quantitativos} aoMudar={carregar} />
+      <PainelTipos aberto={painel === 'tipos'} fechar={() => setPainel(null)} planta={planta} etapas={etapas}
+        quantitativos={quantitativos} aoMudar={carregar} />
       <PainelEtapas aberto={painel === 'etapas'} fechar={() => setPainel(null)} etapas={etapas}
         aoMudar={async () => { await carregar() }} />
     </div>

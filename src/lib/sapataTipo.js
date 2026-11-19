@@ -11,7 +11,7 @@
 //   escavação = (A + 2·folga)·(B + 2·folga)·profundidade
 //   armação   = Σ comprimento total (m) × peso por metro da bitola ÷ peças do tipo (a linha é do grupo inteiro)
 import { SERVICOS_CALCULO, UNIDADE_DO_SERVICO } from './listas.js'
-import { ordemNatural } from './plantas.js'
+import { ordemNatural, lerNumero } from './plantas.js'
 import { chaveDaCelula } from './quantitativo.js'
 
 // Peso por metro (kg/m) da NBR 7480. Cada planta pode trocar (o projetista do Israel usa 0,63 para 10 mm).
@@ -35,12 +35,45 @@ export function lerListaDePecas(texto) {
   return { pecas, declarado, aviso }
 }
 
+// O formulário mede em CENTÍMETROS (como o detalhe da prancha) e aceita vírgula; o tipo guarda metros.
+export const ROTULOS_DAS_MEDIDAS = {
+  A: 'base A', B: 'base B', h0: 'altura do rodapé', H: 'altura total', a: 'topo a', b: 'topo b',
+  e: 'lastro', folga: 'folga da cava', prof: 'profundidade da cava',
+}
+export const MEDIDAS_PADRAO_CM = { A: '', B: '', h0: '', H: '', a: '', b: '', e: '5', folga: '30', prof: '' }
+
+// { tipo, erro }: o rascunho do formulário (textos em cm) como tipo (números em m).
+export function tipoDoFormulario({ nome, pecasTexto, medidas, aco, aplicadas = [], ultimo = {} }) {
+  const m = {}
+  for (const [k, rotulo] of Object.entries(ROTULOS_DAS_MEDIDAS)) {
+    const v = lerNumero(medidas?.[k])
+    if (v === null) return { tipo: null, erro: `Medida inválida: ${rotulo}.` }
+    m[k] = Math.round(v * 100) / 10000
+  }
+  const linhas = []
+  for (const l of aco ?? []) {
+    const b = String(l.bitola ?? '').trim()
+    const c = String(l.comprimento_cm ?? '').trim()
+    if (!b && !c) continue
+    const bitola = lerNumero(b)
+    const comprimento = lerNumero(c)
+    if (bitola === null || comprimento === null) return { tipo: null, erro: 'Preencha bitola e comprimento total em cada linha de aço.' }
+    linhas.push({ bitola: String(bitola), comprimento_cm: comprimento })
+  }
+  return {
+    tipo: { nome: String(nome ?? '').trim(), pecasTexto, pecas: lerListaDePecas(pecasTexto).pecas, medidas: m, aco: linhas, aplicadas, ultimo },
+    erro: null,
+  }
+}
+
 // Erro (frase) ou null. `outrosTipos` = os demais tipos da planta (uma peça só pode estar em um tipo).
 export function validarTipo(tipo, outrosTipos) {
   if (!String(tipo.nome ?? '').trim()) return 'Dê um nome ao tipo.'
+  const outros = outrosTipos.filter((o) => o !== tipo)
+  if (outros.some((o) => o.nome.trim().toLowerCase() === tipo.nome.trim().toLowerCase())) return 'Já existe um tipo com esse nome.'
   if (!tipo.pecas?.length) return 'A lista de peças está vazia.'
   for (const p of tipo.pecas) {
-    const dono = outrosTipos.find((o) => o !== tipo && o.nome !== tipo.nome && o.pecas.includes(p))
+    const dono = outros.find((o) => o.pecas.includes(p))
     if (dono) return `A peça ${p} já está no tipo ${dono.nome}.`
   }
   const m = tipo.medidas ?? {}
@@ -83,8 +116,9 @@ export function servicosDoTipo(tipo, kgPorMetro) {
 // O que aplicar os tipos grava no quadro de peças (só as células que mudam), os avisos (serviço sem etapa,
 // unidade diferente), quantas células mudam e quantas tinham valor digitado à mão (diferente do que o tipo
 // calculou da última vez), e os tipos com `aplicadas` e `ultimo` atualizados para guardar.
-// `atual`: Map chaveDaCelula(peça, etapa) → número, o quadro gravado hoje.
-export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro }) {
+// `atual`: Map chaveDaCelula(peça, etapa) → número, o quadro gravado hoje. `removidos`: tipos apagados
+// nesta edição; as células que eles gravaram (`ultimo`) saem do quadro, se ainda estão como o tipo deixou.
+export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = [] }) {
   const avisos = []
   const destino = {} // serviço → { etapa, fator }
   for (const s of SERVICOS_CALCULO) {
@@ -121,6 +155,14 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro }) {
     for (const p of sairam) for (const [, { etapa }] of ligados) mudar(p, etapa, null)
     return { ...tipo, aplicadas: [...tipo.pecas], ultimo }
   })
+  for (const tipo of removidos) {
+    for (const k of Object.keys(tipo.ultimo ?? {})) {
+      const [rotulo, etapa] = k.split('|')
+      if (atual.get(k) == null || linhas.some((l) => l.rotulo === rotulo && l.etapa === etapa)) continue
+      if (atual.get(k) !== tipo.ultimo[k]) digitadas++
+      linhas.push({ rotulo, etapa, quantidade: null })
+    }
+  }
   return { linhas, avisos, trocadas: linhas.length, digitadas, tipos: novosTipos }
 }
 

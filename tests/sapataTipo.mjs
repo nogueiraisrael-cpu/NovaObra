@@ -2,7 +2,7 @@
 // (concreto, lastro, forma, escavação, aço), o que gravar no quadro de peças e a próxima peça.
 // Medidas e tabelas fictícias, no formato das pranchas reais (que não entram no Git).
 import {
-  PESO_ACO_NBR, lerListaDePecas, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
+  PESO_ACO_NBR, lerListaDePecas, tipoDoFormulario, MEDIDAS_PADRAO_CM, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
 } from '../src/lib/sapataTipo.js'
 import { SERVICOS_CALCULO, UNIDADE_DO_SERVICO } from '../src/lib/listas.js'
 
@@ -42,6 +42,7 @@ conferir('vocabulário dos serviços', [SERVICOS_CALCULO, UNIDADE_DO_SERVICO.Arm
 // ── Validar ──────────────────────────────────────────────────────────────────
 conferir('tipo certo passa', validarTipo(tipo1, []), null)
 conferir('sem nome', validarTipo({ ...tipo1, nome: ' ' }, []), 'Dê um nome ao tipo.')
+conferir('nome repetido', validarTipo({ ...tipo1, pecas: ['S9'] }, [tipo1]), 'Já existe um tipo com esse nome.')
 conferir('lista vazia', validarTipo({ ...tipo1, pecas: [] }, []), 'A lista de peças está vazia.')
 conferir('peça em dois tipos', validarTipo({ ...tipo1, nome: 'Tipo 2' }, [tipo1]), 'A peça S1 já está no tipo Tipo 1.')
 conferir('medida zero', validarTipo({ ...tipo1, medidas: { ...M, A: 0 } }, []), 'Preencha as medidas maiores que zero.')
@@ -73,6 +74,21 @@ conferir('reaplicar: a peça que saiu perde as células do tipo', r2.linhas.filt
   { rotulo: 'S2', etapa: 'CONCRETAGEM', quantidade: null }, { rotulo: 'S2', etapa: 'ARMAÇÃO', quantidade: null },
 ])
 conferir('reaplicar: conta o que muda e o que tinha sido digitado à mão', [r2.trocadas, r2.digitadas], [3, 1])
+
+// Apagar um tipo inteiro: as células que ele gravou saem do quadro.
+const r3 = celulasDosTipos({ tipos: [], removidos: [r1.tipos[0]], etapas, atual: new Map([['S1|CONCRETAGEM', 0.3346]]), kgPorMetro: PESO_ACO_NBR })
+conferir('tipo apagado limpa as células que tinha gravado', r3.linhas, [{ rotulo: 'S1', etapa: 'CONCRETAGEM', quantidade: null }])
+
+// ── Formulário (cm, com vírgula) → tipo (m) ───────────────────────────────────────
+const form = { nome: ' Tipo 1 ', pecasTexto: 'S1=S2 (X2)', medidas: { A: '100', B: '100', h0: '15', H: '50', a: '34', b: '50', e: '5', folga: '30', prof: '120' },
+  aco: [{ bitola: '10', comprimento_cm: '10989' }, { bitola: '', comprimento_cm: '' }] }
+const lido = tipoDoFormulario(form)
+conferir('formulário vira tipo em metros, linha de aço vazia some', [lido.erro, lido.tipo.nome, lido.tipo.pecas, lido.tipo.medidas, lido.tipo.aco], [
+  null, 'Tipo 1', ['S1', 'S2'], { A: 1, B: 1, h0: 0.15, H: 0.5, a: 0.34, b: 0.5, e: 0.05, folga: 0.3, prof: 1.2 }, [{ bitola: '10', comprimento_cm: 10989 }]])
+conferir('medida com vírgula', tipoDoFormulario({ ...form, medidas: { ...form.medidas, A: '87,5' } }).tipo.medidas.A, 0.875)
+conferir('medida que não é número avisa qual', tipoDoFormulario({ ...form, medidas: { ...form.medidas, H: 'abc' } }).erro, 'Medida inválida: altura total.')
+conferir('linha de aço pela metade avisa', tipoDoFormulario({ ...form, aco: [{ bitola: '10', comprimento_cm: '' }] }).erro, 'Preencha bitola e comprimento total em cada linha de aço.')
+conferir('padrões do formulário: lastro 5 cm', MEDIDAS_PADRAO_CM.e, '5')
 
 // ── Próxima peça ───────────────────────────────────────────────────────────────
 conferir('próxima peça pula a já marcada', proximaPeca(['S1', 'S2', 'S3', 'S10'], new Set(['S2']), 'S1'), 'S3')
