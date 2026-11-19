@@ -56,7 +56,10 @@ async function deUmPdf(arquivo) {
     const largura = Math.floor(vp.width)
     const altura = Math.floor(vp.height)
     const { tela, ctx } = telaBranca(largura, altura)
-    await pagina.render({ canvasContext: ctx, viewport: vp }).promise
+    // intent 'print': desenha de uma vez, sem esperar o "próximo quadro" do navegador. No modo normal,
+    // o pdf.js espera requestAnimationFrame, que o navegador PAUSA quando a aba vai para segundo plano
+    // (trocar de app no celular no meio da leitura): a planta ficava "preparando" para sempre.
+    await pagina.render({ canvasContext: ctx, viewport: vp, intent: 'print' }).promise
     let textos = null
     try {
       const conteudo = await pagina.getTextContent()

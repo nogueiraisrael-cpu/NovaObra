@@ -227,6 +227,8 @@ export default function PlantaEditor({ plantaId, voltar }) {
     setGravando(false)
     if (r.erro) return toast(r.erro, 'bad')
     setMarcacoes((ms) => [...ms, r.data])
+    // A quantidade digitada vale para ESTA peça só: a próxima volta a usar o quadro de peças.
+    setQtdTexto('')
   }
 
   async function avancar(id) {
@@ -240,6 +242,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
     setGravando(false)
     if (r.erro) return toast(r.erro, 'bad')
     setMarcacoes((ms) => [...ms, r.data])
+    setQtdTexto('')
     toast(`${anterior.rotulo || 'Peça'}: ${anterior.etapa} → ${r.data.etapa}`)
   }
 

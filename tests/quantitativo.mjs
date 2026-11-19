@@ -48,6 +48,12 @@ conferir('S3 marcada duas vezes entra uma vez; S4 digitada duas vezes soma as du
 const valores = valoresDasMarcacoes(duas, new Map([['Escavado', ESC]]), quadro)
 conferir('a segunda marcação da mesma peça vale 0 (já contada), não "sem quantitativo"', [valores.get(duas[0].id), valores.get(duas[1].id), valores.get(duas[4].id)], [0.72, 0, null])
 
+// Revisão final (Important 3): parte digitada + marcação vazia na mesma peça = peça concluída pelo quadro.
+const mista = [m('S3', 'Escavado', { quantidade: 0.36 }), m('S3', 'Escavado')]
+conferir('0,36 digitado e depois marcada vazia: a peça fecha no valor do quadro (0,72), não 1,08', somaDaEtapa(mista, ESC, quadro, hoje).feito, 0.72)
+const passou = [m('S3', 'Escavado', { quantidade: 0.5 }), m('S3', 'Escavado', { quantidade: 0.4 }), m('S3', 'Escavado')]
+conferir('digitado já passa do quadro: a vazia não soma nada a mais', somaDaEtapa(passou, ESC, quadro, hoje).feito, 0.9)
+
 // ── Previsto e resumo da planta ─────────────────────────────────────────────────────
 const pecas = ['S1', 'S2', 'S3', 'S4']
 conferir('previsto: peças com valor e a soma', previstoDaEtapa(ESC, quadro, pecas), { pecas: 4, previsto: 2.88 })

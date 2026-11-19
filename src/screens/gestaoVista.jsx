@@ -182,7 +182,8 @@ export default function GestaoVista() {
         {plantas.length > 0 && botaoSubir}
       </div>
 
-      {posso('medicoes.ver') && plantas.length > 0 && <Andamento />}
+      {/* A chave muda quando a lista de plantas muda (subir, apagar, "conta no andamento"): o bloco relê. */}
+      {posso('medicoes.ver') && plantas.length > 0 && <Andamento key={plantas.map((p) => `${p.id}:${p.conta_no_andamento !== false}`).join(',')} />}
 
       {!plantas.length && (
         <Vazio icone="planta" titulo="Nenhuma planta nesta obra"

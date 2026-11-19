@@ -42,8 +42,18 @@ export function valorDaMarcacao(m, etapa, quadro) {
 // O valor de cada marcação (id → número, ou null = sem quantitativo), com a regra "a mesma peça
 // conta uma vez por etapa": entre as marcações sem quantidade digitada de uma mesma peça na mesma
 // etapa e planta, só a mais antiga vale; as outras valem 0 (já contadas, não "sem quantitativo").
+// Peça com parte digitada e uma marcação vazia (0,36 num dia, "o resto" no outro): a vazia quer dizer
+// "a peça fechou", e vale só o que falta para o valor do quadro (a peça soma o quadro, nunca mais
+// que isso por causa da vazia; o digitado acima do quadro continua valendo, porque foi digitado).
 export function valoresDasMarcacoes(marcacoes, etapasPorNome, quadro) {
   const valores = new Map()
+  const digitado = new Map()
+  for (const m of marcacoes) {
+    if (m.quantidade != null && m.rotulo) {
+      const k = chave(m.planta_id, m.rotulo, m.etapa)
+      digitado.set(k, (digitado.get(k) ?? 0) + (Number(m.quantidade) || 0))
+    }
+  }
   const contadas = new Set()
   for (const m of [...marcacoes].sort(porCriacao)) {
     const etapa = etapasPorNome.get(m.etapa) ?? { nome: m.etapa, unidade: m.quantidade == null ? 'un' : '' }
@@ -51,6 +61,9 @@ export function valoresDasMarcacoes(marcacoes, etapasPorNome, quadro) {
       const k = chave(m.planta_id, m.rotulo, m.etapa)
       if (contadas.has(k)) { valores.set(m.id, 0); continue }
       contadas.add(k)
+      const v = valorDaMarcacao(m, etapa, quadro)
+      valores.set(m.id, v != null && digitado.has(k) && medida(etapa) ? arred(Math.max(0, v - digitado.get(k))) : v)
+      continue
     }
     valores.set(m.id, valorDaMarcacao(m, etapa, quadro))
   }
