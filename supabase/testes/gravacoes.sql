@@ -214,6 +214,12 @@ begin
   update public.plantas_visuais set conta_no_andamento = false where id = pl;
   select (select item_medicao = '2.1' from public.planta_etapas where id = et) and not conta_no_andamento into ok from public.plantas_visuais where id = pl;
   insert into _r values ('Gestão à Vista: item do contrato e "conta no andamento" gravam', ok);
+  update public.planta_etapas set calcular_como = 'Concreto' where id = et;
+  begin insert into public.planta_etapas (obra_id, nome, cor, unidade, calcular_como) values (ubs, 'Concreto T9', '#3DC28C', 'm³', 'Concreto');
+    insert into _r values ('Gestão à Vista: dois "calcular como Concreto" na mesma obra são recusados', false);
+  exception when unique_violation then insert into _r values ('Gestão à Vista: dois "calcular como Concreto" na mesma obra são recusados', true); end;
+  begin update public.planta_etapas set calcular_como = 'Pintura' where id = et; insert into _r values ('Gestão à Vista: serviço fora da lista é recusado', false);
+  exception when check_violation then insert into _r values ('Gestão à Vista: serviço fora da lista é recusado', true); end;
   update public.planta_etapas set nome = 'Concretado T2' where id = et; get diagnostics n = row_count;
   insert into _r values ('Gestão à Vista: renomear etapa grava', n = 1);
   reset role;

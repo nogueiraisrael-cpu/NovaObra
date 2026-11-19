@@ -466,19 +466,19 @@ export function criarMock(hoje = hojeISO()) {
   // do MESMO caminhão hoje, em notas diferentes) e a do térreo, vazia; a UBS tem uma planta só,
   // com uma etapa e uma marcação. Se aparecer sapata na UBS, vazou dado.
   const plantas_visuais = [
-    { id: 'pl-serra-fund', obra_id: 'obra-serra', nome: 'Fundação', pavimento: 'Fundação', caminho_imagem: 'obra-serra/plantas/pl-serra-fund.png', conta_no_andamento: true,
+    { id: 'pl-serra-fund', obra_id: 'obra-serra', nome: 'Fundação', pavimento: 'Fundação', caminho_imagem: 'obra-serra/plantas/pl-serra-fund.png', conta_no_andamento: true, tipos_de_peca: { tipos: [], kg_por_metro: {} },
       largura: 4000, altura: 2800, textos: [{ s: 'S1', x: 150, y: 150 }, { s: 'S2', x: 450, y: 150 }, { s: 'Cota 1,20', x: 470, y: 180 }],
       criado_por: P.israel, created_at: `${d(-10)}T08:00:00Z` },
-    { id: 'pl-serra-terreo', obra_id: 'obra-serra', nome: 'Forma do térreo', pavimento: 'Térreo', caminho_imagem: 'obra-serra/plantas/pl-serra-terreo.jpg', conta_no_andamento: true,
+    { id: 'pl-serra-terreo', obra_id: 'obra-serra', nome: 'Forma do térreo', pavimento: 'Térreo', caminho_imagem: 'obra-serra/plantas/pl-serra-terreo.jpg', conta_no_andamento: true, tipos_de_peca: { tipos: [], kg_por_metro: {} },
       largura: 3000, altura: 4000, textos: null, criado_por: P.israel, created_at: `${d(-5)}T08:00:00Z` },
-    { id: 'pl-ubs-fund', obra_id: 'obra-ubs', nome: 'Fundação UBS', pavimento: 'Fundação', caminho_imagem: 'obra-ubs/plantas/pl-ubs-fund.png', conta_no_andamento: true,
+    { id: 'pl-ubs-fund', obra_id: 'obra-ubs', nome: 'Fundação UBS', pavimento: 'Fundação', caminho_imagem: 'obra-ubs/plantas/pl-ubs-fund.png', conta_no_andamento: true, tipos_de_peca: { tipos: [], kg_por_metro: {} },
       largura: 2000, altura: 1500, textos: null, criado_por: P.ricardo, created_at: `${d(-3)}T08:00:00Z` },
   ]
   const planta_etapas = [
     { id: 'pe-serra-esc', obra_id: 'obra-serra', nome: 'Escavado', cor: '#F2B23E', ordem: 0, ativa: true, meta: 20, unidade: 'un', item_medicao: null, criado_por: P.israel },
     { id: 'pe-serra-forma', obra_id: 'obra-serra', nome: 'Forma', cor: '#9B6BD6', ordem: 1, ativa: true, meta: null, unidade: 'un', criado_por: P.israel },
     { id: 'pe-serra-arm', obra_id: 'obra-serra', nome: 'Armado', cor: '#3D7DD8', ordem: 2, ativa: true, meta: null, unidade: 'un', criado_por: P.israel },
-    { id: 'pe-serra-conc', obra_id: 'obra-serra', nome: 'Concretado', cor: '#3DC28C', ordem: 3, ativa: true, meta: 30, unidade: 'm³', item_medicao: '2.4', criado_por: P.israel },
+    { id: 'pe-serra-conc', obra_id: 'obra-serra', nome: 'Concretado', cor: '#3DC28C', ordem: 3, ativa: true, meta: 30, unidade: 'm³', item_medicao: '2.4', calcular_como: 'Concreto', criado_por: P.israel },
     { id: 'pe-ubs-esc', obra_id: 'obra-ubs', nome: 'Estaca', cor: '#E2574C', ordem: 0, ativa: true, meta: null, unidade: 'un', criado_por: P.ricardo },
   ]
   // Quadro de peças: só a Serra (S1 e S2 no Concretado). A UBS não tem quadro de propósito.
