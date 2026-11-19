@@ -203,6 +203,11 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   etapa cria linha nova com `substitui` (nunca `update etapa`): é o histórico da peça. `etapa` é texto, não
   ligação. Lote (caminhão) é atributo, não etapa. Detalhes em `src/lib/plantas.js` e `plantaGeometria.js`.
   As tabelas dela usam o mesmo carimbo das outras (`criado_por` + `updated_at`, migration -29).
+  **Quadro de peças (19/11/2026, migration -30):** o valor de uma marcação numa etapa medida é **calculado na leitura**
+  (`src/lib/quantitativo.js`): a quantidade digitada; senão o valor da peça no quadro (`planta_quantitativos`); senão
+  "sem quantitativo". Nunca grave esse valor na marcação. A mesma peça conta uma vez por etapa. Andamento da obra
+  (executado × medição do contrato, a de maior número) é só do Engenheiro; planta com `conta_no_andamento` desligado
+  fica fora dele.
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
   concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
@@ -226,7 +231,9 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   (`conclusao_pendente`), com aviso: o engenheiro conclui de novo ou marca Operando.
   Gestão à Vista: subir planta manda o arquivo e depois grava a linha (se a linha falhar, o arquivo é apagado; para o
   Gerente, que não apaga planta, sobra um arquivo solto). Renomear uma etapa muda o nome nas marcações e depois a
-  etapa: se cair no meio, as marcações aparecem como etapa antiga com o nome novo, e salvar de novo completa.
+  etapa (desde 19/11 também o quadro de peças): se cair no meio, aparecem como etapa antiga com o nome novo, e salvar
+  de novo completa. Salvar o quadro de peças grava uma célula por vez: se cair no meio, parte fica gravada e salvar de
+  novo completa.
   Subir/descer etapa grava as duas ordens, uma por vez: se cair no meio, duas etapas ficam com a mesma ordem e subir de
   novo arruma. Apagar planta apaga a linha (as marcações vão junto) e depois o arquivo: se cair no meio, sobra um
   arquivo solto. Apagar uma marcação do meio da vida da peça religa a seguinte à anterior e depois apaga: se cair no
