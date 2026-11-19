@@ -40,6 +40,7 @@ export const UNICOS = {
   // "nulls not distinct": duas medições de contrato (empreiteiro vazio) com o mesmo nº também repetem.
   medicoes: [{ nome: 'medicoes_um_numero', colunas: ['obra_id', 'tipo', 'empreiteiro', 'numero'] }],
   planta_etapas: [{ nome: 'planta_etapas_um_nome', colunas: ['obra_id', 'nome'] }],
+  planta_quantitativos: [{ nome: 'planta_quantitativos_um_valor', colunas: ['planta_id', 'rotulo', 'etapa'] }],
 }
 
 // Recusa a tabela que ficaria com linha repetida, no mesmo formato do erro do Supabase.

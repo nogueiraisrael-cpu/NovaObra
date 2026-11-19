@@ -61,7 +61,7 @@ const O_QUE_PRENDE = {
   pedidos_material: 'pedidos de material', insumos: 'estoque', movimentos_estoque: 'estoque',
   atividades: 'planejamento', restricoes: 'planejamento', semana_atividades: 'planejamento', subtarefas: 'planejamento',
   medicoes: 'medições', medicao_itens: 'medições',
-  plantas_visuais: 'plantas da Gestão à Vista', planta_etapas: 'etapas da Gestão à Vista', planta_marcacoes: 'plantas da Gestão à Vista',
+  plantas_visuais: 'plantas da Gestão à Vista', planta_etapas: 'etapas da Gestão à Vista', planta_marcacoes: 'plantas da Gestão à Vista', planta_quantitativos: 'plantas da Gestão à Vista',
   funcionarios: 'funcionários lotados nela', equipamentos: 'equipamentos lotados nela',
 }
 

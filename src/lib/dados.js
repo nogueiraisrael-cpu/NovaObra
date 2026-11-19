@@ -49,7 +49,7 @@ import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDos
 export const TABELAS_DA_OBRA = [
   'rdos', 'rdo_efetivo', 'rdo_equipamentos', 'frentes_servico', 'rdo_frentes', 'rdo_frente_equipe', 'fotos',
   'pedidos_material', 'insumos', 'movimentos_estoque', 'atividades', 'restricoes', 'semana_atividades', 'subtarefas',
-  'medicoes', 'medicao_itens', 'plantas_visuais', 'planta_etapas', 'planta_marcacoes',
+  'medicoes', 'medicao_itens', 'plantas_visuais', 'planta_etapas', 'planta_marcacoes', 'planta_quantitativos',
 ]
 
 // ---------------------------------------------------------------------------

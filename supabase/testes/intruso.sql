@@ -18,13 +18,13 @@ declare
   tabs text[] := array['atividades','equipamentos','fotos','frentes_servico','funcionarios','insumos','materiais',
     'medicao_itens','medicoes','membros','movimentos_estoque','obras','pedidos_material','profiles','rdo_efetivo',
     'rdo_equipamentos','rdo_frente_equipe','rdo_frentes','rdos','restricoes','semana_atividades','subtarefas',
-    'plantas_visuais','planta_etapas','planta_marcacoes'];
+    'plantas_visuais','planta_etapas','planta_marcacoes','planta_quantitativos'];
   -- O que o quadro deixa o Gerente fazer na obra DELE (as demais tentativas têm que ser recusadas):
   gerente_le_todas text[] := array['funcionarios','equipamentos','materiais'];   -- cadastros que circulam entre obras
   gerente_cria_sem_obra text[] := array['materiais'];                             -- catálogo: criar pode
   gerente_apaga text[] := array['fotos','pedidos_material','rdo_efetivo','rdo_equipamentos','rdo_frente_equipe',
     'restricoes','semana_atividades','subtarefas','movimentos_estoque',
-    'planta_etapas','planta_marcacoes'];                                          -- foto, pedido em Solicitar, partes de editar e o "desfazer" da planta
+    'planta_etapas','planta_marcacoes','planta_quantitativos'];                                          -- foto, pedido em Solicitar, partes de editar e o "desfazer" da planta
   dinheiro text[] := array['medicoes','medicao_itens'];                            -- só o Engenheiro, até na obra dele
   amostras jsonb := '{}'; amostra jsonb; p record; t text; filtro text; mudar text; alvo uuid;
   n int; tot int; r text[] := '{}'; est text; saida text := '';
@@ -53,6 +53,7 @@ begin
     insert into public.planta_etapas (obra_id, nome, cor, criado_por) values (alvo, 'Etapa intruso', '#F2B23E', adm);
     insert into public.planta_marcacoes (obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por)
       values (alvo, pl, 'Etapa intruso', '#F2B23E', 'ret', '{"x":1,"y":1,"w":9,"h":9}', '2026-11-16', adm);
+    insert into public.planta_quantitativos (obra_id, planta_id, rotulo, etapa, quantidade) values (alvo, pl, 'S1', 'Etapa intruso', 1);
   end loop;
 
   -- Uma linha de exemplo de cada tabela, para tentar inserir uma cópia como intruso.

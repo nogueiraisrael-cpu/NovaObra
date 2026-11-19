@@ -466,20 +466,26 @@ export function criarMock(hoje = hojeISO()) {
   // do MESMO caminhão hoje, em notas diferentes) e a do térreo, vazia; a UBS tem uma planta só,
   // com uma etapa e uma marcação. Se aparecer sapata na UBS, vazou dado.
   const plantas_visuais = [
-    { id: 'pl-serra-fund', obra_id: 'obra-serra', nome: 'Fundação', pavimento: 'Fundação', caminho_imagem: 'obra-serra/plantas/pl-serra-fund.png',
+    { id: 'pl-serra-fund', obra_id: 'obra-serra', nome: 'Fundação', pavimento: 'Fundação', caminho_imagem: 'obra-serra/plantas/pl-serra-fund.png', conta_no_andamento: true,
       largura: 4000, altura: 2800, textos: [{ s: 'S1', x: 150, y: 150 }, { s: 'S2', x: 450, y: 150 }, { s: 'Cota 1,20', x: 470, y: 180 }],
       criado_por: P.israel, created_at: `${d(-10)}T08:00:00Z` },
-    { id: 'pl-serra-terreo', obra_id: 'obra-serra', nome: 'Forma do térreo', pavimento: 'Térreo', caminho_imagem: 'obra-serra/plantas/pl-serra-terreo.jpg',
+    { id: 'pl-serra-terreo', obra_id: 'obra-serra', nome: 'Forma do térreo', pavimento: 'Térreo', caminho_imagem: 'obra-serra/plantas/pl-serra-terreo.jpg', conta_no_andamento: true,
       largura: 3000, altura: 4000, textos: null, criado_por: P.israel, created_at: `${d(-5)}T08:00:00Z` },
-    { id: 'pl-ubs-fund', obra_id: 'obra-ubs', nome: 'Fundação UBS', pavimento: 'Fundação', caminho_imagem: 'obra-ubs/plantas/pl-ubs-fund.png',
+    { id: 'pl-ubs-fund', obra_id: 'obra-ubs', nome: 'Fundação UBS', pavimento: 'Fundação', caminho_imagem: 'obra-ubs/plantas/pl-ubs-fund.png', conta_no_andamento: true,
       largura: 2000, altura: 1500, textos: null, criado_por: P.ricardo, created_at: `${d(-3)}T08:00:00Z` },
   ]
   const planta_etapas = [
-    { id: 'pe-serra-esc', obra_id: 'obra-serra', nome: 'Escavado', cor: '#F2B23E', ordem: 0, ativa: true, meta: 20, unidade: 'un', criado_por: P.israel },
+    { id: 'pe-serra-esc', obra_id: 'obra-serra', nome: 'Escavado', cor: '#F2B23E', ordem: 0, ativa: true, meta: 20, unidade: 'un', item_medicao: null, criado_por: P.israel },
     { id: 'pe-serra-forma', obra_id: 'obra-serra', nome: 'Forma', cor: '#9B6BD6', ordem: 1, ativa: true, meta: null, unidade: 'un', criado_por: P.israel },
     { id: 'pe-serra-arm', obra_id: 'obra-serra', nome: 'Armado', cor: '#3D7DD8', ordem: 2, ativa: true, meta: null, unidade: 'un', criado_por: P.israel },
-    { id: 'pe-serra-conc', obra_id: 'obra-serra', nome: 'Concretado', cor: '#3DC28C', ordem: 3, ativa: true, meta: 30, unidade: 'm³', criado_por: P.israel },
+    { id: 'pe-serra-conc', obra_id: 'obra-serra', nome: 'Concretado', cor: '#3DC28C', ordem: 3, ativa: true, meta: 30, unidade: 'm³', item_medicao: '2.4', criado_por: P.israel },
     { id: 'pe-ubs-esc', obra_id: 'obra-ubs', nome: 'Estaca', cor: '#E2574C', ordem: 0, ativa: true, meta: null, unidade: 'un', criado_por: P.ricardo },
+  ]
+  // Quadro de peças: só a Serra (S1 e S2 no Concretado). A UBS não tem quadro de propósito.
+  const planta_quantitativos = [
+    { id: 'pq-s1-conc', obra_id: 'obra-serra', planta_id: 'pl-serra-fund', rotulo: 'S1', etapa: 'Concretado', quantidade: 1.5, criado_por: P.israel },
+    { id: 'pq-s2-conc', obra_id: 'obra-serra', planta_id: 'pl-serra-fund', rotulo: 'S2', etapa: 'Concretado', quantidade: 2, criado_por: P.israel },
+    { id: 'pq-s10-conc', obra_id: 'obra-serra', planta_id: 'pl-serra-fund', rotulo: 'S10', etapa: 'Concretado', quantidade: 1.25, criado_por: P.israel },
   ]
   const marca = (id, planta_id, obra_id, etapa, cor, data, rotulo, extra = {}) => ({
     id, obra_id, planta_id, etapa, cor, tipo: 'ret', pontos: { x: 100, y: 100, w: 100, h: 100 }, data, rotulo,
@@ -499,7 +505,7 @@ export function criarMock(hoje = hojeISO()) {
   ]
 
   return {
-    plantas_visuais, planta_etapas, planta_marcacoes,
+    plantas_visuais, planta_etapas, planta_marcacoes, planta_quantitativos,
     profiles, obras, membros, funcionarios, equipamentos, frentes_servico,
     rdos, rdo_efetivo, rdo_equipamentos, rdo_frentes, rdo_frente_equipe, fotos,
     materiais, pedidos_material, insumos, movimentos_estoque, atividades, restricoes, semana_atividades, subtarefas,

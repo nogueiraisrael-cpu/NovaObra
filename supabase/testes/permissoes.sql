@@ -12,7 +12,7 @@ declare
   ubs uuid; serra uuid; n int; falhas text := ''; total int := 0; certos int := 0;
   pedido_ubs uuid; pedido_novo uuid; dia date; efetivo_do_dia_todo int;
   pl_ubs uuid := gen_random_uuid(); pl_serra uuid := gen_random_uuid(); mk_ubs uuid := gen_random_uuid(); mk_serra uuid := gen_random_uuid();
-  mk_ger uuid; bate boolean;
+  mk_ger uuid; bate boolean; q_ger uuid;
 begin
   select id into adm from public.profiles where role = 'admin_master' and status = 'ativo' order by created_at limit 1;
   select id into ubs from public.obras where codigo = 'UBS-NE';
@@ -37,6 +37,8 @@ begin
   insert into public.planta_marcacoes (id, obra_id, planta_id, etapa, cor, tipo, pontos, data, criado_por) values
     (mk_ubs, ubs, pl_ubs, 'Escavado T', '#F2B23E', 'ret', '{"x":1,"y":1,"w":9,"h":9}', '2026-11-16', adm),
     (mk_serra, serra, pl_serra, 'Escavado T', '#F2B23E', 'ret', '{"x":1,"y":1,"w":9,"h":9}', '2026-11-16', adm);
+  insert into public.planta_quantitativos (obra_id, planta_id, rotulo, etapa, quantidade) values
+    (ubs, pl_ubs, 'S1', 'Escavado T', 0.72), (serra, pl_serra, 'S1', 'Escavado T', 0.72);
 
   -- Um dia com efetivo lançado: o teste não depende de ter diário hoje.
   select max(data) into dia from public.rdo_efetivo where obra_id = serra;
@@ -80,6 +82,7 @@ begin
   select count(*) into n from public.efetivo_do_dia(dia); insert into _r values ('cliente não vê o efetivo do dia', n = 0);
   select count(*) into n from public.fotos; insert into _r values ('cliente ainda não vê foto (v1.1)', n = 0);
   select count(*) into n from public.plantas_visuais; insert into _r values ('cliente ainda não vê planta (v1.1)', n = 0);
+  select count(*) into n from public.planta_quantitativos; insert into _r values ('cliente ainda não vê quadro de peças (v1.1)', n = 0);
   select count(*) into n from public.planta_marcacoes; insert into _r values ('cliente ainda não vê marcação (v1.1)', n = 0);
   reset role;
 
@@ -186,6 +189,22 @@ begin
   insert into _r values ('gerente abre planta PNG da UBS', privado.pode_foto(ubs || '/plantas/' || gen_random_uuid() || '.png'));
   insert into _r values ('gerente não abre planta da Serra', not privado.pode_foto(serra || '/plantas/' || gen_random_uuid() || '.png'));
   insert into _r values ('PNG fora da pasta plantas é recusado', not privado.pode_foto(ubs || '/diario/' || gen_random_uuid() || '.png'));
+  select count(*) into n from public.planta_quantitativos where obra_id = serra; insert into _r values ('gerente não vê quadro de peças da Serra', n = 0);
+  insert into public.planta_quantitativos (obra_id, planta_id, rotulo, etapa, quantidade) values (ubs, pl_ubs, 'S2', 'Escavado T', 0.9) returning id into q_ger;
+  update public.planta_quantitativos set quantidade = 1.1 where id = q_ger; get diagnostics n = row_count;
+  insert into _r values ('gerente cria e edita o quadro de peças da UBS', n = 1);
+  begin
+    insert into public.planta_quantitativos (obra_id, planta_id, rotulo, etapa, quantidade) values (serra, pl_serra, 'S9', 'X', 1);
+    insert into _r values ('gerente não grava no quadro da Serra', false);
+  exception when insufficient_privilege then insert into _r values ('gerente não grava no quadro da Serra', true); end;
+  begin
+    insert into public.planta_quantitativos (obra_id, planta_id, rotulo, etapa, quantidade) values (ubs, pl_serra, 'S9', 'X', 1);
+    insert into _r values ('quadro da UBS não aponta planta da Serra', false);
+  exception when foreign_key_violation then insert into _r values ('quadro da UBS não aponta planta da Serra', true); end;
+  delete from public.planta_quantitativos where obra_id = serra; get diagnostics n = row_count;
+  insert into _r values ('gerente não apaga quadro da Serra', n = 0);
+  delete from public.planta_quantitativos where id = q_ger; get diagnostics n = row_count;
+  insert into _r values ('gerente apaga célula do quadro da UBS', n = 1);
   reset role;
 
   -- ── Engenheiro (admin) ──
@@ -220,6 +239,7 @@ begin
   delete from public.plantas_visuais where id = pl_ubs; get diagnostics n = row_count;
   insert into _r values ('engenheiro apaga planta', n = 1);
   select count(*) into n from public.planta_marcacoes where planta_id = pl_ubs; insert into _r values ('as marcações da planta apagada vão junto', n = 0);
+  select count(*) into n from public.planta_quantitativos where planta_id = pl_ubs; insert into _r values ('o quadro de peças da planta apagada vai junto', n = 0);
   reset role;
 
   select count(*), count(*) filter (where ok) into total, certos from _r;
