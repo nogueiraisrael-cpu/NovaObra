@@ -72,3 +72,9 @@ export const STATUS_RDO_HOJE = ['Não iniciado', 'Em andamento', 'Fechado']
 export const UNIDADES_ETAPA = ['un', 'm²', 'm', 'm³', 'kg', 't']
 export const TIPOS_MARCACAO = ['pincel', 'ret', 'seta']
 export const ESPESSURAS_MARCACAO = [0.5, 1, 2]
+
+// Gestão à Vista, sapata por tipo (migration -31): como cada etapa é calculada a partir das medidas
+// do tipo. IDÊNTICO ao CHECK de planta_etapas.calcular_como. A unidade é a do cálculo; a etapa ligada
+// precisa usar a mesma (Armação aceita também t: kg ÷ 1000).
+export const SERVICOS_CALCULO = ['Escavação', 'Lastro', 'Forma', 'Armação', 'Concreto']
+export const UNIDADE_DO_SERVICO = { Escavação: 'm³', Lastro: 'm³', Forma: 'm²', Armação: 'kg', Concreto: 'm³' }
