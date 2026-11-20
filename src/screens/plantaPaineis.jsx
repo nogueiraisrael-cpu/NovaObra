@@ -296,7 +296,7 @@ export function PainelEtapas({ aberto, fechar, etapas, aoMudar }) {
                     <button className="gv-chip" disabled={ocupado || i === 0} onClick={() => fazer(moverEtapa(e.id, 'subir'))} aria-label={`Subir ${e.nome}`}>↑</button>
                     <button className="gv-chip" disabled={ocupado || i === lista.length - 1} onClick={() => fazer(moverEtapa(e.id, 'descer'))} aria-label={`Descer ${e.nome}`}>↓</button>
                     <button className="link-insumo" disabled={ocupado} onClick={() => setEditando(e)}>Editar</button>
-                    <button className="link-insumo" disabled={ocupado} onClick={() => fazer(salvarEtapa({ ...e, ativa: !e.ativa }), e.ativa ? 'Etapa arquivada.' : 'Etapa de volta.')}>{e.ativa ? 'Arquivar' : 'Reativar'}</button>
+                    <button className="link-insumo" disabled={ocupado} onClick={() => fazer(salvarEtapa({ ...e, ativa: !e.ativa }), e.ativa ? (e.calcular_como ? `Etapa arquivada. O "Calcular como" (${e.calcular_como}) foi desligado.` : 'Etapa arquivada.') : 'Etapa de volta.')}>{e.ativa ? 'Arquivar' : 'Reativar'}</button>
                     <button className="link-remover" disabled={ocupado} onClick={() => pedirApagar(e)}>Apagar</button>
                   </div>
                 ))}

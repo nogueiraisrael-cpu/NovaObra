@@ -2,7 +2,7 @@
 // ("S1=S2=…=S22 (X11)"), as medidas do detalhe (em cm) e o bloco da tabela de aço; o app calcula por peça
 // e, depois da conferência, grava no quadro de peças. As contas ficam em src/lib/sapataTipo.js.
 import { useState } from 'react'
-import { aplicarTiposDePeca, guardarTiposDePeca, posso } from '../lib/dados.js'
+import { aplicarTiposDePeca, guardarTiposDePeca, posso, TIPOS_MUDARAM } from '../lib/dados.js'
 import {
   PESO_ACO_NBR, ROTULOS_DAS_MEDIDAS, MEDIDAS_PADRAO_CM, celulasDosTipos, lerListaDePecas, servicosDoTipo, tipoDoFormulario, validarTipo,
 } from '../lib/sapataTipo.js'
@@ -147,14 +147,21 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
     setOcupado(true)
     const r = await guardarTiposDePeca(planta.id, { tipos: novosTipos, kg_por_metro: kgUsuario, removidos: novosRemovidos }, versao)
     setOcupado(false)
-    if (r.erro) { toast(r.erro, 'bad'); return false }
+    if (r.erro) { toast(r.erro, 'bad'); await recarregarSeMudou(r.erro); return false }
     setTipos(novosTipos)
     setRemovidos(novosRemovidos)
     setKgGuardado(JSON.stringify(kgUsuario))
     setVersao(r.data.versao)
     setPendente(true)
-    aoMudar()
+    await aoMudar()
     return true
+  }
+
+  // Outra pessoa gravou os tipos: recarrega a planta e fecha, senão esta gaveta recusaria tudo para sempre.
+  async function recarregarSeMudou(erro) {
+    if (erro !== TIPOS_MUDARAM) return
+    await aoMudar()
+    fechar()
   }
 
   async function salvarTipo(tipo) {
@@ -179,7 +186,7 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
     setOcupado(true)
     const r = await aplicarTiposDePeca(planta.id, { tipos: resultado.tipos, kg_por_metro: kgUsuario }, resultado.linhas, versao)
     setOcupado(false)
-    if (r.erro) return toast(r.erro, 'bad')
+    if (r.erro) { toast(r.erro, 'bad'); return recarregarSeMudou(r.erro) }
     setVersao(r.data.versao)
     setPendente(false)
     setRemovidos([])

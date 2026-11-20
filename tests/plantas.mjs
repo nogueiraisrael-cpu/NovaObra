@@ -286,7 +286,7 @@ const versaoLida = aplicadoG.versao
 conferir('cada gravação dos tipos sobe a versão', typeof versaoLida === 'number' && versaoLida > 0, true)
 const daOutraPessoa = await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [tipoG], kg_por_metro: {}, removidos: [] }, versaoLida)
 conferir('quem leu a versão atual grava e recebe a nova', [daOutraPessoa.erro, daOutraPessoa.data?.versao], [null, versaoLida + 1])
-const FRASE_VERSAO = 'Outra pessoa mudou os tipos desta planta enquanto você editava. Feche e abra os tipos de novo.'
+const FRASE_VERSAO = 'Outra pessoa mudou os tipos desta planta enquanto você editava. Abra os tipos de novo para ver a versão dela.'
 conferir('guardar em cima de versão velha é recusado', (await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [], kg_por_metro: {}, removidos: [tipoG] }, versaoLida)).erro, FRASE_VERSAO)
 conferir('aplicar em cima de versão velha é recusado, sem mexer no quadro', (await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoG], kg_por_metro: {} }, [{ rotulo: 'S40', etapa: 'Concretado', quantidade: 9 }], versaoLida)).erro, FRASE_VERSAO)
 conferir('o quadro não ganhou a célula recusada', (await dados.abrirPlanta('pl-serra-fund')).data.quantitativos.some((q) => q.rotulo === 'S40'), false)

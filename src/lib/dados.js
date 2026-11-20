@@ -2027,6 +2027,8 @@ export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas, ve
   if (versaoMudou(planta, versaoLida)) return falha(TIPOS_MUDARAM)
   const versao = versaoDosTipos(planta) + 1
   await gravarCelulas(obraId, plantaId, linhas)
+  // As células gravam uma a uma (segundos no celular): confere de novo logo antes de gravar os tipos.
+  if (versaoMudou(await plantaDaObra(plantaId, obraId), versaoLida)) return falha(TIPOS_MUDARAM)
   await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {}, removidos: [], pendente: false, versao } })
   return ok({ versao })
 })
@@ -2034,7 +2036,7 @@ export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas, ve
 // Duas pessoas com a gaveta de tipos aberta: cada gravação sobe `versao` (dentro de tipos_de_peca); quem grava em
 // cima de uma versão que não é a que leu é recusado, senão apagaria os tipos do outro. `versaoLida` ausente = não
 // confere (chamada sem tela, como nos testes antigos).
-const TIPOS_MUDARAM = 'Outra pessoa mudou os tipos desta planta enquanto você editava. Feche e abra os tipos de novo.'
+export const TIPOS_MUDARAM = 'Outra pessoa mudou os tipos desta planta enquanto você editava. Abra os tipos de novo para ver a versão dela.'
 const versaoDosTipos = (planta) => Number(planta.tipos_de_peca?.versao ?? 0)
 const versaoMudou = (planta, versaoLida) => versaoLida !== undefined && versaoDosTipos(planta) !== versaoLida
 

@@ -22,8 +22,14 @@ const arred = (n, casas = 4) => Math.round(n * 10 ** casas) / 10 ** casas
 // O nome do campo Peça, pela mesma regra de limparRotulo (maiúsculas); vazio = ''.
 export const nomeDaPeca = (texto) => limparRotulo(texto) ?? ''
 
-// O nome que o campo Peça dá a uma marcação nova: a seta é anotação, não peça, então não leva nome nem avança.
-export const pecaDoCampo = (tipo, texto) => (tipo === 'seta' ? '' : nomeDaPeca(texto))
+// O nome de uma marcação nova. O nome que veio do PDF (`doPdf`, de sugerirRotulo) ganha sempre: o campo Peça
+// existe para a prancha cujo PDF não tem os nomes em texto, e um campo esquecido preenchido não pode renomear
+// peça que o PDF já nomeia. A seta não usa o campo (é anotação). `usouCampo` diz se o campo deve avançar.
+export function nomeDaMarcacaoNova(tipo, campo, doPdf) {
+  if (doPdf) return { rotulo: doPdf, usouCampo: false }
+  const doCampo = tipo === 'seta' ? '' : nomeDaPeca(campo)
+  return doCampo ? { rotulo: doCampo, usouCampo: true } : { rotulo: null, usouCampo: false }
+}
 
 // Renomear uma etapa: as células que cada tipo lembra ter gravado (`ultimo`, chave "peça|etapa") passam a usar o
 // nome novo, nos tipos e nos apagados ainda não aplicados. Sem isso, a conferência acharia as células "digitadas

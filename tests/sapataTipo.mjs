@@ -2,7 +2,7 @@
 // (concreto, lastro, forma, escavação, aço), o que gravar no quadro de peças e a próxima peça.
 // Medidas e tabelas fictícias, no formato das pranchas reais (que não entram no Git).
 import {
-  nomeDaPeca, pecaDoCampo, renomearEtapaNosTipos, PESO_ACO_NBR, lerListaDePecas, tipoDoFormulario, MEDIDAS_PADRAO_CM, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
+  nomeDaPeca, nomeDaMarcacaoNova, renomearEtapaNosTipos, PESO_ACO_NBR, lerListaDePecas, tipoDoFormulario, MEDIDAS_PADRAO_CM, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
 } from '../src/lib/sapataTipo.js'
 import { SERVICOS_CALCULO, UNIDADE_DO_SERVICO } from '../src/lib/listas.js'
 
@@ -133,8 +133,11 @@ const rArq = celulasDosTipos({ tipos: [tipo1], etapas: etapasArq, atual: new Map
 conferir('etapa arquivada: nenhuma célula nela, e avisa que o serviço ficou sem etapa', [rArq.linhas.some((l) => l.etapa === 'CONCRETAGEM'), rArq.avisos.includes('Concreto: nenhuma etapa calculada como Concreto.')], [false, true])
 
 // Defeito 7: a seta não é peça; o campo Peça não vale para ela.
-conferir('campo Peça vale para retângulo e pincel (o Detectar grava pincel)', ['ret', 'pincel'].map((t) => pecaDoCampo(t, ' s3 ')), ['S3', 'S3'])
-conferir('campo Peça não vale para a seta', pecaDoCampo('seta', 'S3'), '')
+// Revisão: o nome que veio do PDF ganha; o campo Peça só preenche quando o PDF não tem nome ali.
+conferir('PDF sem nome: o campo dá o nome (retângulo e pincel; o Detectar grava pincel)', ['ret', 'pincel'].map((t) => nomeDaMarcacaoNova(t, ' s3 ', null)), [{ rotulo: 'S3', usouCampo: true }, { rotulo: 'S3', usouCampo: true }])
+conferir('PDF com nome: ele ganha do campo esquecido', nomeDaMarcacaoNova('ret', 'S3', 'S12'), { rotulo: 'S12', usouCampo: false })
+conferir('seta não usa o campo Peça', nomeDaMarcacaoNova('seta', 'S3', null), { rotulo: null, usouCampo: false })
+conferir('campo vazio e PDF sem nome: sem nome', nomeDaMarcacaoNova('ret', '  ', null), { rotulo: null, usouCampo: false })
 
 // Defeito 8: renomear a etapa leva junto o que os tipos lembram ter gravado.
 const tdpAntes = { tipos: [{ ...r1.tipos[0] }], kg_por_metro: {}, removidos: [{ nome: 'Velho', ultimo: { 'S9|CONCRETAGEM': 1 } }], pendente: false, versao: 3 }
