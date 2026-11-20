@@ -11,3 +11,6 @@ dist
 
 seguranca/
 .superpowers/
+
+# Levantamentos das obras reais (pranchas, quantitativos, contratos). Nunca vão pro GitHub.
+levantamentos/

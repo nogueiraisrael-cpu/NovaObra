@@ -217,7 +217,8 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   reais nunca entram no Git nem nos testes: os exemplos são fictícios no mesmo formato.
   "Salvar tipo", "Apagar" e o peso por metro gravam os tipos na hora (`guardarTiposDePeca`, com `pendente` e os
   `removidos` que o próximo aplicar limpa); só "Aplicar no quadro" mexe nas células. Nome de peça é sempre em
-  maiúsculas (`nomeDaPeca`): "s2" e "S2" viravam duas peças e o previsto somava as duas. Etapa em "un" não guarda
+  maiúsculas (dono da regra: `limparRotulo` em `plantas.js`; `criarMarcacao`, `editarMarcacao` e o quadro passam
+  por ela): "s2" e "S2" viravam duas peças e o previsto somava as duas. Etapa em "un" não guarda
   `calcular_como`. Tipo sem aço não grava Armação (fica "sem quantitativo", nunca 0).
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
   concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
