@@ -11,7 +11,7 @@
 //   escavação = (A + 2·folga)·(B + 2·folga)·profundidade
 //   armação   = Σ comprimento total (m) × peso por metro da bitola ÷ peças do tipo (a linha é do grupo inteiro)
 import { SERVICOS_CALCULO, UNIDADE_DO_SERVICO } from './listas.js'
-import { ordemNatural, lerNumero } from './plantas.js'
+import { ordemNatural, lerNumero, limparRotulo } from './plantas.js'
 import { chaveDaCelula } from './quantitativo.js'
 
 // Peso por metro (kg/m) da NBR 7480. Cada planta pode trocar (o projetista do Israel usa 0,63 para 10 mm).
@@ -19,9 +19,8 @@ export const PESO_ACO_NBR = { 5: 0.154, 6.3: 0.245, 8: 0.395, 10: 0.617, 12.5: 0
 
 const arred = (n, casas = 4) => Math.round(n * 10 ** casas) / 10 ** casas
 
-// O nome de peça é sempre em maiúsculas (como o projeto escreve e como sai do PDF): "s2", digitado no
-// celular, é a mesma S2. Sem isso, o quadro ganhava S2 e s2, e o previsto somava as duas.
-export const nomeDaPeca = (texto) => String(texto ?? '').trim().toUpperCase().slice(0, 40)
+// O nome do campo Peça, pela mesma regra de limparRotulo (maiúsculas); vazio = ''.
+export const nomeDaPeca = (texto) => limparRotulo(texto) ?? ''
 
 // "S1=S2=S3 (X11)", "S1, S2; S3", "S1 a S5" → { pecas, declarado, aviso }. Peças em maiúsculas.
 export function lerListaDePecas(texto) {

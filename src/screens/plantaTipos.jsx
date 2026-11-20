@@ -177,6 +177,8 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
     const r = await aplicarTiposDePeca(planta.id, { tipos: resultado.tipos, kg_por_metro: kgUsuario }, resultado.linhas)
     setOcupado(false)
     if (r.erro) return toast(r.erro, 'bad')
+    setPendente(false)
+    setRemovidos([])
     toast('Tipos aplicados no quadro de peças.')
     await aoMudar()
     fechar()
@@ -223,7 +225,7 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
 
       <div className="sheet-actions">
         <button className="btn btn-ghost" onClick={fechar}>Fechar</button>
-        {pode && <button className="btn btn-primary" disabled={!tipos.length && !removidos.length} onClick={() => setConferindo(true)}>Conferir e aplicar</button>}
+        {pode && <button className="btn btn-primary" disabled={ocupado || (!tipos.length && !removidos.length)} onClick={() => setConferindo(true)}>Conferir e aplicar</button>}
       </div>
     </>
   )

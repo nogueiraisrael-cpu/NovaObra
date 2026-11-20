@@ -189,6 +189,7 @@ conferir('etapa medida pede quantidade', pedeQuantidade({ unidade: 'm³' }), tru
 conferir('etapa "un" sem número não pede', pedeQuantidade({ unidade: 'un' }, { quantidade: null }), false)
 conferir('peça que já tem número não perde (etapa antiga ou que virou "un")', [pedeQuantidade({ unidade: '' }, { quantidade: 2 }), pedeQuantidade({ unidade: 'un' }, { quantidade: 2 })], [true, true])
 conferir('nome da peça: limpa e corta em 40', [limparRotulo('  P12 '), limparRotulo('   '), limparRotulo('x'.repeat(50)).length], ['P12', null, 40])
+conferir('nome da peça: sempre em maiúsculas ("s2" é a S2)', limparRotulo(' s2 '), 'S2')
 conferir('desenho completo passa', conferirMarcacao({ tipo: 'ret', espessura: 1, etapa: 'A', cor: '#000000', data: '2026-11-16' }), null)
 conferir('data inválida é recusada', conferirMarcacao({ tipo: 'ret', espessura: 1, etapa: 'A', cor: '#000000', data: '16/11/2026' }), 'Escolha a data da marcação.')
 // Dentro do pavimento, a ordem em que chegaram (a lista vem da mais nova para a mais antiga).
@@ -241,6 +242,12 @@ conferir('itens da última medição do contrato da UBS, com unidade', [itensUbs
 await dados.salvarEtapa({ nome: 'Concretado', cor: '#3DC28C', unidade: 'm³', meta: '', item_medicao: '2.1.3' })
 await dados.salvarQuantitativos('pl-ubs-fund', [{ rotulo: 'E1', etapa: 'Concretado', quantidade: 2 }])
 await dados.criarMarcacao('pl-ubs-fund', { ...conc, rotulo: 'E1' })
+// Revisão de 19/11: a camada de dados põe o nome em maiúsculas em qualquer caminho (não só na tela).
+const minuscula = await dados.criarMarcacao('pl-ubs-fund', { ...conc, rotulo: ' e1 ' })
+conferir('marcar "e1" acha a E1 no quadro e grava E1', [minuscula.erro, minuscula.data?.rotulo], [null, 'E1'])
+conferir('renomear para "e7" grava E7', (await dados.editarMarcacao(minuscula.data.id, { rotulo: 'e7', quantidade: 1 })).erro, null)
+conferir('o nome renomeado volta em maiúsculas', (await dados.abrirPlanta('pl-ubs-fund')).data.marcacoes.find((m) => m.id === minuscula.data.id).rotulo, 'E7')
+await dados.apagarMarcacao(minuscula.data.id)
 const andUbs = (await dados.obterAndamentoDaObra()).data
 conferir('andamento: medição de referência é a 3ª', andUbs.medicao.numero, 3)
 conferir('andamento do 2.1.3: contratado, medido, executado, saldo, %', (({ item, contratado, medido, executado, saldo, pct }) => ({ item, contratado, medido, executado, saldo, pct }))(andUbs.linhas[0]),

@@ -253,7 +253,9 @@ export const pedeQuantidade = (etapa, marcacao = null) =>
   Boolean(etapa?.unidade && etapa.unidade !== 'un') || marcacao?.quantidade != null
 
 // O nome da peça como se grava: sem espaço sobrando, até 40 letras, vazio = sem nome.
-export const limparRotulo = (texto) => String(texto ?? '').trim().slice(0, 40) || null
+// Nome de peça: sempre em maiúsculas (como o projeto escreve e o PDF traz). "s2", digitado no celular, é a
+// mesma S2; sem isso o quadro ganhava S2 e s2 e o previsto somava as duas. Dono único da regra.
+export const limparRotulo = (texto) => String(texto ?? '').trim().toUpperCase().slice(0, 40) || null
 
 // O desenho que chega para gravar está inteiro? Erro (frase) ou null. (A camada de dados confere
 // de novo antes de gravar, para nenhuma tela gravar coisa fora da lista.)

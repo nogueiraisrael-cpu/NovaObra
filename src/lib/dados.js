@@ -1995,16 +1995,23 @@ async function gravarCelulas(obraId, plantaId, linhas) {
   }
 }
 
+// Quem pode e se cada tipo está inteiro (aplicar e guardar conferem igual). Frase ou null.
+function conferirTipos(tipos) {
+  if (!posso('pranchas.editar')) return 'Seu perfil não edita o quadro de peças.'
+  for (const tipo of tipos) {
+    const erro = validarTipo(tipo, tipos)
+    if (erro) return erro
+  }
+  return null
+}
+
 // Sapata por tipo: grava as células que o cálculo deu (`linhas`, de celulasDosTipos em sapataTipo.js) e
 // SÓ DEPOIS os tipos (com `aplicadas` e `ultimo` novos). Nessa ordem, se cair no meio, os tipos guardados ainda
 // são os de antes: aplicar de novo recalcula a partir deles e completa (peça que saiu e tipo apagado ainda são
 // limpos). Na ordem inversa, essas limpezas se perderiam.
 export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas) => executar(async () => {
-  if (!posso('pranchas.editar')) return falha('Seu perfil não edita o quadro de peças.')
-  for (const tipo of tipos) {
-    const erro = validarTipo(tipo, tipos)
-    if (erro) return falha(erro)
-  }
+  const erroTipos = conferirTipos(tipos)
+  if (erroTipos) return falha(erroTipos)
   const erroLinhas = conferirLinhasDoQuadro(linhas)
   if (erroLinhas) return falha(erroLinhas)
   const obraId = obraAtual()
@@ -2018,11 +2025,8 @@ export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas) =>
 // "Aplicar no quadro"). `removidos` = tipos apagados desde o último aplicar: ficam guardados para o aplicar
 // limpar as células deles. `pendente` = há mudança que ainda não foi para o quadro.
 export const guardarTiposDePeca = (plantaId, { tipos, kg_por_metro, removidos }) => executar(async () => {
-  if (!posso('pranchas.editar')) return falha('Seu perfil não edita o quadro de peças.')
-  for (const tipo of tipos) {
-    const erro = validarTipo(tipo, tipos)
-    if (erro) return falha(erro)
-  }
+  const erroTipos = conferirTipos(tipos)
+  if (erroTipos) return falha(erroTipos)
   const obraId = obraAtual()
   if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
   await gravar('plantas_visuais', { id: plantaId, obra_id: obraId },
@@ -2085,9 +2089,11 @@ const CAMPOS_DA_MARCACAO = ['tipo', 'pontos', 'etapa', 'cor', 'data', 'rotulo', 
 const soCamposDaMarcacao = (campos) => Object.fromEntries(CAMPOS_DA_MARCACAO.filter((c) => campos[c] !== undefined).map((c) => [c, campos[c]]))
 
 // Grava um desenho novo na planta. `campos` já vem em pixels da imagem (plantaGeometria.js).
-export const criarMarcacao = (plantaId, campos) => executar(async () => {
+export const criarMarcacao = (plantaId, dadosDaTela) => executar(async () => {
   if (!posso('pranchas.pintar')) return falha('Seu perfil não marca na planta.')
   const obraId = obraAtual()
+  // O nome da peça passa pela mesma regra em qualquer caminho (maiúsculas), não só na tela.
+  const campos = dadosDaTela.rotulo === undefined ? dadosDaTela : { ...dadosDaTela, rotulo: limparRotulo(dadosDaTela.rotulo) }
   const erro = conferirMarcacao(campos)
   if (erro) return falha(erro)
   if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
