@@ -2,7 +2,7 @@
 // ("S1=S2=…=S22 (X11)"), as medidas do detalhe (em cm) e o bloco da tabela de aço; o app calcula por peça
 // e, depois da conferência, grava no quadro de peças. As contas ficam em src/lib/sapataTipo.js.
 import { useState } from 'react'
-import { aplicarTiposDePeca, posso } from '../lib/dados.js'
+import { aplicarTiposDePeca, guardarTiposDePeca, posso } from '../lib/dados.js'
 import {
   PESO_ACO_NBR, ROTULOS_DAS_MEDIDAS, MEDIDAS_PADRAO_CM, celulasDosTipos, lerListaDePecas, servicosDoTipo, tipoDoFormulario, validarTipo,
 } from '../lib/sapataTipo.js'
@@ -20,7 +20,7 @@ const diferenca = (calc, prancha) => (prancha
   ? `${calc >= prancha ? '+' : ''}${(Math.round(((calc - prancha) / prancha) * 1000) / 10).toLocaleString('pt-BR')}%`
   : null)
 
-function FormTipo({ inicial, outros, kgPorMetro, salvar, cancelar }) {
+function FormTipo({ inicial, outros, kgPorMetro, salvar, cancelar, ocupado }) {
   const [r, setR] = useState(() => rascunhoDe(inicial))
   const [tentou, setTentou] = useState(false)
   const lista = lerListaDePecas(r.pecasTexto)
@@ -36,7 +36,7 @@ function FormTipo({ inicial, outros, kgPorMetro, salvar, cancelar }) {
       <label className="label" htmlFor="tp-nome">Nome do tipo</label>
       <input id="tp-nome" className="field" value={r.nome} onChange={(e) => setR({ ...r, nome: e.target.value })} placeholder="Ex.: Tipo 1" maxLength={40} />
       <label className="label" htmlFor="tp-pecas">Peças (como está na prancha)</label>
-      <textarea id="tp-pecas" className="field" rows={2} value={r.pecasTexto} onChange={(e) => setR({ ...r, pecasTexto: e.target.value })}
+      <textarea id="tp-pecas" className="field" rows={2} autoCapitalize="characters" value={r.pecasTexto} onChange={(e) => setR({ ...r, pecasTexto: e.target.value })}
         placeholder="Ex.: S1=S2=S3=S4=S5 (X5)  ou  S1 a S5" />
       <div className={`hint${lista.aviso ? ' t-warn' : ''}`}>{lista.pecas.length} peça(s) lida(s){lista.aviso ? ` · ${lista.aviso}` : ''}</div>
 
@@ -59,15 +59,15 @@ function FormTipo({ inicial, outros, kgPorMetro, salvar, cancelar }) {
 
       {porPeca && !porPeca.erro && (
         <div className="banner" style={{ marginTop: 12 }}>
-          Por peça: {SERVICOS_CALCULO.map((s) => `${s} ${formatarQtd(porPeca[s], UNIDADE_DO_SERVICO[s])}`).join(' · ')}
+          Por peça: {SERVICOS_CALCULO.map((s) => `${s} ${porPeca[s] == null ? '— (sem aço)' : formatarQtd(porPeca[s], UNIDADE_DO_SERVICO[s])}`).join(' · ')}
         </div>
       )}
       {/* Bitola fora da NBR (ex.: 4,2 mm): o tipo salva, e o peso por metro dela aparece na lista para preencher. */}
       {porPeca?.erro && <div className="banner warn">{porPeca.erro} Salve o tipo e preencha esse peso em Peso por metro, na lista de tipos.</div>}
       <ErroCampo erro={tentou && problema} />
       <div className="sheet-actions">
-        <button className="btn btn-ghost" onClick={cancelar}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => { setTentou(true); if (!problema) salvar(tipo) }}>Salvar tipo</button>
+        <button className="btn btn-ghost" onClick={cancelar} disabled={ocupado}>Cancelar</button>
+        <button className="btn btn-primary" disabled={ocupado} onClick={() => { setTentou(true); if (!problema) salvar(tipo) }}>{ocupado ? 'Salvando…' : 'Salvar tipo'}</button>
       </div>
     </>
   )
@@ -77,7 +77,7 @@ function Conferencia({ resultado, tipos, kgPorMetro, voltar, aplicar, ocupado })
   const [prancha, setPrancha] = useState({ concreto: '', aco: '' })
   const totais = tipos.reduce((t, tipo) => {
     const v = servicosDoTipo(tipo, kgPorMetro)
-    for (const s of SERVICOS_CALCULO) t[s] = (t[s] ?? 0) + v[s] * tipo.pecas.length
+    for (const s of SERVICOS_CALCULO) t[s] = (t[s] ?? 0) + (v[s] ?? 0) * tipo.pecas.length
     return t
   }, {})
   const dConcreto = diferenca(totais.Concreto, lerNumero(prancha.concreto))
@@ -94,7 +94,9 @@ function Conferencia({ resultado, tipos, kgPorMetro, voltar, aplicar, ocupado })
               return (
                 <tr key={t.nome}>
                   <td><b>{t.nome}</b></td><td>{t.pecas.length}</td>
-                  {SERVICOS_CALCULO.map((s) => <td key={s}>{formatarQtd(v[s])}<div className="hint">total {formatarQtd(v[s] * t.pecas.length)}</div></td>)}
+                  {SERVICOS_CALCULO.map((s) => (v[s] == null
+                    ? <td key={s}>—<div className="hint">sem aço no tipo</div></td>
+                    : <td key={s}>{formatarQtd(v[s])}<div className="hint">total {formatarQtd(v[s] * t.pecas.length)}</div></td>))}
                 </tr>
               )
             })}
@@ -124,25 +126,45 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
   const pode = posso('pranchas.editar')
   const guardado = planta.tipos_de_peca ?? { tipos: [], kg_por_metro: {} }
   const [tipos, setTipos] = useState(guardado.tipos ?? [])
-  const [removidos, setRemovidos] = useState([])
+  // Tipos apagados desde o último "Aplicar no quadro": o aplicar limpa as células deles.
+  const [removidos, setRemovidos] = useState(guardado.removidos ?? [])
+  const [pendente, setPendente] = useState(Boolean(guardado.pendente))
   const [kgEditado, setKgEditado] = useState(() => Object.fromEntries(Object.entries(guardado.kg_por_metro ?? {}).map(([b, v]) => [b, String(v).replace('.', ',')])))
   const [editando, setEditando] = useState(null) // { indice } ou { indice: -1 } para novo
   const [conferindo, setConferindo] = useState(false)
   const [ocupado, setOcupado] = useState(false)
 
   const kgUsuario = Object.fromEntries(Object.entries(kgEditado).map(([b, v]) => [b, lerNumero(v)]).filter(([, v]) => v > 0))
+  const [kgGuardado, setKgGuardado] = useState(() => JSON.stringify(kgUsuario))
   const kgPorMetro = { ...PESO_ACO_NBR, ...kgUsuario }
   const bitolas = [...new Set(tipos.flatMap((t) => t.aco.map((l) => String(Number(l.bitola)))))]
   const atual = new Map(quantitativos.map((q) => [chaveDaCelula(q.rotulo, q.etapa), Number(q.quantidade)]))
 
-  function salvarTipo(tipo) {
-    setTipos((ts) => (editando.indice >= 0 ? ts.map((t, i) => (i === editando.indice ? tipo : t)) : [...ts, tipo]))
-    setEditando(null)
+  // Salvar tipo, apagar e peso por metro gravam na hora (fechar a gaveta não perde nada); o quadro só muda no aplicar.
+  async function guardar(novosTipos, novosRemovidos) {
+    setOcupado(true)
+    const r = await guardarTiposDePeca(planta.id, { tipos: novosTipos, kg_por_metro: kgUsuario, removidos: novosRemovidos })
+    setOcupado(false)
+    if (r.erro) { toast(r.erro, 'bad'); return false }
+    setTipos(novosTipos)
+    setRemovidos(novosRemovidos)
+    setKgGuardado(JSON.stringify(kgUsuario))
+    setPendente(true)
+    aoMudar()
+    return true
+  }
+
+  async function salvarTipo(tipo) {
+    const novos = editando.indice >= 0 ? tipos.map((t, i) => (i === editando.indice ? tipo : t)) : [...tipos, tipo]
+    if (await guardar(novos, removidos)) setEditando(null)
   }
 
   function apagarTipo(i) {
-    setRemovidos((r) => [...r, tipos[i]])
-    setTipos((ts) => ts.filter((_, j) => j !== i))
+    guardar(tipos.filter((_, j) => j !== i), [...removidos, tipos[i]])
+  }
+
+  function guardarPeso() {
+    if (pode && JSON.stringify(kgUsuario) !== kgGuardado) guardar(tipos, removidos)
   }
 
   let resultado = null
@@ -162,7 +184,7 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
 
   if (editando) {
     return <FormTipo inicial={editando.indice >= 0 ? tipos[editando.indice] : null} outros={tipos.filter((_, i) => i !== editando.indice)}
-      kgPorMetro={kgPorMetro} salvar={salvarTipo} cancelar={() => setEditando(null)} />
+      kgPorMetro={kgPorMetro} salvar={salvarTipo} cancelar={() => setEditando(null)} ocupado={ocupado} />
   }
   if (resultado && !resultado.erro) {
     return <Conferencia resultado={resultado} tipos={tipos} kgPorMetro={kgPorMetro} voltar={() => setConferindo(false)} aplicar={aplicar} ocupado={ocupado} />
@@ -172,13 +194,14 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
     <>
       <div className="hint">Cadastre cada tipo de sapata uma vez (a lista de peças, as medidas do detalhe e o aço). O app calcula por peça e preenche o quadro.</div>
       {resultado?.erro && <div className="banner bad">{resultado.erro}</div>}
+      {pendente && <div className="banner warn" style={{ marginTop: 10 }}>Tipos guardados, mas o quadro de peças ainda não mudou: toque em <b>Conferir e aplicar</b>.</div>}
       {!tipos.length && <div className="hint" style={{ marginTop: 10 }}>Nenhum tipo ainda.</div>}
       <div className="gv-lista-etapas">
         {tipos.map((t, i) => (
           <div key={t.nome} className="gv-etapa-linha">
             <div style={{ flex: 1, minWidth: 0 }}><b>{t.nome}</b><div className="hint">{t.pecas.length} peça(s) · {t.pecas.slice(0, 6).join(', ')}{t.pecas.length > 6 ? '…' : ''}</div></div>
             {pode && <button className="link-insumo" onClick={() => setEditando({ indice: i })}>Editar</button>}
-            {pode && <button className="link-remover" onClick={() => apagarTipo(i)}>Apagar</button>}
+            {pode && <button className="link-remover" disabled={ocupado} onClick={() => apagarTipo(i)}>Apagar</button>}
           </div>
         ))}
       </div>
@@ -191,7 +214,7 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
             {bitolas.map((b) => (
               <label key={b}>{b.replace('.', ',')} mm
                 <input className="field" inputMode="decimal" value={kgEditado[b] ?? ''} placeholder={String(PESO_ACO_NBR[b] ?? '').replace('.', ',')}
-                  onChange={(e) => setKgEditado({ ...kgEditado, [b]: e.target.value })} disabled={!pode} />
+                  onChange={(e) => setKgEditado({ ...kgEditado, [b]: e.target.value })} onBlur={guardarPeso} disabled={!pode} />
               </label>
             ))}
           </div>

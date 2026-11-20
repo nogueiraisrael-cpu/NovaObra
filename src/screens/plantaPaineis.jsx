@@ -170,7 +170,7 @@ function FormEtapa({ inicial, existentes, itens, salvar, cancelar, ocupado }) {
       </div>
       <div className="form-2">
         <div><label className="label" htmlFor="et-un">Unidade</label>
-          <select id="et-un" className="field" value={campos.unidade} onChange={(e) => mudar('unidade', e.target.value)}>
+          <select id="et-un" className="field" value={campos.unidade} onChange={(e) => setCampos({ ...campos, unidade: e.target.value, ...(e.target.value === 'un' ? { calcular_como: null } : {}) })}>
             {UNIDADES_ETAPA.map((u) => <option key={u} value={u}>{u === 'un' ? 'un (cada marcação vale 1)' : u}</option>)}
           </select></div>
         <div><label className="label" htmlFor="et-meta">Meta (opcional)</label>

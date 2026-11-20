@@ -259,8 +259,26 @@ conferir('o quadro ganhou S30 e S31 no Concretado', depoisT.quantitativos.filter
 conferir('o tipo ficou guardado na planta', [depoisT.planta.tipos_de_peca.tipos[0].nome, depoisT.planta.tipos_de_peca.kg_por_metro['10']], ['Tipo T', 0.63])
 conferir('peça em dois tipos é recusada', (await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoT, { ...tipoT, nome: 'Tipo U', pecas: ['S31'] }], kg_por_metro: {} }, [])).erro, 'A peça S31 já está no tipo Tipo U.')
 const formaSerra = (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma')
-conferir('segundo "calcular como Concreto" na obra é recusado com frase', (await dados.salvarEtapa({ ...formaSerra, calcular_como: 'Concreto' })).erro, 'Já existe uma etapa calculada como Concreto nesta obra (Concretado).')
-conferir('"calcular como" grava', [(await dados.salvarEtapa({ ...formaSerra, calcular_como: 'Forma' })).erro, (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma').calcular_como], [null, 'Forma'])
+conferir('segundo "calcular como Concreto" na obra é recusado com frase', (await dados.salvarEtapa({ ...formaSerra, unidade: 'm²', calcular_como: 'Concreto' })).erro, 'Já existe uma etapa calculada como Concreto nesta obra (Concretado).')
+conferir('"calcular como" grava', [(await dados.salvarEtapa({ ...formaSerra, unidade: 'm²', calcular_como: 'Forma' })).erro, (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma').calcular_como], [null, 'Forma'])
+// Revisão de 19/11: "Salvar tipo" grava na hora (antes, fechar a gaveta sem aplicar perdia tudo).
+const tipoG = { ...tipoT, nome: 'Tipo G', pecasTexto: 'S40', pecas: ['S40'], aplicadas: [], ultimo: {} }
+conferir('guardar tipos sem aplicar', (await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [tipoT, tipoG], kg_por_metro: { 10: 0.63 }, removidos: [] })).erro, null)
+const guardadoG = (await dados.abrirPlanta('pl-serra-fund')).data.planta.tipos_de_peca
+conferir('depois do F5 os dois tipos estão lá, marcados como "falta aplicar"', [guardadoG.tipos.map((t) => t.nome), guardadoG.pendente], [['Tipo T', 'Tipo G'], true])
+conferir('guardar não mexe no quadro', (await dados.abrirPlanta('pl-serra-fund')).data.quantitativos.some((q) => q.rotulo === 'S40'), false)
+await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [tipoG], kg_por_metro: {}, removidos: [tipoT] })
+conferir('tipo apagado fica guardado para limpar no próximo aplicar', (await dados.abrirPlanta('pl-serra-fund')).data.planta.tipos_de_peca.removidos.map((t) => t.nome), ['Tipo T'])
+conferir('guardar tipo inválido é recusado', (await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [{ ...tipoG, nome: '' }], kg_por_metro: {}, removidos: [] })).erro, 'Dê um nome ao tipo.')
+await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoG], kg_por_metro: {} }, [])
+const aplicadoG = (await dados.abrirPlanta('pl-serra-fund')).data.planta.tipos_de_peca
+conferir('aplicar zera os apagados e o "falta aplicar"', [aplicadoG.removidos, aplicadoG.pendente], [[], false])
+
+// Revisão de 19/11: etapa que vira "un" perde o "calcular como" (o campo some da tela).
+const formaUn = (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma')
+await dados.salvarEtapa({ ...formaUn, unidade: 'un', calcular_como: 'Forma' })
+conferir('etapa em "un" não guarda o cálculo', (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma').calcular_como, null)
+
 dados.definirObraAtual('obra-ubs')
 conferir('da UBS não aplica tipo na planta da Serra', (await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoT], kg_por_metro: {} }, linhasT)).erro, 'Planta não encontrada nesta obra.')
 

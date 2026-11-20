@@ -19,9 +19,13 @@ export const PESO_ACO_NBR = { 5: 0.154, 6.3: 0.245, 8: 0.395, 10: 0.617, 12.5: 0
 
 const arred = (n, casas = 4) => Math.round(n * 10 ** casas) / 10 ** casas
 
-// "S1=S2=S3 (X11)", "S1, S2; S3", "S1 a S5" → { pecas, declarado, aviso }.
+// O nome de peça é sempre em maiúsculas (como o projeto escreve e como sai do PDF): "s2", digitado no
+// celular, é a mesma S2. Sem isso, o quadro ganhava S2 e s2, e o previsto somava as duas.
+export const nomeDaPeca = (texto) => String(texto ?? '').trim().toUpperCase().slice(0, 40)
+
+// "S1=S2=S3 (X11)", "S1, S2; S3", "S1 a S5" → { pecas, declarado, aviso }. Peças em maiúsculas.
 export function lerListaDePecas(texto) {
-  let t = String(texto ?? '')
+  let t = String(texto ?? '').toUpperCase()
   let declarado = null
   t = t.replace(/\(\s*(?:x\s*(\d+)|(\d+)\s*x)\s*\)/gi, (_, a, b) => { declarado = Number(a ?? b); return ' ' })
   const pecas = []
@@ -109,10 +113,12 @@ export function acoPorPeca(linhas, nPecas, kgPorMetro) {
   return nPecas ? arred(kg / nPecas) : 0
 }
 
-// O valor de cada serviço para UMA peça do tipo, na unidade do serviço.
+// O valor de cada serviço para UMA peça do tipo, na unidade do serviço. Tipo sem linha de aço: Armação null
+// ("sem quantitativo"), nunca 0, senão a armação executada somaria zero calada.
 export function servicosDoTipo(tipo, kgPorMetro) {
   const c = contasDaSapata(tipo.medidas)
-  return { Escavação: c.escavacao, Lastro: c.lastro, Forma: c.forma, Armação: acoPorPeca(tipo.aco, tipo.pecas.length, kgPorMetro), Concreto: c.concreto }
+  const armacao = tipo.aco?.length ? acoPorPeca(tipo.aco, tipo.pecas.length, kgPorMetro) : null
+  return { Escavação: c.escavacao, Lastro: c.lastro, Forma: c.forma, Armação: armacao, Concreto: c.concreto }
 }
 
 // O que aplicar os tipos grava no quadro de peças (só as células que mudam), os avisos (serviço sem etapa,
@@ -151,6 +157,12 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = 
     }
     for (const p of pecas) {
       for (const [s, { etapa, fator }] of ligados) {
+        if (valores[s] == null) {
+          // Sem valor (tipo sem aço): limpa só a célula que o próprio tipo gravou; a digitada à mão fica.
+          const k = chaveDaCelula(p, etapa)
+          if (tipo.ultimo?.[k] != null && atual.get(k) === tipo.ultimo[k]) mudar(p, etapa, null)
+          continue
+        }
         const q = arred(valores[s] * fator, 6)
         ultimo[chaveDaCelula(p, etapa)] = q
         mudar(p, etapa, q)

@@ -1924,8 +1924,9 @@ export const salvarEtapa = (dados) => executar(async () => {
   const campos = camposDaEtapa(dados)
   if (dados.item_medicao !== undefined && posso('medicoes.ver')) campos.item_medicao = String(dados.item_medicao ?? '').trim() || null
   // "Calcular como" (sapata por tipo): um serviço por obra; o banco também recusa (planta_etapas_um_servico).
-  if (dados.calcular_como !== undefined) {
-    const servico = dados.calcular_como || null
+  // Etapa em "un" não calcula (o campo some da tela): o cálculo guardado escondido travaria o serviço para as outras.
+  if (dados.calcular_como !== undefined || campos.unidade === 'un') {
+    const servico = campos.unidade === 'un' ? null : (dados.calcular_como || null)
     if (servico && !SERVICOS_CALCULO.includes(servico)) return falha('Escolha um cálculo da lista.')
     const outra = servico && existentes.find((e) => e.calcular_como === servico && e.id !== dados.id)
     if (outra) return falha(`Já existe uma etapa calculada como ${servico} nesta obra (${outra.nome}).`)
@@ -2009,7 +2010,23 @@ export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas) =>
   const obraId = obraAtual()
   if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
   await gravarCelulas(obraId, plantaId, linhas)
-  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {} } })
+  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {}, removidos: [], pendente: false } })
+  return ok(true)
+})
+
+// "Salvar tipo" / "Apagar" / peso por metro: guarda os tipos na planta na hora, sem mexer no quadro (isso é o
+// "Aplicar no quadro"). `removidos` = tipos apagados desde o último aplicar: ficam guardados para o aplicar
+// limpar as células deles. `pendente` = há mudança que ainda não foi para o quadro.
+export const guardarTiposDePeca = (plantaId, { tipos, kg_por_metro, removidos }) => executar(async () => {
+  if (!posso('pranchas.editar')) return falha('Seu perfil não edita o quadro de peças.')
+  for (const tipo of tipos) {
+    const erro = validarTipo(tipo, tipos)
+    if (erro) return falha(erro)
+  }
+  const obraId = obraAtual()
+  if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId },
+    { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {}, removidos: removidos ?? [], pendente: true } })
   return ok(true)
 })
 

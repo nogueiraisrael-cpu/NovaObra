@@ -21,7 +21,7 @@ import { Carregando, ErroCarga, Icon, useToast } from '../components/index.jsx'
 import { PainelPeca, PainelResumo, PainelEtapas } from './plantaPaineis.jsx'
 import { PainelQuantitativo } from './plantaQuantitativo.jsx'
 import { PainelTipos } from './plantaTipos.jsx'
-import { proximaPeca } from '../lib/sapataTipo.js'
+import { nomeDaPeca, proximaPeca } from '../lib/sapataTipo.js'
 
 const FERRAMENTAS = [
   { id: 'mover', icone: '✋', nome: 'Mover', tecla: 'V' },
@@ -223,7 +223,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
 
   async function gravarNova(tipo, pontos, caixaDoNome) {
     const campos = { tipo, pontos, ...extras(), rotacao: 0 }
-    campos.rotulo = peca.trim() || sugerirRotulo(planta.textos, caixaDoNome ?? bboxDe({ tipo, pontos }))
+    campos.rotulo = nomeDaPeca(peca) || sugerirRotulo(planta.textos, caixaDoNome ?? bboxDe({ tipo, pontos }))
     const problema = validarMarcacao(campos, etapa, valorNoQuadro(quadro, planta.id, campos.rotulo, etapa?.nome) != null)
     if (problema) return toast(problema, 'bad')
     setGravando(true)
@@ -467,7 +467,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
               <label>Quantidade ({etapa.unidade})<input className="field" inputMode="decimal" value={qtdTexto} onChange={(e) => setQtdTexto(e.target.value)} placeholder="vazio = quadro de peças" /></label>
             )}
             <label>Peça
-              <input className="field" list="gv-pecas" value={peca} onChange={(e) => setPeca(e.target.value)} placeholder="Do PDF, ou ex.: S7" autoComplete="off" />
+              <input className="field" list="gv-pecas" value={peca} onChange={(e) => setPeca(e.target.value)} placeholder="Do PDF, ou ex.: S7" autoComplete="off" autoCapitalize="characters" />
               <datalist id="gv-pecas">{pecas.map((p) => <option key={p} value={p} />)}</datalist>
             </label>
             <label>Placa (BT)<input className="field" value={lote} onChange={(e) => setLote(e.target.value)} placeholder="Ex.: BT 1111" autoComplete="off" /></label>

@@ -2,7 +2,7 @@
 // (concreto, lastro, forma, escavação, aço), o que gravar no quadro de peças e a próxima peça.
 // Medidas e tabelas fictícias, no formato das pranchas reais (que não entram no Git).
 import {
-  PESO_ACO_NBR, lerListaDePecas, tipoDoFormulario, MEDIDAS_PADRAO_CM, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
+  nomeDaPeca, PESO_ACO_NBR, lerListaDePecas, tipoDoFormulario, MEDIDAS_PADRAO_CM, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
 } from '../src/lib/sapataTipo.js'
 import { SERVICOS_CALCULO, UNIDADE_DO_SERVICO } from '../src/lib/listas.js'
 
@@ -105,6 +105,22 @@ conferir('tipo apagado não apaga peça que outro tipo assumiu', rRem.linhas.fil
 const comMilhar = tipoDoFormulario({ ...form, aco: [{ bitola: '10', comprimento_cm: '10.989' }] })
 conferir('"10.989" cm é dez mil novecentos e oitenta e nove', comMilhar.tipo.aco[0].comprimento_cm, 10989)
 conferir('"10,5" cm continua sendo dez e meio', tipoDoFormulario({ ...form, aco: [{ bitola: '10', comprimento_cm: '10,5' }] }).tipo.aco[0].comprimento_cm, 10.5)
+
+// Revisão de 19/11: maiúscula e minúscula são a mesma peça ("s2" no celular é a S2).
+conferir('lista em minúsculas vira maiúsculas', lerListaDePecas('s1=S2=s3 (x3)').pecas, ['S1', 'S2', 'S3'])
+conferir('"s1 a s3" também', lerListaDePecas('s1 a s3').pecas, ['S1', 'S2', 'S3'])
+conferir('campo Peça: "  s7 " é S7', nomeDaPeca('  s7 '), 'S7')
+conferir('campo Peça vazio: nada', nomeDaPeca('   '), '')
+
+// Revisão de 19/11: tipo sem aço não grava Armação 0 (é "sem quantitativo", não zero).
+const semAco = { ...tipo1, aco: [] }
+conferir('sem aço: a armação por peça é vazia, não zero', servicosDoTipo(semAco, PESO_ACO_NBR).Armação, null)
+const rSem = celulasDosTipos({ tipos: [semAco], etapas, atual: new Map(), kgPorMetro: PESO_ACO_NBR })
+conferir('sem aço: nenhuma célula de armação', rSem.linhas.filter((l) => l.etapa === 'ARMAÇÃO'), [])
+const atualSem = new Map([['S1|ARMAÇÃO', 0.00617], ['S2|ARMAÇÃO', 0.009]])
+const rTirou = celulasDosTipos({ tipos: [{ ...r1.tipos[0], aco: [] }], etapas, atual: atualSem, kgPorMetro: PESO_ACO_NBR })
+conferir('tirou o aço: limpa só a célula que o tipo tinha gravado; a digitada à mão fica',
+  rTirou.linhas.filter((l) => l.etapa === 'ARMAÇÃO'), [{ rotulo: 'S1', etapa: 'ARMAÇÃO', quantidade: null }])
 
 // ── Próxima peça ───────────────────────────────────────────────────────────────
 conferir('próxima peça pula a já marcada', proximaPeca(['S1', 'S2', 'S3', 'S10'], new Set(['S2']), 'S1'), 'S3')
