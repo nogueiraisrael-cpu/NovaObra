@@ -43,7 +43,7 @@ import {
   avancoDe, normalizarLote, mensagemDoEnvioDaPlanta, conferirMarcacao, limparRotulo, pedeQuantidade, validarMarcacao,
 } from './plantas.js'
 import { conferirLinhasDoQuadro, ultimaMedicaoDoContrato, andamentoDaObra } from './quantitativo.js'
-import { validarTipo } from './sapataTipo.js'
+import { validarTipo, renomearEtapaNosTipos } from './sapataTipo.js'
 import { SERVICOS_CALCULO } from './listas.js'
 import { encolherFoto } from './imagem.js'
 import { pode, podeAbrir, obrasVisiveis, veTodasAsObras, textosDeObras, fonteDosNomes } from './permissoes.js'
@@ -1925,8 +1925,10 @@ export const salvarEtapa = (dados) => executar(async () => {
   if (dados.item_medicao !== undefined && posso('medicoes.ver')) campos.item_medicao = String(dados.item_medicao ?? '').trim() || null
   // "Calcular como" (sapata por tipo): um serviço por obra; o banco também recusa (planta_etapas_um_servico).
   // Etapa em "un" não calcula (o campo some da tela): o cálculo guardado escondido travaria o serviço para as outras.
-  if (dados.calcular_como !== undefined || campos.unidade === 'un') {
-    const servico = campos.unidade === 'un' ? null : (dados.calcular_como || null)
+  // Etapa arquivada também solta o cálculo: arquivada, ela seguraria o serviço escondida.
+  const naoCalcula = campos.unidade === 'un' || campos.ativa === false
+  if (dados.calcular_como !== undefined || naoCalcula) {
+    const servico = naoCalcula ? null : (dados.calcular_como || null)
     if (servico && !SERVICOS_CALCULO.includes(servico)) return falha('Escolha um cálculo da lista.')
     const outra = servico && existentes.find((e) => e.calcular_como === servico && e.id !== dados.id)
     if (outra) return falha(`Já existe uma etapa calculada como ${servico} nesta obra (${outra.nome}).`)
@@ -1940,6 +1942,11 @@ export const salvarEtapa = (dados) => executar(async () => {
   if (antes.nome !== campos.nome) {
     await atualizar('planta_marcacoes', { obra_id: obraId, etapa: antes.nome }, { etapa: campos.nome })
     await atualizar('planta_quantitativos', { obra_id: obraId, etapa: antes.nome }, { etapa: campos.nome })
+    // E o que os tipos de sapata lembram ter gravado ("peça|etapa"), com a versão subindo (gaveta aberta é avisada).
+    for (const planta of await ler('plantas_visuais', { obra_id: obraId })) {
+      const novo = renomearEtapaNosTipos(planta.tipos_de_peca, antes.nome, campos.nome)
+      if (novo) await gravar('plantas_visuais', { id: planta.id, obra_id: obraId }, { tipos_de_peca: { ...novo, versao: versaoDosTipos(planta) + 1 } })
+    }
   }
   const [linha] = await gravar('planta_etapas', { id: dados.id, obra_id: obraId }, campos)
   return ok(linha)
@@ -2009,29 +2016,42 @@ function conferirTipos(tipos) {
 // SÓ DEPOIS os tipos (com `aplicadas` e `ultimo` novos). Nessa ordem, se cair no meio, os tipos guardados ainda
 // são os de antes: aplicar de novo recalcula a partir deles e completa (peça que saiu e tipo apagado ainda são
 // limpos). Na ordem inversa, essas limpezas se perderiam.
-export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas) => executar(async () => {
+export const aplicarTiposDePeca = (plantaId, { tipos, kg_por_metro }, linhas, versaoLida) => executar(async () => {
   const erroTipos = conferirTipos(tipos)
   if (erroTipos) return falha(erroTipos)
   const erroLinhas = conferirLinhasDoQuadro(linhas)
   if (erroLinhas) return falha(erroLinhas)
   const obraId = obraAtual()
-  if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  const planta = await plantaDaObra(plantaId, obraId)
+  if (!planta) return falha('Planta não encontrada nesta obra.')
+  if (versaoMudou(planta, versaoLida)) return falha(TIPOS_MUDARAM)
+  const versao = versaoDosTipos(planta) + 1
   await gravarCelulas(obraId, plantaId, linhas)
-  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {}, removidos: [], pendente: false } })
-  return ok(true)
+  await gravar('plantas_visuais', { id: plantaId, obra_id: obraId }, { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {}, removidos: [], pendente: false, versao } })
+  return ok({ versao })
 })
+
+// Duas pessoas com a gaveta de tipos aberta: cada gravação sobe `versao` (dentro de tipos_de_peca); quem grava em
+// cima de uma versão que não é a que leu é recusado, senão apagaria os tipos do outro. `versaoLida` ausente = não
+// confere (chamada sem tela, como nos testes antigos).
+const TIPOS_MUDARAM = 'Outra pessoa mudou os tipos desta planta enquanto você editava. Feche e abra os tipos de novo.'
+const versaoDosTipos = (planta) => Number(planta.tipos_de_peca?.versao ?? 0)
+const versaoMudou = (planta, versaoLida) => versaoLida !== undefined && versaoDosTipos(planta) !== versaoLida
 
 // "Salvar tipo" / "Apagar" / peso por metro: guarda os tipos na planta na hora, sem mexer no quadro (isso é o
 // "Aplicar no quadro"). `removidos` = tipos apagados desde o último aplicar: ficam guardados para o aplicar
 // limpar as células deles. `pendente` = há mudança que ainda não foi para o quadro.
-export const guardarTiposDePeca = (plantaId, { tipos, kg_por_metro, removidos }) => executar(async () => {
+export const guardarTiposDePeca = (plantaId, { tipos, kg_por_metro, removidos }, versaoLida) => executar(async () => {
   const erroTipos = conferirTipos(tipos)
   if (erroTipos) return falha(erroTipos)
   const obraId = obraAtual()
-  if (!(await plantaDaObra(plantaId, obraId))) return falha('Planta não encontrada nesta obra.')
+  const planta = await plantaDaObra(plantaId, obraId)
+  if (!planta) return falha('Planta não encontrada nesta obra.')
+  if (versaoMudou(planta, versaoLida)) return falha(TIPOS_MUDARAM)
+  const versao = versaoDosTipos(planta) + 1
   await gravar('plantas_visuais', { id: plantaId, obra_id: obraId },
-    { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {}, removidos: removidos ?? [], pendente: true } })
-  return ok(true)
+    { tipos_de_peca: { tipos, kg_por_metro: kg_por_metro ?? {}, removidos: removidos ?? [], pendente: true, versao } })
+  return ok({ versao })
 })
 
 // Tira uma peça do quadro (apaga as células dela). As marcações da peça continuam na planta.

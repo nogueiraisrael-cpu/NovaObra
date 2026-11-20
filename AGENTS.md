@@ -219,7 +219,9 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   `removidos` que o próximo aplicar limpa); só "Aplicar no quadro" mexe nas células. Nome de peça é sempre em
   maiúsculas (dono da regra: `limparRotulo` em `plantas.js`; `criarMarcacao`, `editarMarcacao` e o quadro passam
   por ela): "s2" e "S2" viravam duas peças e o previsto somava as duas. Etapa em "un" não guarda
-  `calcular_como`. Tipo sem aço não grava Armação (fica "sem quantitativo", nunca 0).
+  `calcular_como`, nem etapa arquivada (e etapa arquivada não recebe célula). Tipo sem aço não grava Armação (fica
+  "sem quantitativo", nunca 0). `tipos_de_peca.versao` sobe a cada gravação; gravar em cima de versão que não é a lida
+  é recusado (duas pessoas com a gaveta aberta). "Digitado à mão" = valor que nenhum tipo gravou.
 - **Gravações de várias etapas não são atômicas** (preencher frente, fechar RDO, mover pedido; no Planejamento:
   concluir no Kanban, lançar avanço no Longo prazo, subir/descer na EAP e importar planilha no modo "substituir"; nas Medições: "Trocar planilha"): se a internet cair
   no meio, parte fica gravada. Fechar o RDO marca "Fechado" por último, então repetir completa. Mover pedido grava
@@ -243,7 +245,7 @@ O projeto `minhaobra` da mesma conta é de outro repositório (versão anterior 
   (`conclusao_pendente`), com aviso: o engenheiro conclui de novo ou marca Operando.
   Gestão à Vista: subir planta manda o arquivo e depois grava a linha (se a linha falhar, o arquivo é apagado; para o
   Gerente, que não apaga planta, sobra um arquivo solto). Renomear uma etapa muda o nome nas marcações e depois a
-  etapa (desde 19/11 também o quadro de peças): se cair no meio, aparecem como etapa antiga com o nome novo, e salvar
+  etapa (desde 19/11 também o quadro de peças e o que os tipos lembram ter gravado, em cada planta): se cair no meio, aparecem como etapa antiga com o nome novo, e salvar
   de novo completa. Salvar o quadro de peças grava uma célula por vez: se cair no meio, parte fica gravada e salvar de
   novo completa. Aplicar tipos de peça grava as células e depois os tipos na planta: se cair no meio, os tipos
   continuam os de antes e aplicar de novo completa (nunca grave os tipos primeiro: a limpeza de peça que saiu se perde).

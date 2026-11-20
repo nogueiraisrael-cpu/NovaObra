@@ -129,6 +129,8 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
   // Tipos apagados desde o último "Aplicar no quadro": o aplicar limpa as células deles.
   const [removidos, setRemovidos] = useState(guardado.removidos ?? [])
   const [pendente, setPendente] = useState(Boolean(guardado.pendente))
+  // A versão dos tipos que esta gaveta leu: gravar em cima de outra (alguém mexeu ao mesmo tempo) é recusado.
+  const [versao, setVersao] = useState(Number(guardado.versao ?? 0))
   const [kgEditado, setKgEditado] = useState(() => Object.fromEntries(Object.entries(guardado.kg_por_metro ?? {}).map(([b, v]) => [b, String(v).replace('.', ',')])))
   const [editando, setEditando] = useState(null) // { indice } ou { indice: -1 } para novo
   const [conferindo, setConferindo] = useState(false)
@@ -143,12 +145,13 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
   // Salvar tipo, apagar e peso por metro gravam na hora (fechar a gaveta não perde nada); o quadro só muda no aplicar.
   async function guardar(novosTipos, novosRemovidos) {
     setOcupado(true)
-    const r = await guardarTiposDePeca(planta.id, { tipos: novosTipos, kg_por_metro: kgUsuario, removidos: novosRemovidos })
+    const r = await guardarTiposDePeca(planta.id, { tipos: novosTipos, kg_por_metro: kgUsuario, removidos: novosRemovidos }, versao)
     setOcupado(false)
     if (r.erro) { toast(r.erro, 'bad'); return false }
     setTipos(novosTipos)
     setRemovidos(novosRemovidos)
     setKgGuardado(JSON.stringify(kgUsuario))
+    setVersao(r.data.versao)
     setPendente(true)
     aoMudar()
     return true
@@ -174,9 +177,10 @@ function Tipos({ planta, etapas, quantitativos, fechar, aoMudar }) {
 
   async function aplicar() {
     setOcupado(true)
-    const r = await aplicarTiposDePeca(planta.id, { tipos: resultado.tipos, kg_por_metro: kgUsuario }, resultado.linhas)
+    const r = await aplicarTiposDePeca(planta.id, { tipos: resultado.tipos, kg_por_metro: kgUsuario }, resultado.linhas, versao)
     setOcupado(false)
     if (r.erro) return toast(r.erro, 'bad')
+    setVersao(r.data.versao)
     setPendente(false)
     setRemovidos([])
     toast('Tipos aplicados no quadro de peças.')

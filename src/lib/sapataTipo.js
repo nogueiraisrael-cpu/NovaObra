@@ -22,6 +22,27 @@ const arred = (n, casas = 4) => Math.round(n * 10 ** casas) / 10 ** casas
 // O nome do campo Peça, pela mesma regra de limparRotulo (maiúsculas); vazio = ''.
 export const nomeDaPeca = (texto) => limparRotulo(texto) ?? ''
 
+// O nome que o campo Peça dá a uma marcação nova: a seta é anotação, não peça, então não leva nome nem avança.
+export const pecaDoCampo = (tipo, texto) => (tipo === 'seta' ? '' : nomeDaPeca(texto))
+
+// Renomear uma etapa: as células que cada tipo lembra ter gravado (`ultimo`, chave "peça|etapa") passam a usar o
+// nome novo, nos tipos e nos apagados ainda não aplicados. Sem isso, a conferência acharia as células "digitadas
+// à mão" e apagar o tipo não as limparia. Devolve o objeto novo, ou null se a etapa não aparece em nenhum tipo.
+export function renomearEtapaNosTipos(tiposDePeca, antigo, novo) {
+  let mudou = false
+  const renomear = (t) => {
+    const ultimo = {}
+    for (const [k, v] of Object.entries(t.ultimo ?? {})) {
+      const i = k.lastIndexOf('|')
+      if (k.slice(i + 1) === antigo) { ultimo[`${k.slice(0, i)}|${novo}`] = v; mudou = true } else ultimo[k] = v
+    }
+    return { ...t, ultimo }
+  }
+  const tipos = (tiposDePeca?.tipos ?? []).map(renomear)
+  const removidos = (tiposDePeca?.removidos ?? []).map(renomear)
+  return mudou ? { ...tiposDePeca, tipos, removidos } : null
+}
+
 // "S1=S2=S3 (X11)", "S1, S2; S3", "S1 a S5" → { pecas, declarado, aviso }. Peças em maiúsculas.
 export function lerListaDePecas(texto) {
   let t = String(texto ?? '').toUpperCase()
@@ -129,7 +150,8 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = 
   const avisos = []
   const destino = {} // serviço → { etapa, fator }
   for (const s of SERVICOS_CALCULO) {
-    const etapa = etapas.find((e) => e.calcular_como === s)
+    // Etapa arquivada não recebe célula (o "calcular como" dela é antigo).
+    const etapa = etapas.find((e) => e.calcular_como === s && e.ativa !== false)
     if (!etapa) { avisos.push(`${s}: nenhuma etapa calculada como ${s}.`); continue }
     const esperado = UNIDADE_DO_SERVICO[s]
     if (etapa.unidade === esperado) destino[s] = { etapa: etapa.nome, fator: 1 }
@@ -142,6 +164,10 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = 
   let digitadas = 0
   // Peça que está em algum tipo agora nunca é apagada por outro (mudou de tipo na mesma aplicação).
   const emAlgumTipo = new Set(tipos.flatMap((t) => t.pecas))
+  // "Digitado à mão" = valor que NENHUM tipo (nem um apagado) gravou ali. A peça que mudou de tipo traz o valor
+  // do tipo antigo: isso não é digitação.
+  const gravadoPorTipo = new Set([...tipos, ...removidos].flatMap((t) => Object.entries(t.ultimo ?? {}).map(([k, v]) => `${k}=${v}`)))
+  const digitada = (k, agora) => agora != null && !gravadoPorTipo.has(`${k}=${agora}`)
   const novosTipos = tipos.map((tipo) => {
     const valores = servicosDoTipo(tipo, kgPorMetro)
     const ultimo = {}
@@ -151,7 +177,7 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = 
       const k = chaveDaCelula(rotulo, etapa)
       const agora = atual.get(k) ?? null
       if (agora === quantidade) return
-      if (agora != null && tipo.ultimo?.[k] !== agora) digitadas++
+      if (digitada(k, agora)) digitadas++
       linhas.push({ rotulo, etapa, quantidade })
     }
     for (const p of pecas) {
@@ -174,7 +200,7 @@ export function celulasDosTipos({ tipos, etapas, atual, kgPorMetro, removidos = 
     for (const k of Object.keys(tipo.ultimo ?? {})) {
       const [rotulo, etapa] = k.split('|')
       if (atual.get(k) == null || emAlgumTipo.has(rotulo) || linhas.some((l) => l.rotulo === rotulo && l.etapa === etapa)) continue
-      if (atual.get(k) !== tipo.ultimo[k]) digitadas++
+      if (digitada(k, atual.get(k))) digitadas++
       linhas.push({ rotulo, etapa, quantidade: null })
     }
   }

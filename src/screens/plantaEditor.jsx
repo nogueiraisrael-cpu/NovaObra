@@ -21,7 +21,7 @@ import { Carregando, ErroCarga, Icon, useToast } from '../components/index.jsx'
 import { PainelPeca, PainelResumo, PainelEtapas } from './plantaPaineis.jsx'
 import { PainelQuantitativo } from './plantaQuantitativo.jsx'
 import { PainelTipos } from './plantaTipos.jsx'
-import { nomeDaPeca, proximaPeca } from '../lib/sapataTipo.js'
+import { pecaDoCampo, proximaPeca } from '../lib/sapataTipo.js'
 
 const FERRAMENTAS = [
   { id: 'mover', icone: '✋', nome: 'Mover', tecla: 'V' },
@@ -223,7 +223,9 @@ export default function PlantaEditor({ plantaId, voltar }) {
 
   async function gravarNova(tipo, pontos, caixaDoNome) {
     const campos = { tipo, pontos, ...extras(), rotacao: 0 }
-    campos.rotulo = nomeDaPeca(peca) || sugerirRotulo(planta.textos, caixaDoNome ?? bboxDe({ tipo, pontos }))
+    // O campo Peça dá nome a retângulo e pincel; a seta é anotação e não usa o campo.
+    const doCampo = pecaDoCampo(tipo, peca)
+    campos.rotulo = doCampo || sugerirRotulo(planta.textos, caixaDoNome ?? bboxDe({ tipo, pontos }))
     const problema = validarMarcacao(campos, etapa, valorNoQuadro(quadro, planta.id, campos.rotulo, etapa?.nome) != null)
     if (problema) return toast(problema, 'bad')
     setGravando(true)
@@ -233,7 +235,7 @@ export default function PlantaEditor({ plantaId, voltar }) {
     setMarcacoes((ms) => [...ms, r.data])
     // A quantidade digitada vale para ESTA peça só: a próxima volta a usar o quadro de peças.
     setQtdTexto('')
-    if (peca.trim()) {
+    if (doCampo) {
       const marcadas = new Set([...marcacoes, r.data].filter((m) => m.etapa === r.data.etapa).map((m) => m.rotulo))
       setPeca(proximaPeca(pecas, marcadas, r.data.rotulo) ?? '')
     }

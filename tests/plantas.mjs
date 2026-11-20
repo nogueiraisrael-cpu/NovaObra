@@ -281,6 +281,31 @@ await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoG], kg_por_metro: 
 const aplicadoG = (await dados.abrirPlanta('pl-serra-fund')).data.planta.tipos_de_peca
 conferir('aplicar zera os apagados e o "falta aplicar"', [aplicadoG.removidos, aplicadoG.pendente], [[], false])
 
+// Defeito 6: duas pessoas com a gaveta de tipos aberta: quem grava em cima de versão velha é recusado.
+const versaoLida = aplicadoG.versao
+conferir('cada gravação dos tipos sobe a versão', typeof versaoLida === 'number' && versaoLida > 0, true)
+const daOutraPessoa = await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [tipoG], kg_por_metro: {}, removidos: [] }, versaoLida)
+conferir('quem leu a versão atual grava e recebe a nova', [daOutraPessoa.erro, daOutraPessoa.data?.versao], [null, versaoLida + 1])
+const FRASE_VERSAO = 'Outra pessoa mudou os tipos desta planta enquanto você editava. Feche e abra os tipos de novo.'
+conferir('guardar em cima de versão velha é recusado', (await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [], kg_por_metro: {}, removidos: [tipoG] }, versaoLida)).erro, FRASE_VERSAO)
+conferir('aplicar em cima de versão velha é recusado, sem mexer no quadro', (await dados.aplicarTiposDePeca('pl-serra-fund', { tipos: [tipoG], kg_por_metro: {} }, [{ rotulo: 'S40', etapa: 'Concretado', quantidade: 9 }], versaoLida)).erro, FRASE_VERSAO)
+conferir('o quadro não ganhou a célula recusada', (await dados.abrirPlanta('pl-serra-fund')).data.quantitativos.some((q) => q.rotulo === 'S40'), false)
+
+// Defeito 8: renomear a etapa leva junto o que os tipos lembram ter gravado.
+const versaoAntes = (await dados.abrirPlanta('pl-serra-fund')).data.planta.tipos_de_peca.versao
+await dados.guardarTiposDePeca('pl-serra-fund', { tipos: [{ ...tipoG, ultimo: { 'S40|Concretado': 0.3 } }], kg_por_metro: {}, removidos: [] }, versaoAntes)
+const concretadoSerra = (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Concretado')
+await dados.salvarEtapa({ ...concretadoSerra, nome: 'Concretagem' })
+const tdpRenomeado = (await dados.abrirPlanta('pl-serra-fund')).data.planta.tipos_de_peca
+conferir('renomear a etapa muda a chave nos tipos da planta', Object.keys(tdpRenomeado.tipos[0].ultimo), ['S40|Concretagem'])
+conferir('e sobe a versão (gaveta aberta em outro aparelho é recusada)', tdpRenomeado.versao > versaoAntes + 1, true)
+await dados.salvarEtapa({ ...concretadoSerra, nome: 'Concretado' })
+
+// Defeito 5: arquivar a etapa solta o "calcular como" (senão segura o serviço escondido).
+await dados.salvarEtapa({ ...concretadoSerra, ativa: false })
+conferir('etapa arquivada não guarda o cálculo', (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Concretado').calcular_como, null)
+await dados.salvarEtapa({ ...concretadoSerra, ativa: true })
+
 // Revisão de 19/11: etapa que vira "un" perde o "calcular como" (o campo some da tela).
 const formaUn = (await dados.listarEtapasDaPlanta()).data.find((e) => e.nome === 'Forma')
 await dados.salvarEtapa({ ...formaUn, unidade: 'un', calcular_como: 'Forma' })

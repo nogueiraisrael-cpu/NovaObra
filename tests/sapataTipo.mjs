@@ -2,7 +2,7 @@
 // (concreto, lastro, forma, escavação, aço), o que gravar no quadro de peças e a próxima peça.
 // Medidas e tabelas fictícias, no formato das pranchas reais (que não entram no Git).
 import {
-  nomeDaPeca, PESO_ACO_NBR, lerListaDePecas, tipoDoFormulario, MEDIDAS_PADRAO_CM, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
+  nomeDaPeca, pecaDoCampo, renomearEtapaNosTipos, PESO_ACO_NBR, lerListaDePecas, tipoDoFormulario, MEDIDAS_PADRAO_CM, validarTipo, contasDaSapata, acoPorPeca, servicosDoTipo, celulasDosTipos, proximaPeca,
 } from '../src/lib/sapataTipo.js'
 import { SERVICOS_CALCULO, UNIDADE_DO_SERVICO } from '../src/lib/listas.js'
 
@@ -126,6 +126,30 @@ conferir('tirou o aço: limpa só a célula que o tipo tinha gravado; a digitada
 let fraseBitola = null
 try { acoPorPeca([{ bitola: '4.2', comprimento_cm: 1000 }], 1, PESO_ACO_NBR) } catch (e) { fraseBitola = e.message }
 conferir('bitola sem peso: a frase diz 4,2 (vírgula)', fraseBitola, 'Sem peso por metro para a bitola 4,2.')
+
+// Defeito 5: etapa arquivada não recebe célula, mesmo com "calcular como" antigo.
+const etapasArq = etapas.map((e) => (e.nome === 'CONCRETAGEM' ? { ...e, ativa: false } : e))
+const rArq = celulasDosTipos({ tipos: [tipo1], etapas: etapasArq, atual: new Map(), kgPorMetro: PESO_ACO_NBR })
+conferir('etapa arquivada: nenhuma célula nela, e avisa que o serviço ficou sem etapa', [rArq.linhas.some((l) => l.etapa === 'CONCRETAGEM'), rArq.avisos.includes('Concreto: nenhuma etapa calculada como Concreto.')], [false, true])
+
+// Defeito 7: a seta não é peça; o campo Peça não vale para ela.
+conferir('campo Peça vale para retângulo e pincel (o Detectar grava pincel)', ['ret', 'pincel'].map((t) => pecaDoCampo(t, ' s3 ')), ['S3', 'S3'])
+conferir('campo Peça não vale para a seta', pecaDoCampo('seta', 'S3'), '')
+
+// Defeito 8: renomear a etapa leva junto o que os tipos lembram ter gravado.
+const tdpAntes = { tipos: [{ ...r1.tipos[0] }], kg_por_metro: {}, removidos: [{ nome: 'Velho', ultimo: { 'S9|CONCRETAGEM': 1 } }], pendente: false, versao: 3 }
+const tdpDepois = renomearEtapaNosTipos(tdpAntes, 'CONCRETAGEM', 'CONCRETO')
+conferir('renomear etapa: as chaves dos tipos e dos apagados mudam', [Object.keys(tdpDepois.tipos[0].ultimo).sort(), Object.keys(tdpDepois.removidos[0].ultimo)],
+  [['S1|ARMAÇÃO', 'S1|CONCRETO', 'S2|ARMAÇÃO', 'S2|CONCRETO'], ['S9|CONCRETO']])
+conferir('renomear etapa que os tipos não usam: nada muda', renomearEtapaNosTipos(tdpAntes, 'PINTURA', 'PINTADO'), null)
+
+// Achado no teste da tela: peça que muda de tipo não é "digitada à mão" (o valor foi o outro tipo que gravou).
+const tVelho = { ...r1.tipos[0], nome: 'Velho', pecas: ['S1'] }
+const tNovo = { ...tipo1, nome: 'Novo', pecas: ['S2'], medidas: { ...M, A: 1.2 }, aplicadas: [], ultimo: {} }
+const rMud = celulasDosTipos({ tipos: [tVelho, tNovo], etapas, atual: new Map([['S2|CONCRETAGEM', 0.3346], ['S2|ARMAÇÃO', 0.00617]]), kgPorMetro: PESO_ACO_NBR })
+conferir('peça que mudou de tipo: o valor do tipo antigo não conta como digitado', rMud.digitadas, 0)
+const rMao = celulasDosTipos({ tipos: [tNovo], etapas, atual: new Map([['S2|CONCRETAGEM', 0.9]]), kgPorMetro: PESO_ACO_NBR })
+conferir('valor que nenhum tipo gravou continua contando como digitado', rMao.digitadas, 1)
 
 // ── Próxima peça ───────────────────────────────────────────────────────────────
 conferir('próxima peça pula a já marcada', proximaPeca(['S1', 'S2', 'S3', 'S10'], new Set(['S2']), 'S1'), 'S3')
