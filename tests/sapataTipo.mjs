@@ -122,6 +122,11 @@ const rTirou = celulasDosTipos({ tipos: [{ ...r1.tipos[0], aco: [] }], etapas, a
 conferir('tirou o aço: limpa só a célula que o tipo tinha gravado; a digitada à mão fica',
   rTirou.linhas.filter((l) => l.etapa === 'ARMAÇÃO'), [{ rotulo: 'S1', etapa: 'ARMAÇÃO', quantidade: null }])
 
+// Teste na tela (19/11): a frase da bitola sem peso sai com vírgula, como o engenheiro escreve.
+let fraseBitola = null
+try { acoPorPeca([{ bitola: '4.2', comprimento_cm: 1000 }], 1, PESO_ACO_NBR) } catch (e) { fraseBitola = e.message }
+conferir('bitola sem peso: a frase diz 4,2 (vírgula)', fraseBitola, 'Sem peso por metro para a bitola 4,2.')
+
 // ── Próxima peça ───────────────────────────────────────────────────────────────
 conferir('próxima peça pula a já marcada', proximaPeca(['S1', 'S2', 'S3', 'S10'], new Set(['S2']), 'S1'), 'S3')
 conferir('depois da última volta ao começo', proximaPeca(['S1', 'S2', 'S3'], new Set(['S2']), 'S3'), 'S1')

@@ -25,7 +25,9 @@ function FormPeca({ marcacao, etapa, aoMudar, fechar }) {
   const unidade = etapa?.unidade && etapa.unidade !== 'un' ? etapa.unidade : null
   async function salvar() {
     const quantidade = medida ? lerNumero(qtd) : null
-    if (medida && quantidade === null) return toast(unidade ? `Preencha a quantidade em ${unidade}.` : 'Preencha a quantidade.', 'bad')
+    // Vazio pode: a peça com valor no quadro de peças soma de lá. Quem decide é editarMarcacao (dados.js), que
+    // recusa com frase a peça medida sem quadro. Aqui só o texto que não é número.
+    if (medida && qtd.trim() && quantidade === null) return toast(unidade ? `Quantidade em ${unidade}: escreva só o número.` : 'Quantidade: escreva só o número.', 'bad')
     setOcupado(true)
     const r = await editarMarcacao(marcacao.id, { rotulo, quantidade, lote, nota })
     setOcupado(false)

@@ -106,7 +106,7 @@ export function acoPorPeca(linhas, nPecas, kgPorMetro) {
   let kg = 0
   for (const l of linhas ?? []) {
     const peso = kgPorMetro[String(Number(l.bitola))]
-    if (!(peso > 0)) throw new Error(`Sem peso por metro para a bitola ${l.bitola}.`)
+    if (!(peso > 0)) throw new Error(`Sem peso por metro para a bitola ${String(Number(l.bitola)).replace('.', ',')}.`)
     kg += (Number(l.comprimento_cm) / 100) * peso
   }
   return nPecas ? arred(kg / nPecas) : 0
